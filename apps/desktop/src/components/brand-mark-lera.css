@@ -1,0 +1,30 @@
+/*
+ * Brand image override: swap the bundled "nous-girl.jpg" mark for Lera.png
+ * without editing the BrandMark component. This file is imported after
+ * styles.css (see main.tsx) so it wins on specificity/order.
+ *
+ * BrandMark renders:  <span class="... bg-white overflow-hidden rounded-md">
+ *                       <img class="size-full object-contain" src=".../nous-girl.jpg">
+ *                     </span>
+ *
+ * Strategy: hide the original <img> and paint Lera.png as the span's
+ * background, centered + contained. The span is already sized and positioned
+ * by its utility classes (size-16 on the About page), so the new image lands
+ * in exactly the same box, at the same size, with the same rounding.
+ *
+ * We key off the `.bg-white` brand tile that holds an <img>. Targeting the
+ * span via :has() avoids matching any other white surfaces in the app.
+ */
+
+span.bg-white:has(> img[src*="nous-girl"]) {
+  background-image: url("/lera.png");
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #fff;
+}
+
+/* Hide the original bitmap; the background above now shows through. */
+span.bg-white > img[src*="nous-girl"] {
+  visibility: hidden;
+}
