@@ -18,7 +18,10 @@
 
 span.bg-white:has(> img[src*="nous-girl"]) {
   background-image: url("/lera.png");
-  background-size: contain;
+  /* cover (not contain) so the image fills the square tile edge-to-edge.
+     contain letterboxed it and the leftover #fff backdrop showed as a white
+     band above/below the artwork. cover crops instead of padding. */
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   background-color: #fff;
