@@ -147,6 +147,17 @@ app.commandLine.appendSwitch('disable-renderer-backgrounding')
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
 app.commandLine.appendSwitch('disable-background-timer-throttling')
 
+// Opt-in renderer CDP endpoint for local debugging / automated verification.
+// Only enabled when HERMES_DESKTOP_REMOTE_DEBUG_PORT is set (Run.bat exposes it
+// behind a flag), and bound to 127.0.0.1 so the endpoint is never reachable off
+// the machine. Never set in packaged/prod runs — the env var simply isn't there.
+const REMOTE_DEBUG_PORT = (process.env.HERMES_DESKTOP_REMOTE_DEBUG_PORT || '').trim()
+if (REMOTE_DEBUG_PORT && /^\d+$/.test(REMOTE_DEBUG_PORT)) {
+  app.commandLine.appendSwitch('remote-debugging-port', REMOTE_DEBUG_PORT)
+  app.commandLine.appendSwitch('remote-debugging-address', '127.0.0.1')
+  console.log(`[hermes] renderer CDP endpoint enabled on http://127.0.0.1:${REMOTE_DEBUG_PORT}`)
+}
+
 const SOURCE_REPO_ROOT = path.resolve(APP_ROOT, '../..')
 
 // Build-time install stamp -- the git ref this .exe was built against.

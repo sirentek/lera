@@ -1,0 +1,2347 @@
+/* ════════════════════════════════════════════════════════════════════════
+   HOLO skin — structural layer.
+
+   The `holo` theme preset (themes/presets.ts) paints every color token red;
+   this file adds the sci-fi HUD structure from holo-home-concept.html:
+   environment glow + wall grid, CRT scanlines, chamfered neon frames,
+   glowing wordmark. Every rule is scoped to `[data-hermes-theme='holo']`
+   so the other skins are untouched, and nothing here changes component
+   behavior — buttons, menus and inputs keep their existing logic.
+   ════════════════════════════════════════════════════════════════════════ */
+
+:root[data-hermes-theme='holo'] {
+  --holo-core: #ffd9cf;
+  --holo-bright: #ff7a6f;
+  --holo-mid: #e8472f;
+  --holo-glow-1: rgba(255, 110, 100, 0.85);
+  --holo-glow-2: rgba(255, 70, 58, 0.45);
+  --holo-glow-3: rgba(225, 45, 40, 0.28);
+  --font-holo-display: 'Orbitron', 'Rajdhani', sans-serif;
+
+  /* Translucent surfaces so the environment shows through panels. */
+  --ui-chat-surface-background: rgba(16, 7, 5, 0.42);
+  /* Cooled from a warm red-brown (46,17,11) toward a near-neutral dark so the
+     sidebar surface stops reading red; the frame rings keep their full red.
+     Alpha pulled back to 0.20 — a brief lift to 0.36 occluded the hex wall
+     almost entirely (it compounds with the body fill below), so the panels
+     are kept translucent enough for the hexagons to read through. */
+  --ui-sidebar-surface-background: rgba(28, 21, 19, 0.2);
+  /* `--ui-bg-chrome` (-> --dt-background -> --background) paints the app
+     root's `bg-background` div, an opaque full-viewport layer that sits
+     above the html/body hexagon + wall-grid pseudos (z-index -2/-1). Left
+     opaque, it hides the entire environment. Translucent here lets it
+     through while still tinting the chrome. */
+  --ui-bg-chrome: rgba(16, 7, 5, 0.42);
+  /* Terminal surface is forced OPAQUE on holo. It feeds two things: the
+     persistent terminal overlay's backing color AND (via resolveSurfaceColor
+     probing this var) the xterm WebGL canvas background. Left translucent —
+     it inherits --ui-bg-chrome's 0.42 alpha by default — the canvas becomes a
+     transparent compositing layer that the GPU must re-blend against the hex
+     wall, body, and the sidebar frame's blur/drop-shadow layers behind it on
+     EVERY canvas redraw. `cursorBlink: true` redraws ~2×/s, so an idle prompt
+     alone keeps re-compositing a full-pane transparent layer over a filtered
+     backdrop — the steady CPU draw seen the moment the terminal opens. An
+     opaque surface makes the canvas occlude everything behind it, so a blink
+     repaints only the canvas and never touches the environment. The terminal
+     is a full takeover slab anyway, so the transparency showed nothing. */
+  --ui-editor-surface-background: #140907;
+  /* The straight pane-edge border is retired — the chamfered holo frame
+     (below) is the panel edge now. */
+  --sidebar-edge-border: transparent;
+
+  /* Chamfered HUD reads angular — flatten every radius token. */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+}
+
+:root[data-hermes-theme='holo'] [class*='rounded-full'],
+:root[data-hermes-theme='holo'] [class*=':rounded-full'] {
+  border-radius: 0;
+}
+
+/* ── environment: flat dark base behind the hex wall ────────────────────────
+   The two warm radial-gradient blobs that used to sit here (a top-center and
+   a bottom-right nebula glow) read as muddy brown stains/smudges smeared over
+   the clean hexagon wall rather than ambient light — the user wanted only the
+   hex fibers visible. Dropped to a flat near-black wash so the honeycomb on
+   ::before is the only thing the eye catches. */
+:root[data-hermes-theme='holo'] body {
+  position: relative;
+  background: #0c0504;
+}
+
+/* Hexagon "tron wall" — a faint honeycomb tiling sits behind the wall grid.
+   Lives on the html element's ::before (body's pseudos are the wall grid +
+   scanlines, html::after is the scan beam). The tile is an inline SVG: one
+   pointy-top hexagon outline plus the vertical link to the next row — the
+   classic 56×100 seamless honeycomb unit. (A repeating-conic-gradient can't
+   draw hexagons; the previous attempt rendered invisible wedges.)
+   Screen-blended so it only brightens the dark background and never washes
+   out panel content.
+
+   Ambient life comes from a slow tile drift plus an opacity "breathe", both
+   compositor-only. An earlier version revealed the wall with a roaming
+   spotlight mask whose gradient center was an animated custom property —
+   that repainted the full window every frame for the whole session and was
+   a top CPU/heat source. Don't reintroduce animated custom properties,
+   mask-position, or background-position here; only transform/opacity stay
+   off the main thread.
+
+   The drift translates by exactly one 56×100 tile so the loop is seamless.
+   The element is oversized by the same amount (inset: -100px) so no edge is
+   ever exposed; the vignette mask rides along but its ≤100px wander over
+   48s is imperceptible on a viewport-sized feathered gradient. */
+:root[data-hermes-theme='holo']::before {
+  content: '';
+  position: fixed;
+  inset: -100px;
+  z-index: -2;
+  pointer-events: none;
+  /* No mix-blend-mode. `screen` forced this fullscreen layer into its own
+     permanent compositing layer and made it re-blend against the dark
+     backdrop on repaints. The hex strokes are faint warm lines on a
+     near-black background, where normal blending looks all but identical to
+     screen — so we drop the blend mode and keep the look. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='rgba(255,130,100,0.35)' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-size: 56px 100px;
+  /* No vignette mask. The radial fade that used to live here darkened the
+     honeycomb unevenly toward the edges/corners, which read as the muddy
+     smears the user wanted gone — the fibers must be uniform edge-to-edge.
+     The flat near-black body base already keeps the wall from competing with
+     panel content, so no fade is needed. */
+  /* Static wall — the drift + breathe animations were removed earlier. */
+  opacity: 0.5;
+}
+
+/* The scattered-bloom + faint grid layer that used to ride body::before was
+   removed. Its soft radial blobs sat on top of the clean hex wall and read as
+   muddy stains/smudges over the honeycomb rather than "tiles lighting up";
+   the user asked for the smudge gone. The hex wall (html::before) and the
+   vignette in the body background carry the environment on their own now. */
+
+/* Kill the chat Backdrop statue. <Backdrop> (components/Backdrop.tsx) renders
+   a full-bleed inverted marble/statue photo (ds-assets/filler-bg0.jpg) at z-2,
+   difference-blended over the chat — a faint ambient texture for the default
+   skins. On holo it sits above the hex wall and reads as soft diagonal
+   cloud/smear bands drifting over the honeycomb (the "mud" the user kept
+   seeing after the body + mask layers were cleaned). Hidden here so only the
+   hex fibers paint behind the chat; the component still renders normally on
+   every other theme. */
+:root[data-hermes-theme='holo'] img[src$='filler-bg0.jpg'] {
+  display: none;
+}
+
+/* CRT scanline pass over the whole app — texture only, never interactive.
+   No mix-blend-mode: this layer sits at the very top of the stack, so a
+   `screen` blend forced the whole viewport to re-blend on every content
+   change beneath it (constant in a chat app). The lines are a 0.02-alpha
+   warm tint — normal blending over content looks the same without the
+   per-frame compositing cost. */
+:root[data-hermes-theme='holo'] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 170, 140, 0.02) 0 1px, transparent 1px 3px);
+}
+
+/* Scanner beam removed. A fullscreen drop-shadowed gradient swept across the
+   whole window on an infinite loop — even at the 5-minute cadence it kept a
+   large blurred, screen-blended layer alive and repainting. The static
+   scanlines (body::after) carry the CRT texture without per-frame cost. */
+
+/* ── intro hero: glowing wordmark + rotating holo rings ─────────────────── */
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] {
+  position: relative;
+  perspective: 1200px;
+  perspective-origin: 50% 42%;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro']::before,
+:root[data-hermes-theme='holo'] [data-slot='aui_intro']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(30rem, 70vmin);
+  height: min(30rem, 70vmin);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro']::before {
+  border: 1px dashed rgba(250, 110, 80, 0.28);
+  animation: holo-spin 38s linear infinite;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro']::after {
+  inset: auto;
+  width: min(24rem, 56vmin);
+  height: min(24rem, 56vmin);
+  border: 2px solid transparent;
+  border-top-color: rgba(255, 123, 111, 0.55);
+  filter: drop-shadow(0 0 6px rgba(255, 123, 111, 0.8));
+  animation: holo-spin-reverse 9s linear infinite;
+}
+
+@keyframes holo-spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes holo-spin-reverse {
+  from {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] {
+  /* The orb is a square (aspect-ratio: 1/1). If its size only tracks viewport
+     *width* (the old `min(78vw, 720px)`), a short window keeps the orb as tall as
+     it is wide, so it overflows the available height — the ring gets cropped top
+     and bottom and the caption below is pushed down under the composer.
+     Clamp the diameter against height too. The orb is centered and lifted 14vh,
+     and the caption + its gap need to fit below it, so the usable vertical span is
+     roughly half the viewport. ~58vh as the height-driven cap leaves headroom for
+     the lift and the caption; whichever of width/height is smaller wins, so the
+     orb shrinks instead of cropping when the window gets short. */
+  --holo-orb-size: min(78vw, 58vh, 720px);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro']::before,
+:root[data-hermes-theme='holo'] [data-slot='aui_intro']::after {
+  content: none;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-orb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: var(--holo-orb-size);
+  max-width: none !important;
+  aspect-ratio: 1 / 1;
+  pointer-events: none;
+  /* aui_intro reserves `padding-bottom: var(--composer-measured-height)` for the
+     composer, which drags the box's 50% line — and with it this orb — down toward
+     the input. Lift the orb (and the caption below, see .lera-holo-prompt) by a
+     fraction of the viewport so it sits clear of the composer instead of resting
+     on its top edge. */
+  transform: translate(-50%, calc(-50% - 14vh)) rotateX(5deg) translateZ(16px);
+  transform-style: preserve-3d;
+  animation: lera-holo-boot-in 900ms cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-orb::before,
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-orb::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-orb::before {
+  inset: 7%;
+  border: 1px solid rgba(255, 122, 111, 0.32);
+  box-shadow:
+    0 0 18px rgba(255, 122, 111, 0.42),
+    inset 0 0 34px rgba(255, 122, 111, 0.12);
+  animation: lera-holo-pulse 3.4s ease-in-out infinite;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-orb::after {
+  inset: 14%;
+  border: 1px dashed rgba(255, 81, 68, 0.34);
+  box-shadow: 0 0 30px rgba(255, 81, 68, 0.2);
+  animation: lera-holo-rotate 18s linear infinite;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-reactor {
+  position: absolute;
+  inset: 11%;
+  overflow: hidden;
+  border-radius: 50%;
+  clip-path: circle(50% at 50% 50%);
+  /* The reactor's outer glow used to be a 3-layer `filter: drop-shadow(...)`.
+     drop-shadow re-runs against the element's actual (changing) pixels every
+     frame the canvas animates — three stacked blurs up to 82px were a major
+     slice of the boot-time heat. box-shadow draws the same halo off the round
+     clip box, is content-independent, and the GPU caches it once instead of
+     recomputing it per canvas frame. Visually near-identical, far cheaper. */
+  box-shadow:
+    0 0 8px rgba(255, 81, 68, 0.88),
+    0 0 32px rgba(255, 81, 68, 0.48),
+    0 0 82px rgba(232, 71, 47, 0.28);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-reactor canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-ring-pass {
+  position: absolute;
+  inset: -5%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    from 20deg,
+    transparent 0deg,
+    rgba(255, 122, 111, 0.34) 36deg,
+    transparent 72deg,
+    transparent 148deg,
+    rgba(255, 81, 68, 0.32) 188deg,
+    transparent 232deg,
+    rgba(255, 217, 207, 0.24) 296deg,
+    transparent 360deg
+  );
+  mask-image: radial-gradient(circle, transparent 55%, #000 58%, #000 62%, transparent 65%);
+  animation: lera-holo-rotate 10s linear infinite reverse;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-scanline {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 46%;
+  height: 13%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 81, 68, 0.05) 18%,
+    rgba(255, 217, 207, 0.4) 49%,
+    rgba(255, 81, 68, 0.08) 78%,
+    transparent 100%
+  );
+  filter: blur(1px);
+  mask-image: radial-gradient(ellipse at 50% 50%, #000 0%, #000 64%, transparent 78%);
+  opacity: 0;
+  animation: lera-holo-flare 6.24s steps(43, end) forwards;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-hud-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-hud-lines i {
+  position: absolute;
+  width: 26%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 217, 207, 0.78), transparent);
+  box-shadow: 0 0 18px rgba(255, 122, 111, 0.5);
+  animation: lera-holo-hud-flicker 2.6s ease-in-out infinite;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-hud-lines i:nth-child(1) {
+  top: 19%;
+  left: 8%;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-hud-lines i:nth-child(2) {
+  top: 28%;
+  right: 5%;
+  animation-delay: 0.3s;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-hud-lines i:nth-child(3) {
+  bottom: 24%;
+  left: 6%;
+  animation-delay: 0.8s;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-hud-lines i:nth-child(4) {
+  right: 12%;
+  bottom: 16%;
+  animation-delay: 1.2s;
+}
+
+@keyframes lera-holo-boot-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translate(-50%, calc(-50% - 7vh)) rotateX(14deg) translateY(26px) translateZ(-60px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    /* Keep the -14vh lift from .lera-holo-orb: this animation runs with `both`,
+       so its `to` state is what persists after boot. Drop the lift here and the
+       orb would settle back down to dead-center on top of the composer. */
+    transform: translate(-50%, calc(-50% - 14vh)) rotateX(5deg) translateZ(16px);
+  }
+}
+
+@keyframes lera-holo-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.985);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.015);
+  }
+}
+
+@keyframes lera-holo-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lera-holo-flare {
+  0%,
+  20% {
+    opacity: 0;
+    transform: translateY(-10%) scaleX(0.6);
+  }
+  24%,
+  34% {
+    opacity: 0.72;
+    transform: translateY(-3%) scaleX(1);
+  }
+  40%,
+  100% {
+    opacity: 0;
+    transform: translateY(0) scaleX(1.08);
+  }
+}
+
+@keyframes lera-holo-hud-flicker {
+  0%,
+  100% {
+    opacity: 0.24;
+    transform: scaleX(0.72);
+  }
+  50% {
+    opacity: 0.88;
+    transform: scaleX(1);
+  }
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .fit-text {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-holo-display);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  mix-blend-mode: normal;
+  background: linear-gradient(180deg, #ffefea 35%, #ffb29f 50%, #f56e57 52%, #ffe2d9 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 12px rgba(255, 123, 111, 0.55)) drop-shadow(0 0 42px rgba(240, 80, 50, 0.3));
+  animation: holo-flicker 4s ease-in-out infinite;
+}
+
+@keyframes holo-flicker {
+  0%,
+  91%,
+  94%,
+  97%,
+  100% {
+    opacity: 1;
+  }
+  93% {
+    opacity: 0.65;
+  }
+  96% {
+    opacity: 0.82;
+  }
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] p:last-child {
+  position: relative;
+  z-index: 1;
+  color: var(--holo-bright);
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 18px rgba(250, 110, 80, 0.35);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-prompt {
+  --holo-prompt-text-width: min(34rem, 100%);
+  --holo-prompt-text-half: min(17rem, 50%);
+  position: absolute;
+  left: 50%;
+  /* Drop the prompt clear of the orb. The orb is centered at 50% with a
+     diameter of var(--holo-orb-size); its bottom edge sits at 50% + half that.
+     Anchor the prompt's top just past that edge so the copy reads as a caption
+     *under* the ring instead of overlapping the "LERA" wordmark inside it.
+     Deriving from the shared orb size (not a separate width-only expression)
+     keeps the caption pinned to the ring's edge as the orb shrinks on short
+     windows. The orb was lifted by 14vh (see .lera-holo-orb transform); subtract
+     the same 14vh here so the caption travels up with it and keeps its gap. */
+  top: calc(50% - 14vh + (var(--holo-orb-size) / 2) + clamp(14px, 3vh, 40px));
+  z-index: 2;
+  box-sizing: border-box;
+  width: min(var(--composer-width), calc(100% + 3rem), calc(100vw - 2rem));
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: max(0px, calc((100% - var(--holo-prompt-text-width)) / 2));
+  transform: translateX(-50%);
+  color: rgba(255, 209, 199, 0.82);
+  font-family: var(--dt-font-sans);
+  font-size: clamp(15px, 1.7vw, 22px);
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  text-shadow:
+    0 0 8px rgba(255, 81, 68, 0.56),
+    0 0 26px rgba(232, 71, 47, 0.34);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-prompt::before,
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-prompt::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: clamp(30px, 8vw, 110px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 122, 111, 0.68));
+  box-shadow: 0 0 12px rgba(255, 81, 68, 0.52);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-prompt::before {
+  right: calc(50% + var(--holo-prompt-text-half) + 14px);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-prompt::after {
+  left: calc(50% + var(--holo-prompt-text-half) + 14px);
+  transform: rotate(180deg);
+}
+
+/* ── composer: chamfered neon frame + glass body + bloom ────────────────── */
+:root[data-hermes-theme='holo'] [data-slot='composer-root'] {
+  border-radius: 0;
+  filter: drop-shadow(0 0 3px var(--holo-glow-1)) drop-shadow(0 0 12px var(--holo-glow-2));
+}
+
+/* The bottom fade gradient muddies the drop-shadow silhouette — drop it. */
+:root[data-hermes-theme='holo'] [data-slot='composer-root'] > .pointer-events-none {
+  background: none !important;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='composer-surface'] {
+  border-radius: 0 !important;
+  border-color: transparent !important;
+  /* Smaller top-right cut than the side panels — a compact single-row
+     composer has little headroom, and a 22px chamfer crowded the send
+     button into the cut corner. */
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+
+/* Neon frame line: hollow evenodd ring following the chamfer, 2px thick. */
+:root[data-hermes-theme='holo'] [data-slot='composer-surface']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background: linear-gradient(
+    160deg,
+    var(--holo-core) 0%,
+    var(--holo-bright) 28%,
+    var(--holo-mid) 55%,
+    var(--holo-bright) 82%,
+    var(--holo-core) 100%
+  );
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    calc(100% - 14px) 0,
+    100% 14px,
+    100% 100%,
+    0 100%,
+    0 0,
+    2px 2px,
+    2px calc(100% - 2px),
+    calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 2px) 13px,
+    calc(100% - 13px) 2px,
+    2px 2px
+  );
+  /* Shimmer removed — the ring sits at steady full brightness. It was the
+     last looping animation; four animated clipped gradient rings recomposited
+     continuously for a subtle pulse. */
+}
+
+/* Glass fill behind the input — dark translucent red instead of card mix. */
+:root[data-hermes-theme='holo'] [data-slot='composer-surface'] > [aria-hidden='true'],
+:root[data-hermes-theme='holo']
+  [data-slot='composer-root']:focus-within
+  [data-slot='composer-surface']
+  > [aria-hidden='true'] {
+  background: rgba(26, 8, 5, 0.55) !important;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='composer-rich-input'] {
+  color: #ffe5d9;
+  caret-color: var(--holo-bright);
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 10px rgba(255, 123, 111, 0.25);
+}
+
+/* Footer controls read as HUD chips: mono caps. The input itself is spared. */
+:root[data-hermes-theme='holo'] [data-slot='composer-surface'] button {
+  font-family: var(--dt-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Primary send / voice CTA: bright red gradient parallelogram. */
+:root[data-hermes-theme='holo'] [data-slot='composer-surface'] .bg-foreground {
+  background: linear-gradient(180deg, var(--holo-core), var(--holo-bright) 70%);
+  color: #1f0a07;
+  border-radius: 0;
+  clip-path: polygon(22% 0, 100% 0, 78% 100%, 0 100%);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='composer-surface'] .bg-foreground:hover {
+  background: linear-gradient(180deg, #fff0eb, #ff9384 70%);
+}
+
+/* ── sidebar: holographic 3D-depth frame ────────────────────────────────────
+   Both side panels reproduce the concept's `.holo` primitive: a chamfered
+   neon ring (::after), a dim duplicate ring projected behind it (::before —
+   the extruded-hologram "echo" that sells the depth) and a blurred copy of
+   the frame lines underneath the ring for the neon bloom (see "Line bloom").
+   Rings are inset so the frame floats off the panel edge with room for the
+   echo offset; the panels' overflow clips are released below ("Bloom
+   spill") so the halo bleeds past the pane like the composer's. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'],
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar'] {
+  --holo-frame-top: calc(var(--titlebar-height, 0px) + 0.375rem);
+  --holo-frame-inset: 9px;
+  --holo-frame-stroke: 3px;
+  --holo-frame-chamfer-inset: 1.5px;
+  --holo-frame-glow-stroke: 3px;
+  --holo-frame-glow-half: 2px;
+  --holo-frame-glow-line: rgba(255, 68, 54, 0.34);
+  --holo-frame-glow-hot: rgba(255, 92, 74, 0.42);
+  /* Outward halo — the soft neon bleed that spills off the frame line into the
+     surrounding column (the 2nd-reference "light shaft" look). Drawn as a STATIC
+     drop-shadow stack on the line-bloom layer (whose alpha is just the thin
+     frame strips, so the shadows hug the lines — not the panel silhouette).
+     Static = the GPU composites it once and leaves it; no per-frame cost, unlike
+     the old animated/44px-over-the-whole-panel stack.
+
+     Why a STACK and not one wide shadow: a single drop-shadow re-samples the
+     source's thin, semi-transparent alpha across its whole radius, so a 16px
+     blur diluted the glow to a ~5px aura that read as "no glow at all" (measured
+     over CDP: only 2-3px of >35 red around the line). Layering several shadows
+     at stepped radii compounds the alpha — near radii stay bright, far radii add
+     reach — so the halo measures ~25-56px of real falloff and actually reads as
+     neon. Each radius is small individually, so the per-shadow blur stays cheap;
+     it's still one-time and unanimated. */
+  --holo-frame-halo-1: 2px rgba(255, 120, 100, 1);
+  --holo-frame-halo-2: 4px rgba(255, 90, 72, 0.95);
+  --holo-frame-halo-3: 8px rgba(255, 80, 62, 0.85);
+  --holo-frame-halo-4: 14px rgba(255, 70, 55, 0.7);
+  --holo-frame-halo-5: 22px rgba(255, 60, 48, 0.5);
+  /* Chamfer cut size for the panel's angled corners. */
+  --holo-chamfer: 16px;
+  /* echo projection offset — x flips with the panel's side, see below */
+  --holo-ex: 11px;
+  --holo-ey: 11px;
+  /* wall-mounted tilt: the panel's inner edge leans away from the viewer.
+     Sign + origin flip with the panel's side, see below. */
+  --holo-tilt: 4deg;
+  position: relative;
+  /* The panel rect itself no longer paints — the glass fill lives inside the
+     ring (see below), so the strip between the frame and the panel edge shows
+     the bare environment, and the bloom silhouette hugs the frame instead of
+     the rectangle. */
+  background: transparent;
+  /* No backdrop-filter here: the blur region is the panel's full rectangle —
+     clip-path on the pseudos doesn't reach it — so it fogged the corner
+     regions outside the chamfer and the panels read as opaque rectangles.
+     The frosted-glass blur lives on the chamfer-clipped fill below. */
+  /* The frame glow is drawn by the dedicated ring/bloom pseudos below. Keep
+     the aside itself unfiltered so child text never casts a neon shadow. */
+  filter: none;
+  transform: none;
+  transform-origin: left center;
+}
+
+/* Glass fill — clipped to the chamfer, inset to the ring box. Both panel
+   pseudos are taken by the rings, so the fill rides the first content child;
+   it's absolutely positioned against the panel (the child is static) and a
+   negative z drops it beneath the echo ring and all content.
+   The right panel's frame anchors to the right-sidebar-panel wrapper instead
+   of the aside, so the frame stops above the context HUD card — the wrapper
+   zeroes the frame insets (it already IS the ring box). */
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::before,
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] > :first-child::before {
+  content: '';
+  position: absolute;
+  inset: var(--holo-frame-top) var(--holo-frame-inset) var(--holo-frame-inset);
+  z-index: -2;
+  pointer-events: none;
+  /* Depth shading on top of the glass tint: a faint top highlight and a
+     darker pool toward the bottom, so the panel reads as a recessed slab
+     rather than a flat tinted rectangle. */
+  background-image:
+    linear-gradient(180deg, rgba(255, 200, 180, 0.05) 0%, transparent 18%, rgba(0, 0, 0, 0.1) 100%),
+    /* Translucent tint instead of a frosted backdrop blur. backdrop-filter
+       re-blurs the environment every time anything behind the panel changes
+       (streaming text, cursor blink, scroll) — a near-per-frame cost in a
+       chat app and a top heat source. A flat tint avoids that entirely; the
+       alpha is kept low so the hex wall reads clearly through the panel
+       (user wanted more transparency) while the slab still tints the content.
+       The tint was a warm red-brown (34,13,9) that flushed the panel body
+       red; pulled toward a near-neutral dark (the green/blue channels lifted
+       closer to red) so the fill reads as a dim charcoal-warm slab, not a
+       red wash. The frame rings keep their full red — only the body cools.
+       Alpha pulled down to 0.16 — earlier values (0.52, then 0.34) still read
+       as a near-opaque dark slab and buried the hex wall across the whole
+       panel; this low so the hexagons clearly show through. The bottom black
+       depth-pool above was also cut 0.22 -> 0.10 for the same reason. */
+    linear-gradient(rgba(22, 16, 15, 0.16), rgba(22, 16, 15, 0.16));
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::before {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer))
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] > :first-child::before {
+  clip-path: polygon(
+    var(--holo-chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    0 100%,
+    0 var(--holo-chamfer)
+  );
+}
+
+/* The echo projects toward the screen center — and the tilt turns the panel
+   inward — on both sides. PaneShell can flip which side a panel sits on; the
+   side is what its border-l/border-r utility encodes, so key the echo offset,
+   tilt sign and rotation origin off that. */
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar'],
+:root[data-hermes-theme='holo'] [data-slot='sidebar'].border-l {
+  --holo-ex: -11px;
+  --holo-tilt: -4deg;
+  transform-origin: right center;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar'].border-r {
+  --holo-ex: 11px;
+  --holo-tilt: 4deg;
+  transform-origin: left center;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::before,
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::after,
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::before,
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::after {
+  content: '';
+  position: absolute;
+  inset: var(--holo-frame-top) var(--holo-frame-inset) var(--holo-frame-inset);
+  pointer-events: none;
+}
+
+/* Main ring — same gradient + shimmer as the composer frame. No filter
+   here: the ring's clip-path would clip a drop-shadow away (clip-path runs
+   after filter). The bloom is the dedicated line-glow layer below. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::after,
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::after {
+  z-index: 30;
+  background: linear-gradient(
+    160deg,
+    #ff9a84 0%,
+    #ff6558 28%,
+    var(--holo-mid) 55%,
+    #ff6558 82%,
+    #ff9a84 100%
+  );
+  /* Shimmer removed — the ring sits at steady full brightness. It was the
+     last looping animation; four animated clipped gradient rings recomposited
+     continuously for a subtle pulse. */
+}
+
+/* Echo ring — dim, slightly blurred duplicate offset behind the panel.
+   Negative z paints it over the glass fill but under all panel content. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::before,
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::before {
+  z-index: -1;
+  transform: translate(var(--holo-ex), var(--holo-ey));
+  background: linear-gradient(
+    160deg,
+    rgba(255, 170, 160, 0.9) 0%,
+    rgba(240, 90, 80, 0.7) 45%,
+    rgba(200, 45, 40, 0.8) 100%
+  );
+  opacity: 0.42;
+  filter: none;
+}
+
+/* Chamfer shapes. Sessions panel: top-right + bottom-left cut (concept
+   `.cut-2`); file panel mirrors it (top-left + bottom-right). Hollow
+   evenodd rings keep the interior transparent — only the stroke line paints. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::before,
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::after {
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer)),
+    0 0,
+    var(--holo-frame-stroke) var(--holo-frame-stroke),
+    var(--holo-frame-stroke) calc(100% - (var(--holo-chamfer) - var(--holo-frame-chamfer-inset))),
+    calc(var(--holo-chamfer) - var(--holo-frame-chamfer-inset)) calc(100% - var(--holo-frame-stroke)),
+    calc(100% - var(--holo-frame-stroke)) calc(100% - var(--holo-frame-stroke)),
+    calc(100% - var(--holo-frame-stroke)) calc(var(--holo-chamfer) - var(--holo-frame-chamfer-inset)),
+    calc(100% - (var(--holo-chamfer) - var(--holo-frame-chamfer-inset))) var(--holo-frame-stroke),
+    var(--holo-frame-stroke) var(--holo-frame-stroke)
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::before,
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::after {
+  clip-path: polygon(
+    evenodd,
+    var(--holo-chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    0 100%,
+    0 var(--holo-chamfer),
+    var(--holo-chamfer) 0,
+    calc(var(--holo-chamfer) - var(--holo-frame-chamfer-inset)) var(--holo-frame-stroke),
+    calc(100% - var(--holo-frame-stroke)) var(--holo-frame-stroke),
+    calc(100% - var(--holo-frame-stroke))
+      calc(100% - (var(--holo-chamfer) - var(--holo-frame-chamfer-inset))),
+    calc(100% - (var(--holo-chamfer) - var(--holo-frame-chamfer-inset)))
+      calc(100% - var(--holo-frame-stroke)),
+    var(--holo-frame-stroke) calc(100% - var(--holo-frame-stroke)),
+    var(--holo-frame-stroke) calc(var(--holo-chamfer) - var(--holo-frame-chamfer-inset)),
+    calc(var(--holo-chamfer) - var(--holo-frame-chamfer-inset)) var(--holo-frame-stroke)
+  );
+}
+
+/* Line bloom — neon glow hugging just the frame lines. It can't ride the
+   ring itself (clip-path applies after filter, so the shadow is clipped away
+   with everything outside the 2px line) and it can't ride the panel (a
+   drop-shadow there blooms around the whole silhouette — glass fill and
+   content included — not the lines). So the frame's edges and chamfer cuts
+   are re-painted here as background strips — real alpha, no clip-path — and
+   blurred into a halo. Rides the content child's ::after (the panel's own
+   pseudos are taken by the rings; the child is static, so the inset resolves
+   against the panel); z 29 tucks it just under the crisp z-30 ring. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::after,
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] > :first-child::after {
+  --holo-line: linear-gradient(var(--holo-frame-glow-line), var(--holo-frame-glow-line));
+  content: '';
+  position: absolute;
+  inset: var(--holo-frame-top) var(--holo-frame-inset) var(--holo-frame-inset);
+  /* z 29 tucks the glow just under the crisp z-30 ring and, crucially, ABOVE
+     the glass fill + content (which previously sat over a z:-1 bloom and buried
+     it — the frame read as a dull flat line with no spill). Now the neon edge
+     and its outward halo are both visible. The frame strips are painted only on
+     the line itself, so sitting above content doesn't wash the interior — the
+     glow stays on the edge and bleeds outward, not inward. */
+  z-index: 29;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  /* Bloom that hugs the frame line, then spills a soft halo OUTWARD (the
+     2nd-reference "light shaft"). The old stack ended in a 44px drop-shadow
+     over a full-panel box — that wide blur flooded the glow across the whole
+     sidebar interior, and it was animated. The cost there was the radius +
+     animation, not the shadow itself: this layer's painted alpha is only the
+     thin frame strips (no clip-path here — real alpha), so the shadows bloom
+     around the LINES, not the panel silhouette or its glass fill. The STACKED
+     stepped radii (see the --holo-frame-halo-* vars) compound the alpha into a
+     real ~25-56px neon falloff with a one-time GPU composite and no per-frame
+     work — the glow lands on the frame and the column beside it, never the
+     interior content. opacity:1 so the source alpha that feeds the shadows stays
+     at full strength (any reduction here dilutes every shadow in the stack). */
+  filter:
+    drop-shadow(0 0 var(--holo-frame-halo-1))
+    drop-shadow(0 0 var(--holo-frame-halo-2))
+    drop-shadow(0 0 var(--holo-frame-halo-3))
+    drop-shadow(0 0 var(--holo-frame-halo-4))
+    drop-shadow(0 0 var(--holo-frame-halo-5));
+  opacity: 1;
+}
+
+/* Layers: top edge, right edge, bottom edge, left edge, then the two chamfer
+   diagonals. Sessions panel cuts top-right + bottom-left, so its edges stop
+   short of those corners and the diagonals run NW–SE (45deg bands). */
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::after {
+  background-image:
+    var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
+    linear-gradient(
+      45deg,
+      transparent calc(50% - var(--holo-frame-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-frame-glow-half))
+        calc(50% + var(--holo-frame-glow-half)),
+      transparent calc(50% + var(--holo-frame-glow-half))
+    ),
+    linear-gradient(
+      45deg,
+      transparent calc(50% - var(--holo-frame-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-frame-glow-half))
+        calc(50% + var(--holo-frame-glow-half)),
+      transparent calc(50% + var(--holo-frame-glow-half))
+    );
+  background-size:
+    calc(100% - var(--holo-chamfer)) var(--holo-frame-glow-stroke),
+    var(--holo-frame-glow-stroke) calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) var(--holo-frame-glow-stroke),
+    var(--holo-frame-glow-stroke) calc(100% - var(--holo-chamfer)),
+    var(--holo-chamfer) var(--holo-chamfer),
+    var(--holo-chamfer) var(--holo-chamfer);
+  background-position:
+    top left,
+    right bottom,
+    bottom right,
+    left top,
+    right top,
+    left bottom;
+}
+
+/* File panel mirrors it: cuts top-left + bottom-right, diagonals NE–SW
+   (135deg bands). */
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] > :first-child::after {
+  background-image:
+    var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - var(--holo-frame-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-frame-glow-half))
+        calc(50% + var(--holo-frame-glow-half)),
+      transparent calc(50% + var(--holo-frame-glow-half))
+    ),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - var(--holo-frame-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-frame-glow-half))
+        calc(50% + var(--holo-frame-glow-half)),
+      transparent calc(50% + var(--holo-frame-glow-half))
+    );
+  background-size:
+    calc(100% - var(--holo-chamfer)) var(--holo-frame-glow-stroke),
+    var(--holo-frame-glow-stroke) calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) var(--holo-frame-glow-stroke),
+    var(--holo-frame-glow-stroke) calc(100% - var(--holo-chamfer)),
+    var(--holo-chamfer) var(--holo-chamfer),
+    var(--holo-chamfer) var(--holo-chamfer);
+  background-position:
+    top right,
+    right top,
+    bottom left,
+    left bottom,
+    left top,
+    right bottom;
+}
+
+/* Bloom spill — the composer's halo rides an unclipped root, so its
+   drop-shadow bleeds freely past the box. The panels' bloom is built from
+   the same shadows but was strangled by overflow clips: the panel root's
+   own overflow-hidden, the chat sidebar's intermediate SidebarContent
+   wrapper, and the PaneShell track wrapper. Release them so the halo escapes
+   into the neighboring columns the way the composer's does. Open tracks only
+   — a collapsed pane's 0px track must keep hiding its content (the
+   hover-reveal overlay keeps its own clip).
+   Inner scrollers (session list, file tree) clip their own content, so
+   nothing else leaks.
+
+   The app stage itself is one full-width `<main>` (`relative z-3 …
+   overflow-hidden`) that wraps BOTH sidebars + the chat column. The side
+   panels sit flush against its left/right edges, so that clip is the last thing
+   that strangles the outward halo — the glow reaches the stage edge and gets
+   cut there. Releasing it lets the bloom bleed past the window-edge panels the
+   way the composer's halo does. The chat column and every inner scroller keep
+   their own clips, so this only frees the frame halo, not page content. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'],
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar'],
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] > [data-slot='sidebar-content'],
+:root[data-hermes-theme='holo'] [data-pane-open='true'].holo-sidebar-pane,
+:root[data-hermes-theme='holo'] [data-slot='sidebar-wrapper'] > main {
+  overflow: visible;
+}
+
+/* …but freeing those clips had a side effect on the pane grid. PaneShell lays
+   the columns out in a single `h-full` grid row, and a grid track defaults to
+   `min-height: auto` — so its height is the MAX of its container (correct) and
+   its tallest item's content. While the panes clipped their own overflow that
+   content was bounded; now the bottom-flush HUD cards (CONTEXT LOAD / MODEL)
+   and the absolute composer measure their full height, stretching the single
+   row ~24px past the container. The row then overflows DOWNWARD past the grid
+   floor, dragging the composer + HUD cards over the statusbar.
+   Pin the tracks to `min-height: 0` so the row can't exceed the `h-full`
+   container: the grid floor lands exactly on the statusbar top, the composer
+   sits flush above the bar, and the HUD cards clear it — while the sideways
+   bloom above stays free. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar-wrapper'] > main > div > :is([data-pane-id], [data-pane-main]) {
+  min-height: 0;
+}
+
+/* The chat-sidebar pane precedes PaneMain in the DOM, so the main column's
+   positioned content paints over its spilled halo and the translucent chat
+   surface dims it. Lift the panel panes above the main column. 5 clears the
+   persistent terminal overlay (z 4): the z-index turns the pane into a
+   stacking context, flattening its internal z-20 resize handle down to the
+   pane's own level — anything lower than 5 would let the terminal overlay
+   cover that handle. */
+:root[data-hermes-theme='holo'] [data-pane-open='true'].holo-sidebar-pane {
+  z-index: 5;
+}
+
+/* Content steps inside the ring (now provided by the sidebar-panel wrapper —
+   see below — so the SidebarContent column itself adds no inset). */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] > [data-slot='sidebar-content'] {
+  padding: 0;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > [data-slot='sidebar-group']:first-child {
+  /* Wrapper already starts --holo-frame-top below the aside top, so only the
+     remainder up to the old titlebar+1.25rem inset is needed here. */
+  padding-top: 0.875rem;
+}
+
+/* The asides are just the column now: their padding places the panel wrapper
+   exactly on the old ring box, and the HUD card (CONTEXT LOAD / MODEL) stacks
+   below the wrapper flush with the same frame insets. Both sidebars share this
+   split: the frame anchors to the inner *-panel wrapper, not the aside. */
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar'],
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] > [data-slot='sidebar-content'] {
+  border-color: transparent;
+  box-shadow: none;
+  padding: var(--holo-frame-top) var(--holo-frame-inset) var(--holo-frame-inset);
+}
+
+/* Frame hosts — the wrapper IS the ring box, so the frame pseudos (rings on
+   the wrapper, glass + bloom on its first child) anchor at inset 0 by zeroing
+   the frame vars. Padding restores the content insets the aside used to
+   provide inside the ring. */
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] {
+  --holo-frame-top: 0px;
+  --holo-frame-inset: 0px;
+  position: relative;
+  padding: 0.875rem 0.6875rem 0.5625rem;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] {
+  --holo-frame-top: 0px;
+  --holo-frame-inset: 0px;
+  position: relative;
+  padding: 0 1.25rem 1.125rem;
+}
+
+/* The glass-fill + bloom pseudos ride the panel's first child but are
+   position:absolute and meant to resolve against the panel wrapper (the
+   position:relative ring box) so they span its full height. The chat sidebar's
+   first child is a nav SidebarGroup, which ships position:relative — that
+   captures the absolute pseudos and clamps the frame to the (short) nav group's
+   height, so the chamfer stops just below the nav instead of reaching the
+   panel bottom. Drop the relative here so the frame anchors to the wrapper, the
+   way the right sidebar's plain first-child div already does. The nav group has
+   no positioned descendants, so this is inert otherwise. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > [data-slot='sidebar-group']:first-child {
+  position: static;
+}
+
+/* Sidebar copy should stay crisp: the frames can glow, but labels, file names,
+   HUD readouts and inline glyph text should not get text glow/blur. */
+:root[data-hermes-theme='holo']
+  :is([data-slot='sidebar'], [data-slot='right-sidebar'])
+  :where(a, b, button, div, em, h1, h2, h3, kbd, label, li, p, small, span, strong) {
+  text-shadow: none !important;
+}
+
+/* ── sidebar: gradient NEW-SESSION CTA ──────────────────────────────────── */
+:root[data-hermes-theme='holo']
+  [data-slot='sidebar']
+  [data-slot='sidebar-menu-item']:first-child
+  > [data-slot='sidebar-menu-button'] {
+  background: linear-gradient(180deg, var(--holo-core), var(--holo-bright));
+  color: #1f0a06;
+  border-radius: 0;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  font-family: var(--font-holo-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  justify-content: center;
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.3);
+}
+
+:root[data-hermes-theme='holo']
+  [data-slot='sidebar']
+  [data-slot='sidebar-menu-item']:first-child
+  > [data-slot='sidebar-menu-button']:hover {
+  background: linear-gradient(180deg, #fff0eb, #ff9384);
+  color: #1f0a06;
+}
+
+:root[data-hermes-theme='holo']
+  [data-slot='sidebar']
+  [data-slot='sidebar-menu-item']:first-child
+  > [data-slot='sidebar-menu-button']
+  kbd,
+:root[data-hermes-theme='holo']
+  [data-slot='sidebar']
+  [data-slot='sidebar-menu-item']:first-child
+  > [data-slot='sidebar-menu-button']
+  [data-slot='kbd-group'] {
+  color: inherit;
+}
+
+/* Session rows: left accent line, flat HUD hover. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='sidebar-group'] .group.relative.grid {
+  border-left: 2px solid transparent;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='sidebar-group'] .group.relative.grid:hover {
+  border-left-color: var(--holo-bright);
+  box-shadow: 0 0 14px rgba(240, 90, 60, 0.18);
+}
+
+/* ── context + model HUD cards: chamfered mini-cards ──────────────────────
+   Two cards share this frame grammar: the CONTEXT LOAD gauge below the
+   file-tree frame (app/right-sidebar/context-hud.tsx) and the MODEL readout at
+   the foot of the left chat sidebar (app/chat/sidebar/model-hud.tsx). Both are
+   holo-only, fed by live session stores, and rendered as their own panel-level
+   cards at the same scale — so the frame rules below target both slots.
+   The concept's CONTEXT LOAD card (holo-home-concept.html). A sibling of the
+   framed right-sidebar-panel wrapper:
+   the aside's frame-inset padding lines its edges up with the panel ring
+   above, so it reads as its own panel at the same level (and collapses with
+   the pane). Full panel frame grammar at card scale — crisp 2px evenodd
+   ring (::after), the offset echo ring behind it (::before), glass fill and
+   line bloom on the header's pseudos — only the chamfer shrinks to fit the
+   card. The echo offset and the aside-level halo filter are inherited, so
+   depth and spill track the panel above (and flip with the pane's side). */
+:root[data-hermes-theme='holo'] [data-slot='context-hud'],
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] {
+  --holo-chamfer: 12px;
+  --holo-hud-glow-stroke: 3px;
+  --holo-hud-glow-half: 2px;
+  /* The card is much smaller than the sidebar panels, so the inherited
+     panel-scale echo offset reads as a blurry double edge along the ring
+     rather than a subtle depth cue — halve it to suit the card. The x sign
+     still flips with the panel's side via the rules below. */
+  --holo-ex: -8px;
+  --holo-ey: 8px;
+  position: relative;
+  flex: none;
+  margin-top: 0.75rem;
+  padding: 0.625rem 0.875rem 0.75rem;
+  font-family: var(--dt-font-mono);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar'].border-r [data-slot='context-hud'],
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar'].border-r [data-slot='model-hud'] {
+  --holo-ex: 8px;
+}
+
+/* The model HUD sits below the framed sidebar-panel as its own panel-level
+   card — a sibling of the wrapper, exactly like the right sidebar's CONTEXT
+   LOAD gauge. The SidebarContent column pads by the frame insets, so the card
+   lines up edge-for-edge with the ring above (no side margin needed, same as
+   ContextHud). Its echo must project inward toward screen-center the same way
+   the panel above it does: the chat Sidebar carries border-r when it sits on
+   the left (echo projects right → +x) and border-l when the panes are flipped
+   to the right (echo projects left → −x). The card-specific chamfer override
+   below handles its mirrored corner direction; this block only steers the echo
+   sign. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='model-hud'] {
+  --holo-ex: 8px;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar'].border-l [data-slot='model-hud'] {
+  --holo-ex: -8px;
+}
+
+/* Both rings share the hollow 2px line — same cut as the sessions panel
+   (top-right + bottom-left), at the card's 12px chamfer. */
+:root[data-hermes-theme='holo'] [data-slot='context-hud']::before,
+:root[data-hermes-theme='holo'] [data-slot='context-hud']::after,
+:root[data-hermes-theme='holo'] [data-slot='model-hud']::before,
+:root[data-hermes-theme='holo'] [data-slot='model-hud']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer)),
+    0 0,
+    2px 2px,
+    2px calc(100% - (var(--holo-chamfer) - 1px)),
+    calc(var(--holo-chamfer) - 1px) calc(100% - 2px),
+    calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 2px) calc(var(--holo-chamfer) - 1px),
+    calc(100% - (var(--holo-chamfer) - 1px)) 2px,
+    2px 2px
+  );
+}
+
+/* Main ring — same gradient + shimmer as the panel frames. */
+:root[data-hermes-theme='holo'] [data-slot='context-hud']::after,
+:root[data-hermes-theme='holo'] [data-slot='model-hud']::after {
+  z-index: 30;
+  background: linear-gradient(
+    160deg,
+    #ff9a84 0%,
+    #ff6558 28%,
+    var(--holo-mid) 55%,
+    #ff6558 82%,
+    #ff9a84 100%
+  );
+  /* Shimmer removed — the ring sits at steady full brightness. It was the
+     last looping animation; four animated clipped gradient rings recomposited
+     continuously for a subtle pulse. */
+}
+
+/* Echo ring — the dim offset duplicate that sells the depth. */
+:root[data-hermes-theme='holo'] [data-slot='context-hud']::before,
+:root[data-hermes-theme='holo'] [data-slot='model-hud']::before {
+  z-index: -1;
+  transform: translate(var(--holo-ex), var(--holo-ey));
+  background: linear-gradient(
+    160deg,
+    rgba(255, 170, 160, 0.9) 0%,
+    rgba(240, 90, 80, 0.7) 45%,
+    rgba(200, 45, 40, 0.8) 100%
+  );
+  opacity: 0.42;
+  filter: none;
+}
+
+/* Glass fill behind the numbers — the card's own pseudos are taken by the
+   rings, so it rides the header (static, so inset resolves against the
+   card); negative z drops it beneath the echo ring and all content. */
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] > header::before,
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] > header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    linear-gradient(180deg, rgba(255, 200, 180, 0.05) 0%, transparent 18%, rgba(0, 0, 0, 0.1) 100%),
+    /* Translucent tint, no backdrop blur — same reasoning + cooled tint as the
+       sidebar glass; the card body matches the panel fill in lock-step
+       (pulled down to 0.16 so the hex wall reads through). */
+    linear-gradient(rgba(22, 16, 15, 0.16), rgba(22, 16, 15, 0.16));
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer))
+  );
+}
+
+/* Line bloom — the panels' blurred frame-line copy (see "Line bloom" above)
+   at card scale: top-right + bottom-left cut, NW–SE diagonals. */
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] > header::after,
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] > header::after {
+  --holo-line: linear-gradient(var(--holo-frame-glow-line), var(--holo-frame-glow-line));
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* z 29 (same fix as the panel line-bloom): the glow must sit ABOVE the glass
+     fill + card content, not at z:-1 where it was buried and read as a dull
+     flat line. The strips paint only on the frame line, so it stays an edge
+     glow, never washing the card interior. */
+  z-index: 29;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-image:
+    var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
+    linear-gradient(
+      45deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    ),
+    linear-gradient(
+      45deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    );
+  background-size:
+    calc(100% - var(--holo-chamfer)) var(--holo-hud-glow-stroke),
+    var(--holo-hud-glow-stroke) calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) var(--holo-hud-glow-stroke),
+    var(--holo-hud-glow-stroke) calc(100% - var(--holo-chamfer)),
+    var(--holo-chamfer) var(--holo-chamfer),
+    var(--holo-chamfer) var(--holo-chamfer);
+  background-position:
+    top left,
+    right bottom,
+    bottom right,
+    left top,
+    right top,
+    left bottom;
+  /* Outward neon halo — the same STACKED stepped drop-shadows as the panel
+     line-bloom (see --holo-frame-halo-* and the rationale there). These vars
+     inherit from the sidebar root onto the cards, so the cards' glow tracks the
+     panels' in lock-step. opacity:1 keeps the source alpha that feeds the
+     shadows at full strength. A single wide shadow diluted to a ~5px nothing
+     here too; stacking compounds it into a real ~25-30px falloff at card scale.
+     Static + line-only = cheap and no interior wash, same as the panels. */
+  filter:
+    drop-shadow(0 0 var(--holo-frame-halo-1))
+    drop-shadow(0 0 var(--holo-frame-halo-2))
+    drop-shadow(0 0 var(--holo-frame-halo-3))
+    drop-shadow(0 0 var(--holo-frame-halo-4))
+    drop-shadow(0 0 var(--holo-frame-halo-5));
+  opacity: 1;
+}
+
+/* The left-sidebar MODEL card mirrors the context card's frame direction:
+   cuts move to top-left + bottom-right, with NE-SW chamfer lines. */
+:root[data-hermes-theme='holo'] [data-slot='model-hud']::before,
+:root[data-hermes-theme='holo'] [data-slot='model-hud']::after {
+  clip-path: polygon(
+    evenodd,
+    var(--holo-chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    0 100%,
+    0 var(--holo-chamfer),
+    var(--holo-chamfer) 0,
+    calc(var(--holo-chamfer) - 1px) 2px,
+    2px calc(var(--holo-chamfer) - 1px),
+    2px calc(100% - 2px),
+    calc(100% - (var(--holo-chamfer) - 1px)) calc(100% - 2px),
+    calc(100% - 2px) calc(100% - (var(--holo-chamfer) - 1px)),
+    calc(100% - 2px) 2px,
+    calc(var(--holo-chamfer) - 1px) 2px
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] > header::before {
+  clip-path: polygon(
+    var(--holo-chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    0 100%,
+    0 var(--holo-chamfer)
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] > header::after {
+  background-image:
+    var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    ),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    );
+  background-position:
+    top right,
+    right top,
+    bottom left,
+    left bottom,
+    left top,
+    right bottom;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] > header,
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-holo-display);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: var(--holo-bright);
+  text-shadow: 0 0 10px rgba(255, 123, 111, 0.7);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-gauge {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  flex: none;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-gauge svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 6px rgba(255, 123, 111, 0.6));
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-track {
+  stroke: rgba(190, 67, 47, 0.3);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-val {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  stroke: url(#holoHudGaugeGrad);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-pct {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-holo-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--holo-core);
+  text-shadow: 0 0 12px rgba(255, 160, 140, 0.9);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-pct small {
+  font-size: 0.5rem;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-kvs {
+  flex: 1;
+  min-width: 0;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-kvs > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.125rem 0;
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-kvs span {
+  color: #c9705d;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-kvs b {
+  color: #ffb29f;
+  font-weight: 400;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* ── model HUD: the model name + effort/thinking/fast trio ─────────────────
+   Now docked at the foot of the LEFT chat sidebar, above the profile rail
+   (chat/sidebar/model-hud.tsx), but it reuses the same chamfered frame grammar
+   as the context gauge (rings, glass, header bloom shared above) — the shared
+   [data-slot='model-hud'] rules above carry the frame; only the echo sign is
+   re-steered for the left sidebar (see the sidebar-scoped --holo-ex rules).
+   Body here is just the big model name and a key/value rack mirroring the
+   gauge's .hud-kvs, so it reads as a HUD card at the bottom of the sessions
+   panel the way the gauge anchors the file panel. */
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-name {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-holo-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--holo-core);
+  text-shadow: 0 0 12px rgba(255, 160, 140, 0.85);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-name em {
+  font-family: var(--dt-font-mono);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--holo-bright);
+  text-shadow: 0 0 8px rgba(255, 123, 111, 0.6);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-kvs > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.125rem 0;
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-kvs span {
+  color: #c9705d;
+  text-transform: uppercase;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-kvs b {
+  color: #ffb29f;
+  font-weight: 400;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* Off/empty state reads dim; an active toggle lights up to the bright accent. */
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-kvs b[data-on='false'] {
+  color: #8a4a3d;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-kvs b[data-on='true'] {
+  color: var(--holo-bright);
+  text-shadow: 0 0 8px rgba(255, 123, 111, 0.55);
+}
+
+/* ── model menu dropdown: chamfered HUD frame for the picker + options ──────
+   The model picker (model-menu-panel.tsx) and its per-row Options/Effort
+   submenu (model-edit-submenu.tsx) are plain Radix dropdowns. On every other
+   skin the shared border/blur fits in; on holo they read as flat boxes next
+   to the chamfered HUD, so re-skin them with the SAME frame grammar as the
+   sidebar panels/HUD cards: a chamfered glass surface, a hollow 2px neon ring,
+   and a neon bloom halo — so the menus read as holographic panels rather than
+   another app's chrome. This targets the dropdown content slots app-wide (the
+   model picker plus the status-bar / session-actions / composer menus), so
+   every popover shares the one HUD frame on this skin rather than only the
+   model menu.
+
+   Unlike the panels, a dropdown is a single div with real menu children (no
+   spare content child) AND the root's own clip-path crops its pseudos — so the
+   frame is just the chamfered glass root (clip + glass fill + bloom drop-shadow)
+   plus a ring on ::before; the panels' offset echo ring is dropped here since
+   it would need to escape that crop. The portaled content lives under <html>,
+   still inside the theme scope, so these selectors match.
+
+   The menu can flip to any side (Radix collision handling), so the chamfer is
+   symmetric — all four corners cut — instead of the panels' two-corner cut, to
+   stay coherent whichever way it opens. */
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content'],
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content'],
+:root[data-hermes-theme='holo'] [data-slot='popover-content'] {
+  --holo-chamfer: 12px;
+  position: relative;
+  /* Border + rounding retired — the chamfer clip + neon ring are the edge. */
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  /* Unclipped root so the offset depth echo (cast by the filter below) survives.
+     A clip-path on the root would bound the whole element — pseudos and the
+     filter's offset shadow included — to the chamfer, cutting the echo away
+     (that was the earlier "no effect" bug). So the chamfered glass FILL moves to
+     ::after (z -2), the neon RING stays on ::before, and the root just casts the
+     bloom + offset echo via filter. */
+  background: transparent;
+  /* Kill the base `shadow-md` utility — its first layer is a rectangular
+     0 0 0 1px hairline ring that follows the (un-clipped) border-box, so it
+     painted square tinted triangles in the chamfer corners outside the
+     diagonal cut. The holo frame's edge is the neon ::before ring; the root
+     carries depth only via the filter below. */
+  box-shadow: none !important;
+  /* Tight hug + soft bloom + a strong OFFSET echo (the extruded-hologram
+     duplicate that sells the 3D depth, like the sidebar panels). */
+  filter: drop-shadow(0 0 2px var(--holo-glow-1)) drop-shadow(0 0 12px var(--holo-glow-2))
+    drop-shadow(9px 9px 5px rgba(200, 45, 40, 0.5));
+  font-family: var(--dt-font-mono);
+}
+
+/* Chamfered glass fill behind the menu rows (z -2). Carries the chamfer clip the
+   root used to own. */
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content']::after,
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content']::after,
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content']::after,
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content']::after,
+:root[data-hermes-theme='holo'] [data-slot='popover-content']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(24, 13, 11, 0.94), rgba(13, 7, 6, 0.96));
+  clip-path: polygon(
+    var(--holo-chamfer) 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer)),
+    0 var(--holo-chamfer)
+  );
+}
+
+/* Neon ring on ::before — hollow 2px evenodd line tracing the four chamfer
+   cuts, same gradient as the panel/HUD frames. z-index keeps the 2px edge line
+   over the menu rows; pointer-events stay off so it never eats clicks. */
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content']::before,
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content']::before,
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content']::before,
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content']::before,
+:root[data-hermes-theme='holo'] [data-slot='popover-content']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    160deg,
+    var(--holo-core) 0%,
+    var(--holo-bright) 28%,
+    var(--holo-mid) 55%,
+    var(--holo-bright) 82%,
+    var(--holo-core) 100%
+  );
+  clip-path: polygon(
+    evenodd,
+    var(--holo-chamfer) 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer)),
+    0 var(--holo-chamfer),
+    var(--holo-chamfer) 0,
+    calc(var(--holo-chamfer) - 1px) 2px,
+    calc(100% - (var(--holo-chamfer) - 1px)) 2px,
+    calc(100% - 2px) calc(var(--holo-chamfer) - 1px),
+    calc(100% - 2px) calc(100% - (var(--holo-chamfer) - 1px)),
+    calc(100% - (var(--holo-chamfer) - 1px)) calc(100% - 2px),
+    calc(var(--holo-chamfer) - 1px) calc(100% - 2px),
+    2px calc(100% - (var(--holo-chamfer) - 1px)),
+    2px calc(var(--holo-chamfer) - 1px),
+    calc(var(--holo-chamfer) - 1px) 2px
+  );
+}
+
+/* Section labels (ANTHROPIC / OPTIONS / EFFORT) — neon HUD caps. */
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content'] [data-slot='dropdown-menu-label'],
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content'] [data-slot='dropdown-menu-label'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content'] [data-slot='context-menu-label'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content'] [data-slot='context-menu-label'] {
+  color: var(--holo-bright);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(255, 123, 111, 0.5);
+}
+
+/* Rows: cool text at rest, bright-accent wash on focus/hover/open + a neon
+   left edge so the highlighted row reads like a HUD selection. */
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content'] [data-slot='dropdown-menu-item'],
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content'] [data-slot='dropdown-menu-radio-item'],
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content'] [data-slot='dropdown-menu-sub-trigger'],
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content'] [data-slot='dropdown-menu-item'],
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content'] [data-slot='dropdown-menu-radio-item'],
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content'] [data-slot='dropdown-menu-sub-trigger'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content'] [data-slot='context-menu-item'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content'] [data-slot='context-menu-radio-item'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content'] [data-slot='context-menu-sub-trigger'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content'] [data-slot='context-menu-item'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content'] [data-slot='context-menu-radio-item'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content'] [data-slot='context-menu-sub-trigger'] {
+  box-shadow: inset 0 0 0 0 transparent;
+  color: #ffb29f;
+  transition:
+    background-color 0.12s ease,
+    box-shadow 0.12s ease,
+    color 0.12s ease;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content'] [data-slot='dropdown-menu-item']:focus,
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content'] [data-slot='dropdown-menu-radio-item']:focus,
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content'] [data-slot='dropdown-menu-sub-trigger']:focus,
+:root[data-hermes-theme='holo']
+  [data-slot='dropdown-menu-content']
+  [data-slot='dropdown-menu-sub-trigger'][data-state='open'],
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content'] [data-slot='dropdown-menu-item']:focus,
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content'] [data-slot='dropdown-menu-radio-item']:focus,
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content'] [data-slot='dropdown-menu-sub-trigger']:focus,
+:root[data-hermes-theme='holo']
+  [data-slot='dropdown-menu-sub-content']
+  [data-slot='dropdown-menu-sub-trigger'][data-state='open'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content'] [data-slot='context-menu-item']:focus,
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content'] [data-slot='context-menu-radio-item']:focus,
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content'] [data-slot='context-menu-sub-trigger']:focus,
+:root[data-hermes-theme='holo']
+  [data-slot='context-menu-content']
+  [data-slot='context-menu-sub-trigger'][data-state='open'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content'] [data-slot='context-menu-item']:focus,
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content'] [data-slot='context-menu-radio-item']:focus,
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content'] [data-slot='context-menu-sub-trigger']:focus,
+:root[data-hermes-theme='holo']
+  [data-slot='context-menu-sub-content']
+  [data-slot='context-menu-sub-trigger'][data-state='open'] {
+  background-color: color-mix(in srgb, var(--holo-mid) 26%, transparent) !important;
+  box-shadow: inset 2px 0 0 0 var(--holo-bright);
+  color: var(--holo-core) !important;
+}
+
+/* Separators + search caret pick up the neon edge. */
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-content'] [data-slot='dropdown-menu-separator'],
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-sub-content'] [data-slot='dropdown-menu-separator'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-content'] [data-slot='context-menu-separator'],
+:root[data-hermes-theme='holo'] [data-slot='context-menu-sub-content'] [data-slot='context-menu-separator'] {
+  background: color-mix(in srgb, var(--holo-bright) 40%, transparent);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='dropdown-menu-search'] input {
+  caret-color: var(--holo-bright);
+  color: var(--holo-core);
+}
+
+/* ── terminal close button: chamfered HUD eject control ─────────────────────
+   The terminal panel's hide/close button (right-sidebar/terminal/index.tsx) is
+   a 24px ghost icon button — fine on the default skins, but next to the
+   chamfered holo HUD it read as a tiny stray X. Re-skin it as a proper HUD
+   control: a larger angular tile with a hollow neon ring, a dim charcoal glass
+   fill, and an X that lights to the bright core with a bloom on hover. Same
+   frame grammar (chamfer clip + evenodd 2px ring + neon bloom) as the panels
+   and dropdowns, at button scale, so it reads as part of the HUD. */
+:root[data-hermes-theme='holo'] [data-slot='terminal-close'] {
+  --holo-btn-chamfer: 7px;
+  position: relative;
+  /* Pulled in from the panel edge so the tile clears the neon resize divider
+     it was overlapping on the right. */
+  margin-right: 0.625rem;
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, rgba(40, 18, 14, 0.6), rgba(20, 9, 7, 0.72)) !important;
+  /* Top-right cut — echoes the sessions-panel chamfer direction. */
+  clip-path: polygon(0 0, calc(100% - var(--holo-btn-chamfer)) 0, 100% var(--holo-btn-chamfer), 100% 100%, 0 100%);
+  color: var(--holo-bright) !important;
+  filter: drop-shadow(0 0 3px var(--holo-glow-2));
+  transition:
+    color 0.12s ease,
+    filter 0.12s ease;
+}
+
+/* Hollow 2px neon ring tracing the chamfer — same evenodd trick as the frames. */
+:root[data-hermes-theme='holo'] [data-slot='terminal-close']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    160deg,
+    var(--holo-core) 0%,
+    var(--holo-bright) 35%,
+    var(--holo-mid) 70%,
+    var(--holo-bright) 100%
+  );
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    calc(100% - var(--holo-btn-chamfer)) 0,
+    100% var(--holo-btn-chamfer),
+    100% 100%,
+    0 100%,
+    0 0,
+    1.5px 1.5px,
+    1.5px calc(100% - 1.5px),
+    calc(100% - 1.5px) calc(100% - 1.5px),
+    calc(100% - 1.5px) calc(var(--holo-btn-chamfer) - 0.5px),
+    calc(100% - (var(--holo-btn-chamfer) - 0.5px)) 1.5px,
+    1.5px 1.5px
+  );
+  opacity: 0.7;
+  transition: opacity 0.12s ease;
+}
+
+/* The X codicon sits above the ring; scaled up a touch from the cramped
+   0.875rem so it fills the larger tile. */
+:root[data-hermes-theme='holo'] [data-slot='terminal-close'] .codicon {
+  position: relative;
+  z-index: 2;
+  font-size: 0.9375rem !important;
+  text-shadow: 0 0 6px rgba(255, 123, 111, 0.5);
+}
+
+/* Hover: ring flares to full, the X lights to the hot core and blooms. */
+:root[data-hermes-theme='holo'] [data-slot='terminal-close']:hover {
+  background: linear-gradient(180deg, rgba(60, 24, 18, 0.7), rgba(30, 12, 9, 0.8)) !important;
+  color: var(--holo-core) !important;
+  filter: drop-shadow(0 0 6px var(--holo-glow-1)) drop-shadow(0 0 12px var(--holo-glow-2));
+}
+
+:root[data-hermes-theme='holo'] [data-slot='terminal-close']:hover::before {
+  opacity: 1;
+}
+
+/* ── pane resize divider: neon lightsaber bar ───────────────────────────────
+   The vertical pane boundary (PaneShell's `divider` hairline, a 1px span with
+   bg-(--ui-stroke-secondary)) is re-skinned as the reference's glowing red bar.
+
+   The glow is painted as the element's OWN background, not via box-shadow:
+   box-shadow halos paint outside the box, but the separator sits inside panes
+   that clip overflow, so a shadow-based halo gets cropped at the pane edge and
+   only the thin core survives (the bug being fixed here). Instead the span is
+   widened into a real glow strip whose background is a horizontal gradient — a
+   hot near-white core fading out through red to transparent — so the entire
+   glow lives inside the element box and can't be clipped or masked away.
+
+   The strip is overridden off the 1px Tailwind width and recentered on the
+   resize line. A static gradient paints once with no filter/blur and no
+   animation, so it costs nothing per frame. */
+:root[data-hermes-theme='holo'] [role='separator'][aria-orientation='vertical'] > span:first-child {
+  width: 29px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--holo-glow-3) 30%,
+    var(--holo-glow-2) 42%,
+    var(--holo-bright) 47%,
+    var(--holo-core) 50%,
+    var(--holo-bright) 53%,
+    var(--holo-glow-2) 58%,
+    var(--holo-glow-3) 70%,
+    transparent 100%
+  ) !important;
+}
+
+/* ── titlebar / headers: mono HUD lettering ─────────────────────────────── */
+:root[data-hermes-theme='holo'] header h2 {
+  font-family: var(--dt-font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BIG WINDOWS — the full-screen overlays the status-bar buttons open
+   (Agents, Cron, Command Center / Gateway "system", Settings …) plus the
+   dialogs and selects that open inside them.
+
+   These are <OverlayView>-based slabs (app/overlays/overlay-view.tsx): a
+   dimmed backdrop with a single rounded card floated in the middle. On every
+   other skin the soft card fits in; on holo it read as a flat rounded box
+   dropped over the chamfered HUD. So they get the SAME frame grammar as the
+   sidebar panels / dropdowns — a chamfered glass surface, a hollow 2px neon
+   ring, and a neon bloom halo — scaled up to a window.
+
+   Everything here is static: clip-paths, gradients, and one drop-shadow
+   bloom. No animation, no backdrop-filter on the big surfaces (the panels'
+   notes explain why a per-frame re-blur of a window-sized region is a heat
+   source) — the dim + tint is painted, not filtered, so it costs nothing
+   after first paint.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Backdrop: deepen the dim a touch and warm it so the window reads as a HUD
+   projection over the environment rather than a neutral modal scrim. The
+   global CRT scanline pass (body::after, z max-int) still rides on top. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-backdrop'],
+:root[data-hermes-theme='holo'] [data-slot='dialog-overlay'] {
+  background: radial-gradient(120% 120% at 50% 0%, rgba(60, 16, 10, 0.34), rgba(6, 3, 2, 0.58));
+}
+
+/* Window frame halo — the SAME stacked stepped-radii bloom the sidebar frames
+   use (--holo-frame-halo-*), so the big windows glow on their edges exactly
+   like the side panels rather than wearing the old weak two-step aura.
+   A single wide drop-shadow re-samples the thin ring alpha across its whole
+   radius and dilutes the glow to a few px (the sidebar notes explain this in
+   full); the stack compounds the alpha — near radii stay bright, far radii add
+   reach — into a real neon falloff. Static: composited once, no animation, no
+   per-frame cost. The window scale gets a touch more reach than the panels. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'],
+:root[data-hermes-theme='holo'] [data-slot='dialog-content'],
+:root[data-hermes-theme='holo'] [data-slot='select-content'] {
+  --holo-win-halo:
+    drop-shadow(0 0 2px rgba(255, 120, 100, 1))
+    drop-shadow(0 0 5px rgba(255, 90, 72, 0.95))
+    drop-shadow(0 0 10px rgba(255, 80, 62, 0.85))
+    drop-shadow(0 0 18px rgba(255, 70, 55, 0.65))
+    drop-shadow(0 0 28px rgba(255, 60, 48, 0.45));
+}
+
+:root[data-hermes-theme='holo'] [data-slot='dialog-overlay'] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* The window card. --holo-win-chamfer is larger than the panel chamfer to suit
+   the window scale. The straight border + rounding retire; the chamfer clip +
+   neon ring are the edge.
+
+   The root is kept UNCLIPPED (the chamfer clip moves to the fill pseudo below)
+   so the strong stacked-halo bloom (--holo-win-halo) can spill OUTWARD past the
+   card edge — exactly like the sidebar frames. If the clip stayed on the root,
+   it would crop the filter output (clip-path runs after filter) back to the
+   chamfer line and the glow would read flat, which is the old look we're
+   replacing. The Tailwind `overflow-hidden` only clips descendants, not the
+   root's own filter output, so the halo still escapes. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] {
+  --holo-win-chamfer: 22px;
+  position: relative;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  background: transparent;
+  filter: var(--holo-win-halo);
+}
+
+/* Chamfered glass fill on ::before — carries the chamfer clip the root used to
+   own, so the card surface still reads as a cut slab while the root stays
+   unclipped for the halo. z -2 keeps it behind the content + ring. (The ring
+   moves to ::after below.) */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background: linear-gradient(150deg, rgba(22, 11, 9, 0.94) 0%, rgba(12, 6, 5, 0.96) 100%);
+  clip-path: polygon(
+    var(--holo-win-chamfer) 0,
+    calc(100% - var(--holo-win-chamfer)) 0,
+    100% var(--holo-win-chamfer),
+    100% calc(100% - var(--holo-win-chamfer)),
+    calc(100% - var(--holo-win-chamfer)) 100%,
+    var(--holo-win-chamfer) 100%,
+    0 calc(100% - var(--holo-win-chamfer)),
+    0 var(--holo-win-chamfer)
+  );
+}
+
+/* Hollow 2px neon ring tracing the four chamfer cuts — the window's frame
+   line — on ::after. z-index keeps the edge over the content columns;
+   pointer-events off so it never eats clicks. Its own evenodd clip-path makes
+   it a hollow ring; with the root unclipped this pseudo defines the visible
+   chamfer edge, and the root's stacked halo blooms off it. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: linear-gradient(
+    150deg,
+    var(--holo-core) 0%,
+    var(--holo-bright) 28%,
+    var(--holo-mid) 55%,
+    var(--holo-bright) 82%,
+    var(--holo-core) 100%
+  );
+  clip-path: polygon(
+    evenodd,
+    var(--holo-win-chamfer) 0,
+    calc(100% - var(--holo-win-chamfer)) 0,
+    100% var(--holo-win-chamfer),
+    100% calc(100% - var(--holo-win-chamfer)),
+    calc(100% - var(--holo-win-chamfer)) 100%,
+    var(--holo-win-chamfer) 100%,
+    0 calc(100% - var(--holo-win-chamfer)),
+    0 var(--holo-win-chamfer),
+    var(--holo-win-chamfer) 0,
+    calc(var(--holo-win-chamfer) - 1px) 2px,
+    calc(100% - (var(--holo-win-chamfer) - 1px)) 2px,
+    calc(100% - 2px) calc(var(--holo-win-chamfer) - 1px),
+    calc(100% - 2px) calc(100% - (var(--holo-win-chamfer) - 1px)),
+    calc(100% - (var(--holo-win-chamfer) - 1px)) calc(100% - 2px),
+    calc(var(--holo-win-chamfer) - 1px) calc(100% - 2px),
+    2px calc(100% - (var(--holo-win-chamfer) - 1px)),
+    2px calc(var(--holo-win-chamfer) - 1px),
+    calc(var(--holo-win-chamfer) - 1px) 2px
+  );
+}
+
+/* The reticle "tick" reticle layer that used to ride ::after is retired: the
+   root is now unclipped so its pseudos are spent on the chamfer fill (::before)
+   and the hollow neon ring (::after), and the edge glow comes from the stacked
+   --holo-win-halo bloom on the root — the same frame language as the sidebars. */
+
+/* The close button sits at right:0.75rem, mid-titlebar — close enough to the
+   top-right chamfer cut that the clip can nick its corner. Pull it inboard so it
+   clears the diagonal. Re-skinned to match the terminal panel's eject control
+   (see "terminal close button" above): the same chamfered HUD tile — angular
+   top-right cut, hollow neon ring, dim charcoal glass fill, and an X that lights
+   to the hot core with a bloom on hover — so the Agents / Cron windows close
+   from the same control the PowerShell pane uses. The button is the only direct
+   child <div>'s <button>; target it via the header bar wrapper to stay specific. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] > div:first-child > button:last-child {
+  --holo-btn-chamfer: 7px;
+  /* The window's top-right corner carries two stacked frame graphics: the 22px
+     chamfer diagonal and, just inside it, the reticle "tick" (an inverted-L neon
+     bracket at inset:10px, ~18px per arm, so it reaches ~28px in from each edge).
+     The base button is centered on the short titlebar at right:0.75rem, which
+     lands the tile square on that bracket AND with an uneven top/right gap. Pin
+     the tile to the corner clear of the chamfer + the ~28px reticle arms.
+     The top gap reads smaller than the right gap because the tile's own 7px
+     top-right chamfer eats into its top-right corner — so the visible body sits
+     higher than its box top. Push the top inset out past the right inset
+     (2.5rem vs 2rem) so the *visible* tile is equidistant from the top and
+     right neon lines. The base button's titlebar-centering top/translate are
+     overridden outright. */
+  top: 2.5rem !important;
+  right: 2rem !important;
+  transform: none !important;
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+  border-radius: 0 !important;
+  background: linear-gradient(180deg, rgba(40, 18, 14, 0.6), rgba(20, 9, 7, 0.72)) !important;
+  /* Top-right cut — echoes the sessions-panel chamfer direction. */
+  clip-path: polygon(0 0, calc(100% - var(--holo-btn-chamfer)) 0, 100% var(--holo-btn-chamfer), 100% 100%, 0 100%);
+  color: var(--holo-bright) !important;
+  filter: drop-shadow(0 0 3px var(--holo-glow-2));
+  transition:
+    color 0.12s ease,
+    filter 0.12s ease;
+}
+
+/* Hollow 2px neon ring tracing the chamfer — same evenodd trick as the frames. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] > div:first-child > button:last-child::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    160deg,
+    var(--holo-core) 0%,
+    var(--holo-bright) 35%,
+    var(--holo-mid) 70%,
+    var(--holo-bright) 100%
+  );
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    calc(100% - var(--holo-btn-chamfer)) 0,
+    100% var(--holo-btn-chamfer),
+    100% 100%,
+    0 100%,
+    0 0,
+    1.5px 1.5px,
+    1.5px calc(100% - 1.5px),
+    calc(100% - 1.5px) calc(100% - 1.5px),
+    calc(100% - 1.5px) calc(var(--holo-btn-chamfer) - 0.5px),
+    calc(100% - (var(--holo-btn-chamfer) - 0.5px)) 1.5px,
+    1.5px 1.5px
+  );
+  opacity: 0.7;
+  transition: opacity 0.12s ease;
+}
+
+/* The X codicon sits above the ring. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] > div:first-child > button:last-child .codicon {
+  position: relative;
+  z-index: 2;
+  font-size: 0.9375rem !important;
+  text-shadow: 0 0 6px rgba(255, 123, 111, 0.5);
+}
+
+/* Hover: ring flares to full, the X lights to the hot core and blooms. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] > div:first-child > button:last-child:hover {
+  background: linear-gradient(180deg, rgba(60, 24, 18, 0.7), rgba(30, 12, 9, 0.8)) !important;
+  color: var(--holo-core) !important;
+  filter: drop-shadow(0 0 6px var(--holo-glow-1)) drop-shadow(0 0 12px var(--holo-glow-2));
+}
+
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] > div:first-child > button:last-child:hover::before {
+  opacity: 1;
+}
+
+/* The split-layout columns (Cron list/detail, Settings nav/pane) fill the card
+   inset:0, edge to edge. The card's chamfer clip cuts the four corners, but the
+   sidebar's OPAQUE surface bg paints right up to those cut edges — so on the
+   bottom-left (and the master column's top-left) the fill overdraws the dark
+   window border zone where the neon ring + corner reticle should read. That's
+   why Cron's glow looked "missing" next to Agents (whose padded content leaves
+   the corners dark). Pull the whole split grid inboard by the chamfer + ring so
+   the card's own chamfered fill, ring (::before) and ticks (::after) stay
+   visible around all four corners, exactly like the Agents window. The grid is
+   the overlay's content wrapper's only child; it carries h-full + the grid-cols
+   template, which the inset preserves. We tag the split grid with a data-slot
+   (overlay-split) and target THAT, so the cron detail's inner sm:grid-cols-2
+   form and other nested grids are left untouched. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] [data-slot='overlay-split'] {
+  margin: var(--holo-win-chamfer) calc(var(--holo-win-chamfer) - 4px);
+  height: calc(100% - 2 * var(--holo-win-chamfer)) !important;
+}
+
+/* The overlay's split-layout inner sidebar (Cron list, Settings nav, …) gets a
+   neon divider on its trailing edge so the master/detail split reads as a HUD
+   seam rather than a flat color change. The sidebar is an <aside> with the
+   sidebar surface bg inside the OverlaySplitLayout grid. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] aside {
+  position: relative;
+  background: linear-gradient(180deg, rgba(26, 13, 11, 0.5), rgba(14, 7, 6, 0.6));
+  /* The trailing seam now reads as a glowing HUD divider with depth: the crisp
+     inner neon line, a soft outward bloom on that edge, and a recessed inner
+     shadow so the master column sits *below* the detail pane rather than flush —
+     the same glow + depth language as the chamfered frames, expressed as edge
+     shadows since the inner sidebar is a plain rect with no chamfer. */
+  box-shadow:
+    inset -1px 0 0 0 color-mix(in srgb, var(--holo-bright) 70%, transparent),
+    inset -2px 0 10px -4px rgba(20, 10, 8, 0.7),
+    2px 0 12px -2px var(--holo-glow-2);
+}
+
+/* Overlay headings → mono HUD caps, matching the panel headers. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] h2,
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] h3 {
+  font-family: var(--dt-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--holo-core);
+  text-shadow: 0 0 12px rgba(255, 160, 140, 0.4);
+}
+
+/* Section caps inside the windows pick up the neon accent. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-view'] .uppercase {
+  color: var(--holo-bright);
+}
+
+/* ── window submenus: dialogs + selects opened from inside the windows ──────
+   The Cron editor (Dialog) and its schedule/delivery pickers (Select) are
+   portaled under <html> (still in theme scope). Give them the same chamfered
+   HUD frame as the dropdowns so the sub-windows match the parent window. */
+:root[data-hermes-theme='holo'] [data-slot='dialog-content'] {
+  --holo-chamfer: 16px;
+  position: relative;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  /* Keep the root unclipped so the chamfered fill/ring pseudos can draw the
+     frame. A rectangular box-shadow leaves dark square artifacts at the cut
+     corners, so use a small drop-shadow stack that follows the alpha shape. */
+  background: transparent;
+  box-shadow: none !important;
+  /* Same stacked stepped-radii bloom as the sidebar frames (see --holo-win-halo)
+     so the dialog edge glows like the side panels, not a thin diffuse aura. */
+  filter: var(--holo-win-halo);
+  font-family: var(--dt-font-mono);
+}
+
+/* Chamfered glass fill on ::before (z -2, behind content + ring). This carries
+   the chamfer clip the root used to own. */
+:root[data-hermes-theme='holo'] [data-slot='dialog-content']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background: linear-gradient(160deg, rgba(24, 13, 11, 0.96), rgba(13, 7, 6, 0.97));
+  clip-path: polygon(
+    var(--holo-chamfer) 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer)),
+    0 var(--holo-chamfer)
+  );
+}
+
+/* Hollow 2px neon ring on the dialog's chamfer. The grid-positioned content
+   children (header/footer/form) own the body; this rides a wrapper pseudo, so
+   we anchor it to a fresh ::after that sits above content at z 1. The dialog
+   content uses `grid` with gap, so a positioned ::after won't disturb flow. */
+:root[data-hermes-theme='holo'] [data-slot='dialog-content']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    160deg,
+    var(--holo-core) 0%,
+    var(--holo-bright) 28%,
+    var(--holo-mid) 55%,
+    var(--holo-bright) 82%,
+    var(--holo-core) 100%
+  );
+  clip-path: polygon(
+    evenodd,
+    var(--holo-chamfer) 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer)),
+    0 var(--holo-chamfer),
+    var(--holo-chamfer) 0,
+    calc(var(--holo-chamfer) - 1px) 2px,
+    calc(100% - (var(--holo-chamfer) - 1px)) 2px,
+    calc(100% - 2px) calc(var(--holo-chamfer) - 1px),
+    calc(100% - 2px) calc(100% - (var(--holo-chamfer) - 1px)),
+    calc(100% - (var(--holo-chamfer) - 1px)) calc(100% - 2px),
+    calc(var(--holo-chamfer) - 1px) calc(100% - 2px),
+    2px calc(100% - (var(--holo-chamfer) - 1px)),
+    2px calc(var(--holo-chamfer) - 1px),
+    calc(var(--holo-chamfer) - 1px) 2px
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='dialog-title'] {
+  font-family: var(--dt-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--holo-core);
+  text-shadow: 0 0 12px rgba(255, 160, 140, 0.4);
+}
+
+/* Select popovers opened inside the windows reuse the dropdown frame (the
+   dropdown rules already cover [data-slot='dropdown-menu-content']; selects are
+   a separate Radix slot, so mirror the chamfer + ring here). */
+:root[data-hermes-theme='holo'] [data-slot='select-content'] {
+  --holo-chamfer: 10px;
+  position: relative;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+  /* Unclipped root (see dialog note): glass fill rides ::after, ring rides
+     ::before. */
+  background: transparent;
+  box-shadow: none !important;
+  /* Stacked stepped-radii bloom (see --holo-win-halo) — matches the side panels. */
+  filter: var(--holo-win-halo);
+  font-family: var(--dt-font-mono);
+}
+
+/* Chamfered glass fill behind the rows. */
+:root[data-hermes-theme='holo'] [data-slot='select-content']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(24, 13, 11, 0.96), rgba(13, 7, 6, 0.97));
+  clip-path: polygon(
+    var(--holo-chamfer) 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer)),
+    0 var(--holo-chamfer)
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='select-content']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    160deg,
+    var(--holo-core) 0%,
+    var(--holo-bright) 35%,
+    var(--holo-mid) 70%,
+    var(--holo-bright) 100%
+  );
+  clip-path: polygon(
+    evenodd,
+    var(--holo-chamfer) 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer)),
+    0 var(--holo-chamfer),
+    var(--holo-chamfer) 0,
+    calc(var(--holo-chamfer) - 1px) 1.5px,
+    calc(100% - (var(--holo-chamfer) - 1px)) 1.5px,
+    calc(100% - 1.5px) calc(var(--holo-chamfer) - 1px),
+    calc(100% - 1.5px) calc(100% - (var(--holo-chamfer) - 1px)),
+    calc(100% - (var(--holo-chamfer) - 1px)) calc(100% - 1.5px),
+    calc(var(--holo-chamfer) - 1px) calc(100% - 1.5px),
+    1.5px calc(100% - (var(--holo-chamfer) - 1px)),
+    1.5px calc(var(--holo-chamfer) - 1px),
+    calc(var(--holo-chamfer) - 1px) 1.5px
+  );
+}
+
+/* Select rows: cool at rest, neon wash + left edge on focus — mirrors the
+   dropdown row treatment so the two popover families read the same. */
+:root[data-hermes-theme='holo'] [data-slot='select-item'] {
+  color: #ffb29f;
+  transition:
+    background-color 0.12s ease,
+    box-shadow 0.12s ease,
+    color 0.12s ease;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='select-item']:focus,
+:root[data-hermes-theme='holo'] [data-slot='select-item'][data-state='checked'] {
+  background-color: color-mix(in srgb, var(--holo-mid) 26%, transparent) !important;
+  box-shadow: inset 2px 0 0 0 var(--holo-bright);
+  color: var(--holo-core) !important;
+}
+
+/* The LERA orb runs its full boot + a continuous idle. The ring/scanline/HUD
+   animations below are transform/opacity only, so the GPU composites them off a
+   single cached layer (no per-frame raster) — they are not the heat source the
+   old static-hero comment worried about. The drop-shadow that *was* expensive is
+   gone (the reactor now uses a content-independent box-shadow, see above), so
+   these permanent compositor animations are cheap to keep running. */
+
+/* ── motion safety ───────────────────────────────────────────────────────── */
+/* Keep this in sync with the static hero rules above; reduced-motion should
+   never re-enable any intro orb animation through a broader theme rule. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-orb,
+  :root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-orb::before,
+  :root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-orb::after,
+  :root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-ring-pass,
+  :root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-scanline,
+  :root[data-hermes-theme='holo'] [data-slot='aui_intro'] .lera-holo-hud-lines i,
+  :root[data-hermes-theme='holo'] [data-slot='aui_intro'] .fit-text {
+    animation: none;
+  }
+}

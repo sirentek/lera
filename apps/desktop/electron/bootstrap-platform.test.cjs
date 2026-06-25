@@ -34,10 +34,12 @@ test('bundledRuntimeImportCheck selects platform-specific import checks', () => 
 })
 
 test('detectRemoteDisplay keeps GPU on for local sessions', () => {
-  // Plain local X11, Wayland, native Windows, native macOS — no remote signal.
+  // Plain local X11, Wayland, native Windows/RDP, native macOS — no software
+  // compositing fallback unless the user explicitly asks for it.
   assert.equal(detectRemoteDisplay({ env: { DISPLAY: ':0' }, platform: 'linux' }), null)
   assert.equal(detectRemoteDisplay({ env: { WAYLAND_DISPLAY: 'wayland-0' }, platform: 'linux' }), null)
   assert.equal(detectRemoteDisplay({ env: { SESSIONNAME: 'Console' }, platform: 'win32' }), null)
+  assert.equal(detectRemoteDisplay({ env: { SESSIONNAME: 'RDP-Tcp#7' }, platform: 'win32' }), null)
   assert.equal(detectRemoteDisplay({ env: {}, platform: 'darwin' }), null)
 })
 
@@ -64,10 +66,6 @@ test('detectRemoteDisplay flags forwarded X11 displays but not local ones', () =
   assert.match(String(detectRemoteDisplay({ env: { DISPLAY: 'localhost:10.0' }, platform: 'linux' })), /x11-forwarding/)
   assert.match(String(detectRemoteDisplay({ env: { DISPLAY: '192.168.1.5:0' }, platform: 'linux' })), /x11-forwarding/)
   assert.equal(detectRemoteDisplay({ env: { DISPLAY: ':1' }, platform: 'linux' }), null)
-})
-
-test('detectRemoteDisplay flags RDP sessions', () => {
-  assert.match(String(detectRemoteDisplay({ env: { SESSIONNAME: 'RDP-Tcp#7' }, platform: 'win32' })), /^rdp/)
 })
 
 test('detectRemoteDisplay honors the HERMES_DESKTOP_DISABLE_GPU override both ways', () => {

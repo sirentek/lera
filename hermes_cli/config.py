@@ -1591,7 +1591,10 @@ DEFAULT_CONFIG = {
         "openai": {
             "model": "gpt-4o-mini-tts",
             "voice": "alloy",
-            # Voices: alloy, echo, fable, onyx, nova, shimmer
+            # Voices: alloy, ash, ballad, coral, echo, fable, nova, onyx,
+            # sage, shimmer, verse, marin, cedar
+            # Optional style/accent instructions for gpt-4o-mini-tts.
+            "instructions": "",
         },
         "gemini": {
             "model": "gemini-2.5-flash-preview-tts",
@@ -1636,7 +1639,7 @@ DEFAULT_CONFIG = {
             # "normalize_audio": True,
         },
     },
-    
+
     "stt": {
         "enabled": True,
         "provider": "local",  # "local" (free, faster-whisper) | "groq" | "openai" (Whisper API) | "mistral" (Voxtral Transcribe) | "elevenlabs" (Scribe)

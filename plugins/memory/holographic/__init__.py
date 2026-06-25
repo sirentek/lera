@@ -109,6 +109,50 @@ def _load_plugin_config() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Insight digest (produced by the background insight task, agent/insight.py)
+# ---------------------------------------------------------------------------
+
+def _read_insight_sections() -> Dict[str, str]:
+    """Return {'week': ..., 'suggestions': ...} from $HERMES_HOME/insight.md.
+
+    Read-only and best-effort. Splits on the two known headings the insight
+    task emits. Missing file or unparsable content yields empty strings — the
+    provider then injects nothing (zero token cost).
+    """
+    out = {"week": "", "suggestions": ""}
+    try:
+        from hermes_constants import get_hermes_home
+        path = get_hermes_home() / "insight.md"
+        if not path.exists():
+            return out
+        text = path.read_text(encoding="utf-8").strip()
+        if not text:
+            return out
+        # Strip the generation-stamp comment line if present.
+        text = re.sub(r"^<!--.*?-->\s*", "", text, flags=re.DOTALL)
+        # Split into heading-delimited sections.
+        week_m = re.search(
+            r"##\s*This Week\s*\n(.*?)(?=\n##\s|\Z)", text, re.IGNORECASE | re.DOTALL
+        )
+        sugg_m = re.search(
+            r"##\s*Suggestions?\s*\n(.*?)(?=\n##\s|\Z)", text, re.IGNORECASE | re.DOTALL
+        )
+        if week_m:
+            out["week"] = week_m.group(1).strip()
+        if sugg_m:
+            out["suggestions"] = sugg_m.group(1).strip()
+    except Exception as e:
+        logger.debug("Failed to read insight digest: %s", e)
+    return out
+
+
+def _suggestions_meaningful(suggestions: str) -> bool:
+    """False when the suggestions section is empty or an explicit 'none'."""
+    s = suggestions.strip().lower()
+    return bool(s) and s not in ("none right now.", "none right now", "none.", "none")
+
+
+# ---------------------------------------------------------------------------
 # MemoryProvider implementation
 # ---------------------------------------------------------------------------
 
@@ -190,34 +234,69 @@ class HolographicMemoryProvider(MemoryProvider):
         except Exception:
             total = 0
         if total == 0:
-            return (
+            block = (
                 "# Holographic Memory\n"
                 "Active. Empty fact store — proactively add facts the user would expect you to remember.\n"
                 "Use fact_store(action='add') to store durable structured facts about people, projects, preferences, decisions.\n"
                 "Use fact_feedback to rate facts after using them (trains trust scores)."
             )
-        return (
-            f"# Holographic Memory\n"
-            f"Active. {total} facts stored with entity resolution and trust scoring.\n"
-            f"Use fact_store to search, probe entities, reason across entities, or add facts.\n"
-            f"Use fact_feedback to rate facts after using them (trains trust scores)."
-        )
+        else:
+            block = (
+                f"# Holographic Memory\n"
+                f"Active. {total} facts stored with entity resolution and trust scoring.\n"
+                f"Use fact_store to search, probe entities, reason across entities, or add facts.\n"
+                f"Use fact_feedback to rate facts after using them (trains trust scores)."
+            )
+
+        # Append the weekly digest, if the background insight task produced one.
+        # This is static, day-stable text (the digest changes at most once per
+        # insight interval), so it is safe in the cached system-prompt block.
+        try:
+            week = _read_insight_sections().get("week", "")
+            if week:
+                block += (
+                    "\n\n## Recent Context (last ~week)\n"
+                    "Background summary of what the user has been working on. "
+                    "Use it to stay oriented; do not recite it verbatim.\n"
+                    f"{week}"
+                )
+        except Exception as e:
+            logger.debug("Holographic weekly-digest block failed: %s", e)
+
+        return block
 
     def prefetch(self, query: str, *, session_id: str = "") -> str:
-        if not self._retriever or not query:
-            return ""
+        parts: List[str] = []
+
+        # Structured fact recall for this turn's query.
+        if self._retriever and query:
+            try:
+                results = self._retriever.search(query, min_trust=self._min_trust, limit=5)
+                if results:
+                    lines = []
+                    for r in results:
+                        trust = r.get("trust_score", r.get("trust", 0))
+                        lines.append(f"- [{trust:.1f}] {r.get('content', '')}")
+                    parts.append("## Holographic Memory\n" + "\n".join(lines))
+            except Exception as e:
+                logger.debug("Holographic prefetch failed: %s", e)
+
+        # Proactive suggestions from the background insight task. Injected as
+        # turn-start context so the agent can raise them naturally when relevant
+        # — it is not required to act on them.
         try:
-            results = self._retriever.search(query, min_trust=self._min_trust, limit=5)
-            if not results:
-                return ""
-            lines = []
-            for r in results:
-                trust = r.get("trust_score", r.get("trust", 0))
-                lines.append(f"- [{trust:.1f}] {r.get('content', '')}")
-            return "## Holographic Memory\n" + "\n".join(lines)
+            suggestions = _read_insight_sections().get("suggestions", "")
+            if _suggestions_meaningful(suggestions):
+                parts.append(
+                    "## Proactive Suggestions\n"
+                    "Optional next steps surfaced from recent activity. Offer the "
+                    "relevant one when it fits the conversation; never force them.\n"
+                    f"{suggestions}"
+                )
         except Exception as e:
-            logger.debug("Holographic prefetch failed: %s", e)
-            return ""
+            logger.debug("Holographic suggestion prefetch failed: %s", e)
+
+        return "\n\n".join(parts)
 
     def sync_turn(self, user_content: str, assistant_content: str, *, session_id: str = "") -> None:
         # Holographic memory stores explicit facts via tools, not auto-sync.

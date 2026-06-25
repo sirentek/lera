@@ -194,7 +194,8 @@ function themeSupportsMode(name: string, target: 'light' | 'dark'): boolean {
     return true
   }
 
-  const background = target === 'dark' ? (resolved.darkColors ?? resolved.colors).background : resolved.colors.background
+  const background =
+    target === 'dark' ? (resolved.darkColors ?? resolved.colors).background : resolved.colors.background
 
   return target === 'dark' ? luminance(background) <= 0.5 : luminance(background) > 0.5
 }
@@ -566,11 +567,7 @@ export function CommandPalette() {
         <DialogPrimitive.Overlay className="fixed inset-0 z-[200]" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className={cn(
-            HUD_POSITION,
-            HUD_SURFACE,
-            'z-[210] w-[min(34rem,calc(100vw-2rem))] overflow-hidden duration-150 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-2 data-[state=open]:zoom-in-95'
-          )}
+          className={cn(HUD_POSITION, HUD_SURFACE, 'z-[210] w-[min(34rem,calc(100vw-2rem))] overflow-hidden')}
         >
           <DialogPrimitive.Title className="sr-only">{t.commandCenter.paletteTitle}</DialogPrimitive.Title>
           <Command className="bg-transparent" filter={paletteFilter} loop>

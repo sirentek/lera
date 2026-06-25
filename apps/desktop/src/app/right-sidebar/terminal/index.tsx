@@ -35,6 +35,7 @@ export function TerminalTab({ cwd, onAddSelectionToChat }: TerminalTabProps) {
           <Button
             aria-label={label}
             className="ml-auto size-6 rounded-md text-(--ui-text-secondary)!"
+            data-slot="terminal-close"
             onClick={() => setTerminalTakeover(false)}
             size="icon"
             type="button"

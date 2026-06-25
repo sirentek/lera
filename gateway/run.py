@@ -15537,6 +15537,18 @@ def _start_cron_ticker(stop_event: threading.Event, adapters=None, loop=None, in
             except Exception as e:
                 logger.debug("Curator tick error: %s", e)
 
+            # Insight — same piggy-back schedule as the curator. Independently
+            # gated by insight.interval_hours; produces the weekly digest +
+            # proactive suggestions for the holographic provider to inject.
+            try:
+                from agent.insight import maybe_run_insight
+                maybe_run_insight(
+                    idle_for_seconds=float("inf"),
+                    on_summary=lambda msg: logger.info("insight: %s", msg),
+                )
+            except Exception as e:
+                logger.debug("Insight tick error: %s", e)
+
         stop_event.wait(timeout=interval)
     logger.info("Cron ticker stopped")
 

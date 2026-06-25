@@ -335,14 +335,34 @@ export function Loader({
     const phaseOffset = Math.random()
     particleRefs.current.length = config.particleCount
 
+    // The slow drift reads just as smooth at 30fps, and rebuilding the
+    // `pathSteps`-segment path string only when its pulse has visibly moved
+    // cuts most of the per-frame cost — at 60fps this loop was a measurable
+    // CPU drain whenever a loader was on screen.
+    const frameIntervalMs = 1000 / 30
+    let lastRenderedAt = -Infinity
+    let lastPathScale = -1
+
     const render = (now: number) => {
+      animationFrame = window.requestAnimationFrame(render)
+
+      if (now - lastRenderedAt < frameIntervalMs) {
+        return
+      }
+
+      lastRenderedAt = now
+
       const time = now - startedAt
       const progress = ((time + phaseOffset * config.durationMs) % config.durationMs) / config.durationMs
       const detailScale = detailScaleFor(time, config, phaseOffset)
       const rotation = rotationFor(time, config, phaseOffset)
 
       groupRef.current?.setAttribute('transform', `rotate(${rotation} 50 50)`)
-      pathRef.current?.setAttribute('d', buildPath(config, detailScale, pathSteps))
+
+      if (Math.abs(detailScale - lastPathScale) > 0.01) {
+        lastPathScale = detailScale
+        pathRef.current?.setAttribute('d', buildPath(config, detailScale, pathSteps))
+      }
 
       particleRefs.current.forEach((node, index) => {
         if (!node) {
@@ -355,8 +375,6 @@ export function Loader({
         node.setAttribute('r', particle.radius.toFixed(2))
         node.setAttribute('opacity', particle.opacity.toFixed(3))
       })
-
-      animationFrame = window.requestAnimationFrame(render)
     }
 
     render(performance.now())

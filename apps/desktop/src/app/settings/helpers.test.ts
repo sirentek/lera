@@ -155,6 +155,21 @@ describe('settings helpers', () => {
     it('renders dropdowns for per-backend model/device sub-fields', () => {
       expect(enumOptionsFor('stt.openai.model', 'whisper-1', config)).toContain('gpt-4o-transcribe')
       expect(enumOptionsFor('tts.openai.model', 'gpt-4o-mini-tts', config)).toContain('tts-1-hd')
+      expect(enumOptionsFor('tts.openai.voice', 'shimmer', config)).toEqual([
+        'alloy',
+        'ash',
+        'ballad',
+        'coral',
+        'echo',
+        'fable',
+        'nova',
+        'onyx',
+        'sage',
+        'shimmer',
+        'verse',
+        'marin',
+        'cedar'
+      ])
       expect(enumOptionsFor('tts.neutts.device', 'cpu', config)).toEqual(['cpu', 'cuda', 'mps'])
     })
 

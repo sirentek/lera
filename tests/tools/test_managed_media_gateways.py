@@ -262,6 +262,25 @@ def test_openai_tts_accepts_openai_api_key_as_direct_fallback(monkeypatch, tmp_p
     assert captured["close_calls"] == 1
 
 
+def test_openai_tts_forwards_configured_instructions(monkeypatch, tmp_path):
+    captured = {}
+    _install_fake_tools_package()
+    _install_fake_openai_module(captured)
+    monkeypatch.delenv("VOICE_TOOLS_OPENAI_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-direct-key")
+
+    tts_tool = _load_tool_module("tools.tts_tool", "tts_tool.py")
+    output_path = tmp_path / "speech.mp3"
+    tts_tool._generate_openai_tts(
+        "merhaba dünya",
+        str(output_path),
+        {"openai": {"instructions": "İstanbul Türkçesiyle doğal oku."}},
+    )
+
+    assert captured["speech_kwargs"]["instructions"] == "İstanbul Türkçesiyle doğal oku."
+    assert captured["close_calls"] == 1
+
+
 def test_transcription_uses_model_specific_response_formats(monkeypatch, tmp_path):
     whisper_capture = {}
     _install_fake_tools_package()

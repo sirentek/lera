@@ -249,7 +249,21 @@ export const ENUM_OPTIONS: Record<string, string[]> = {
   // Speech-to-text backends — kept in sync with the stt block in
   // hermes_cli/config.py (local/groq/openai/mistral/elevenlabs).
   'stt.provider': ['local', 'groq', 'openai', 'mistral', 'xai', 'elevenlabs'],
-  'tts.openai.voice': ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'],
+  'tts.openai.voice': [
+    'alloy',
+    'ash',
+    'ballad',
+    'coral',
+    'echo',
+    'fable',
+    'nova',
+    'onyx',
+    'sage',
+    'shimmer',
+    'verse',
+    'marin',
+    'cedar'
+  ],
   // Text-to-speech backends — kept in sync with the built-in source of truth
   // (agent/tts_registry.py::_BUILTIN_NAMES / tools/tts_tool.py::
   // BUILTIN_TTS_PROVIDERS). 'xai' is Grok TTS.
@@ -364,7 +378,8 @@ export const FIELD_LABELS: Record<string, string> = defineFieldCopy({
     },
     openai: {
       model: 'OpenAI TTS Model',
-      voice: 'OpenAI Voice'
+      voice: 'OpenAI Voice',
+      instructions: 'OpenAI TTS Prompt'
     },
     elevenlabs: {
       voiceId: 'ElevenLabs Voice',
@@ -477,6 +492,10 @@ export const FIELD_DESCRIPTIONS: Record<string, string> = defineFieldCopy({
     autoTts: 'Automatically speak assistant responses.'
   },
   tts: {
+    openai: {
+      instructions:
+        'Optional style/accent guidance sent to gpt-4o-mini-tts, for example natural Istanbul Turkish with no English accent.'
+    },
     xai: {
       voiceId: 'xAI voice ID (e.g. eve) or a custom voice ID.',
       language: 'Spoken language code, e.g. en.'
@@ -574,6 +593,7 @@ export const SECTIONS: DesktopConfigSection[] = [
       'tts.edge.voice',
       'tts.openai.model',
       'tts.openai.voice',
+      'tts.openai.instructions',
       'tts.elevenlabs.voice_id',
       'tts.elevenlabs.model_id',
       'tts.xai.voice_id',

@@ -1017,6 +1017,7 @@ def _generate_openai_tts(text: str, output_path: str, tts_config: Dict[str, Any]
     voice = oai_config.get("voice", DEFAULT_OPENAI_VOICE)
     base_url = oai_config.get("base_url", base_url)
     speed = float(oai_config.get("speed", tts_config.get("speed", 1.0)))
+    instructions = str(oai_config.get("instructions") or "").strip()
 
     # Determine response format from extension
     if output_path.endswith(".ogg"):
@@ -1034,6 +1035,8 @@ def _generate_openai_tts(text: str, output_path: str, tts_config: Dict[str, Any]
             "response_format": response_format,
             "extra_headers": {"x-idempotency-key": str(uuid.uuid4())},
         }
+        if instructions:
+            create_kwargs["instructions"] = instructions
         if speed != 1.0:
             create_kwargs["speed"] = max(0.25, min(4.0, speed))
         response = client.audio.speech.create(**create_kwargs)

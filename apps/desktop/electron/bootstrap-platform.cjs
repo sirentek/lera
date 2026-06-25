@@ -36,11 +36,11 @@ const GPU_OVERRIDE_ON = new Set(['1', 'true', 'yes', 'on'])
 const GPU_OVERRIDE_OFF = new Set(['0', 'false', 'no', 'off'])
 
 /**
- * Decide whether the app is being shown over a remote/forwarded display, where
- * Chromium's GPU compositor produces an unstable, flickering surface (it can't
- * present accelerated layers cleanly over the wire). Native local Windows/macOS
- * sessions composite locally and never hit this, so we only fall back to
- * software rendering when a remote display is detected.
+ * Decide whether the app is being shown over a remote/forwarded Linux display,
+ * where Chromium's GPU compositor can produce an unstable, flickering surface.
+ * Native Windows/macOS sessions, including Windows RDP, should keep GPU
+ * compositing on by default; forcing WARP/software compositing makes holo-style
+ * shadows, masks, and clip paths run hot on the CPU.
  *
  * Returns a short reason string when GPU acceleration should be disabled, or
  * null to keep it enabled. `HERMES_DESKTOP_DISABLE_GPU` overrides detection
@@ -71,13 +71,6 @@ function detectRemoteDisplay(options = {}) {
     if (display.includes(':') && display.split(':')[0]) {
       return `x11-forwarding (DISPLAY=${display})`
     }
-  }
-
-  if (platform === 'win32') {
-    // RDP sessions report SESSIONNAME like "RDP-Tcp#7"; the local console is
-    // "Console".
-    const sessionName = String(env.SESSIONNAME || '')
-    if (/^rdp-/i.test(sessionName)) return `rdp (SESSIONNAME=${sessionName})`
   }
 
   return null

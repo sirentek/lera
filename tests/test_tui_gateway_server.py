@@ -3731,6 +3731,30 @@ def test_session_info_includes_mcp_servers(monkeypatch):
     assert info["mcp_servers"] == fake_status
 
 
+def test_session_info_reports_none_when_thinking_disabled():
+    # Thinking off is stored as {"enabled": False} (no "effort" key). The desktop
+    # toggle treats an empty reasoning_effort as the default (medium = ON), so the
+    # session.info echo must surface an explicit "none" or the toggle snaps back open.
+    agent = types.SimpleNamespace(
+        tools=[], model="", provider="openai-codex", reasoning_config={"enabled": False}
+    )
+
+    info = server._session_info(agent)
+
+    assert info["reasoning_effort"] == "none"
+
+
+def test_session_info_reports_effort_when_thinking_enabled():
+    agent = types.SimpleNamespace(
+        tools=[], model="", provider="openai-codex",
+        reasoning_config={"enabled": True, "effort": "high"},
+    )
+
+    info = server._session_info(agent)
+
+    assert info["reasoning_effort"] == "high"
+
+
 # ---------------------------------------------------------------------------
 # History-mutating commands must reject while session.running is True.
 # Without these guards, prompt.submit's post-run history write either

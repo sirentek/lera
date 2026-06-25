@@ -10801,6 +10801,20 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin):
             )
         except Exception:
             pass
+
+        # Insight — weekly digest + proactive suggestions. Same startup hook as
+        # the curator; independently gated by insight.interval_hours. Output is
+        # injected at turn start by the holographic memory provider.
+        try:
+            from agent.insight import maybe_run_insight
+            maybe_run_insight(
+                idle_for_seconds=float("inf"),  # CLI startup = fully idle
+                on_summary=lambda msg: self._console_print(
+                    f"[dim #6b7684]💡 {msg}[/]"
+                ),
+            )
+        except Exception:
+            pass
         if self.preloaded_skills and not self._startup_skills_line_shown:
             skills_label = ", ".join(self.preloaded_skills)
             self._console_print(

@@ -933,6 +933,7 @@ export function DesktopController() {
   const previewPane = (
     <Pane
       disabled={!chatOpen || (!previewTarget && !filePreviewTarget)}
+      divider
       id="preview"
       key="preview"
       maxWidth={PREVIEW_RAIL_MAX_WIDTH}
@@ -949,6 +950,7 @@ export function DesktopController() {
 
   const fileBrowserPane = (
     <Pane
+      className="holo-sidebar-pane"
       defaultOpen={false}
       disabled={!chatOpen}
       forceCollapsed={narrowViewport}
@@ -1002,6 +1004,7 @@ export function DesktopController() {
     >
       {!isSecondaryWindow() && (
         <Pane
+          className="holo-sidebar-pane"
           forceCollapsed={narrowViewport}
           hoverReveal
           id="chat-sidebar"

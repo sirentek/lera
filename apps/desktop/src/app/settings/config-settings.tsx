@@ -157,7 +157,7 @@ function ConfigField({
     )
   }
 
-  const isLong = schema.type === 'text' || String(value ?? '').length > 100
+  const isLong = schema.type === 'text' || schemaKey === 'tts.openai.instructions' || String(value ?? '').length > 100
 
   return row(
     isLong ? (

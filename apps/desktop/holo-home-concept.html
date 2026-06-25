@@ -1,0 +1,843 @@
+<!doctype html>
+<!--
+  HERMES DESKTOP — "HOLO" sci-fi home page concept
+  Standalone design prototype. Open directly in a browser (or drop into the
+  Electron shell) — no build step, no dependencies beyond Google Fonts.
+
+  Recreates the real home page (new-chat view: sidebar sessions, HERMES AGENT
+  wordmark intro, composer bar) in a holographic HUD language: chamfered
+  neon-glow frames, glass panels, scanlines, 3D parallax depth.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hermes — Holo Home Concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================ tokens */
+:root {
+  --holo-core:   #ffd9cf;             /* hottest line color            */
+  --holo-bright: #ff7a6f;             /* primary neon                  */
+  --holo-mid:    #e8472f;             /* secondary neon                */
+  --holo-dim:    #962a1a;             /* faint structure lines         */
+  --holo-ink:    #ffb29f;             /* panel text                    */
+  --holo-ink-2:  #c9705d;             /* secondary text                */
+  --glass:       rgba(30, 8, 4, .10); /* panel fill                    */
+  --glass-2:     rgba(44, 14, 7, .08);
+  --bg-0: #0d0605;
+  --bg-1: #1e0d0a;
+  --font-display: 'Orbitron', sans-serif;
+  --font-ui: 'Rajdhani', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg-0);
+  font-family: var(--font-ui);
+  color: var(--holo-ink);
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================ environment
+   Spaceship-wall ambience: vignette, drifting nebula glow, perspective
+   floor grid fading into the dark. Everything sits in a 3D scene. */
+.environment {
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #3c1711 0%, transparent 55%),
+    radial-gradient(90% 70% at 80% 110%, #33120a 0%, transparent 60%),
+    linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 60%, #0c0504 100%);
+}
+.environment::before { /* faint wall grid */
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(230,120,80,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(230,120,80,.05) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(80% 70% at 50% 45%, #000 0%, transparent 100%);
+}
+.environment::after { /* drifting light haze */
+  content: ''; position: absolute; inset: -20%;
+  background: radial-gradient(40% 30% at 30% 40%, rgba(230,90,60,.07), transparent 70%),
+              radial-gradient(35% 30% at 70% 60%, rgba(200,70,40,.06), transparent 70%);
+  animation: haze-drift 26s ease-in-out infinite alternate;
+}
+@keyframes haze-drift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to   { transform: translate3d(2%, 2%, 0)  scale(1.06); }
+}
+
+/* full-screen scanline + grain pass, above everything, non-interactive */
+.crt {
+  position: fixed; inset: 0; z-index: 90; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg, rgba(255,170,140,.022) 0 1px, transparent 1px 3px);
+  mix-blend-mode: screen;
+}
+.crt::after { /* slow vertical sweep */
+  content: ''; position: absolute; left: 0; right: 0; height: 22vh;
+  background: linear-gradient(180deg, transparent,
+              rgba(255,150,120,.05) 45%, rgba(255,180,160,.09) 50%,
+              rgba(255,150,120,.05) 55%, transparent);
+  animation: sweep 9s linear infinite;
+}
+@keyframes sweep { from { top: -25vh; } to { top: 105vh; } }
+
+/* prominent top-to-bottom scanner beam: a hot core line with a glowing
+   trail above it, sweeping the full screen */
+.scanner {
+  position: fixed; left: 0; right: 0; top: -22vh; height: 18vh;
+  z-index: 92; pointer-events: none;
+  mix-blend-mode: screen;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(255,110,90,.03) 45%,
+    rgba(255,130,110,.10) 80%,
+    rgba(255,160,140,.18) 100%);
+  animation: scan-sweep 6.5s cubic-bezier(.33,0,.67,1) infinite;
+}
+.scanner::after { /* the hot core line at the leading edge */
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%, rgba(255,200,190,.85) 12%, var(--holo-core) 50%,
+    rgba(255,200,190,.85) 88%, transparent 100%);
+  box-shadow:
+    0 0 12px 2px  rgba(255,140,120,.9),
+    0 0 36px 8px  rgba(245,80,60,.55),
+    0 0 90px 20px rgba(230,50,40,.3);
+}
+@keyframes scan-sweep {
+  from { transform: translateY(0); }
+  to   { transform: translateY(146vh); }
+}
+
+/* ============================================================ 3D scene */
+.scene {
+  position: fixed; inset: 0;
+  display: grid;
+  grid-template-rows: 44px 1fr;
+  perspective: 1250px;
+  perspective-origin: 50% 42%;
+}
+.deck {
+  display: grid;
+  grid-template-columns: 322px minmax(0, 1fr) 276px;
+  gap: 14px;
+  padding: 18px 22px 24px;
+  min-height: 0;
+  transform-style: preserve-3d;
+}
+/* side columns angled inward like wall-mounted holo screens */
+.wing { transform-style: preserve-3d; min-height: 0; position: relative; }
+.wing.left   { transform: rotateY(24deg)  translateZ(-14px); transform-origin: left center; }
+.wing.right  { transform: rotateY(-24deg) translateZ(-20px); transform-origin: right center; }
+.wing.center { transform: translateZ(10px); display: flex; flex-direction: column; min-width: 0; }
+
+/* soft ambient bloom pooling behind each angled wing */
+.wing.left::before, .wing.right::before {
+  content: ''; position: absolute; inset: -36px; z-index: -1; pointer-events: none;
+  background: radial-gradient(58% 62% at 50% 50%, rgba(242,78,52,.20), transparent 72%);
+  filter: blur(22px);
+}
+
+/* parallax layers — JS drives --mx / --my in [-1, 1] */
+.parallax { transition: transform .15s ease-out; }
+.scene[data-parallax] .wing.left   { transform: rotateY(calc(24deg  + var(--mx, 0) * 2.5deg)) rotateX(calc(var(--my, 0) * -1.4deg)) translateZ(-14px); }
+.scene[data-parallax] .wing.right  { transform: rotateY(calc(-24deg + var(--mx, 0) * 2.5deg)) rotateX(calc(var(--my, 0) * -1.4deg)) translateZ(-20px); }
+.scene[data-parallax] .wing.center { transform: rotateY(calc(var(--mx, 0) * 1.2deg)) rotateX(calc(var(--my, 0) * -.8deg)) translateZ(10px); }
+
+/* ============================================================ holo frame
+   The core primitive. A wrapper paints the neon border as a clipped
+   background; the body is the same shape inset. drop-shadow() follows the
+   clip-path, which is what produces the authentic bloom around the chamfer. */
+.holo {
+  position: relative;
+  /* projection offset of the echo frame — overridden per wing */
+  --ex: 11px; --ey: 14px;
+  filter:
+    drop-shadow(0 0 4px  rgba(255, 110, 100, .95))
+    drop-shadow(0 0 18px rgba(255, 70, 58, .6))
+    drop-shadow(0 0 58px rgba(225, 45, 40, .4));
+}
+/* projected duplicate of the frame, offset behind the panel — this is what
+   sells the extruded-hologram depth from the reference shots. Injected by JS
+   as the first child so the real frame/body paint over it. */
+.holo > .holo-echo {
+  position: absolute; inset: 0; pointer-events: none;
+  transform: translate(var(--ex), var(--ey));
+  opacity: .55;
+  filter: blur(.6px) brightness(.82);
+  transition: transform .35s ease, opacity .35s ease;
+}
+.holo > .holo-echo::before { /* the projected frame line */
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(160deg,
+    rgba(255,170,160,.9) 0%, rgba(240,90,80,.7) 45%, rgba(200,45,40,.8) 100%);
+}
+.holo > .holo-echo::after { /* knock the interior back to dark glass,
+                               leaving only the frame line + a dim slab */
+  content: ''; position: absolute; inset: 3px;
+  background: rgba(24, 7, 4, .14);
+}
+/* on hover the visible frame leans out toward the viewer; the projection
+   stays put, so the separation reads as the panel coming closer */
+.holo { transition: transform .25s ease; }
+.holo:hover { transform: scale(1.022); }
+.holo:hover > .holo-echo { opacity: .42; }
+.wing.left  .holo { --ex: 15px; --ey: 13px; }
+.wing.right .holo { --ex: -14px; --ey: 13px; }
+/* sidebars bloom harder than the center panels */
+.wing.left .holo, .wing.right .holo {
+  filter:
+    drop-shadow(0 0 5px  rgba(255, 135, 120, 1))
+    drop-shadow(0 0 16px rgba(255, 90, 72, .85))
+    drop-shadow(0 0 44px rgba(240, 60, 45, .6))
+    drop-shadow(0 0 110px rgba(220, 40, 35, .45));
+}
+.wing.left .holo > .holo-body::after, .wing.right .holo > .holo-body::after {
+  box-shadow: inset 0 0 34px rgba(255,95,80,.16);
+}
+.wing.left .holo.double > .holo-body::after, .wing.right .holo.double > .holo-body::after {
+  box-shadow:
+    inset 0 0 0 1px rgba(255,110,100,.4),
+    inset 0 0 34px rgba(255,95,80,.16);
+}
+.holo > .holo-frame {
+  position: absolute; inset: 0;
+  background: linear-gradient(160deg,
+    var(--holo-core) 0%, var(--holo-bright) 28%,
+    var(--holo-mid) 55%, var(--holo-bright) 82%, var(--holo-core) 100%);
+}
+.holo > .holo-body {
+  position: relative;
+  background:
+    linear-gradient(165deg, rgba(220,90,60,.03), transparent 40%),
+    var(--glass);
+  height: 100%;
+  overflow: hidden;
+}
+/* hologram texture inside every panel */
+.holo > .holo-body::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg,
+    rgba(255,170,140,.04) 0 1px, transparent 1px 4px);
+}
+/* inner edge highlight */
+.holo > .holo-body::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 22px rgba(255,90,80,.09);
+}
+
+/* --- shape: top-right chamfer (the "file card" cut from the refs) ------
+   frame + echo line are hollowed (evenodd: outer ring, then inner ring) so
+   the panel interior stays genuinely transparent — only a 2px line paints. */
+.cut-tr > .holo-frame,
+.cut-tr > .holo-echo::before { clip-path: polygon(evenodd,
+  0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%, 0 0,
+  2px 2px, 2px calc(100% - 2px), calc(100% - 2px) calc(100% - 2px),
+  calc(100% - 2px) 25px, calc(100% - 25px) 2px, 2px 2px); }
+.cut-tr > .holo-body,
+.cut-tr > .holo-echo::after  { clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 0 100%); }
+.cut-tr > .holo-body { margin: 2px; height: calc(100% - 4px); }
+
+/* --- shape: bottom-left + top-right double chamfer --------------------- */
+.cut-2 > .holo-frame,
+.cut-2 > .holo-echo::before { clip-path: polygon(evenodd,
+  0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 26px 100%, 0 calc(100% - 26px), 0 0,
+  2px 2px, 2px calc(100% - 25px), 25px calc(100% - 2px),
+  calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 25px, calc(100% - 25px) 2px, 2px 2px); }
+.cut-2 > .holo-body,
+.cut-2 > .holo-echo::after  { clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px)); }
+.cut-2 > .holo-body { margin: 2px; height: calc(100% - 4px); }
+
+/* --- shape: capsule strip with angled ends (composer / titlebar pods) -- */
+.cut-pod > .holo-frame,
+.cut-pod > .holo-echo::before { clip-path: polygon(evenodd,
+  14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%, 14px 0,
+  15px 2px, 3px 50%, 15px calc(100% - 2px), calc(100% - 15px) calc(100% - 2px),
+  calc(100% - 3px) 50%, calc(100% - 15px) 2px, 15px 2px); }
+.cut-pod > .holo-body,
+.cut-pod > .holo-echo::after  { clip-path: polygon(13px 0, calc(100% - 13px) 0, 100% 50%, calc(100% - 13px) 100%, 13px 100%, 0 50%); }
+.cut-pod > .holo-body { margin: 2px; height: calc(100% - 4px); }
+
+/* heavier double-frame variant (outer + inner line, like ref image 1) */
+.holo.double > .holo-body { margin: 5px; height: calc(100% - 10px); }
+.holo.double > .holo-body::after {
+  box-shadow:
+    inset 0 0 0 1px rgba(255,110,100,.4),
+    inset 0 0 22px rgba(255,80,70,.1);
+}
+
+/* corner tick decorations */
+.ticks::before, .ticks::after {
+  content: ''; position: absolute; z-index: 2; pointer-events: none;
+  background: var(--holo-core);
+  box-shadow: 0 0 10px rgba(255,130,120,.95);
+}
+.ticks::before { left: 14px; bottom: -1px; width: 52px; height: 3px; }
+.ticks::after  { left: -1px; top: 18px;  width: 3px; height: 44px; }
+
+/* hazard-stripe header band (ref image 1, top of the big frame) */
+.stripes {
+  height: 14px; flex: none;
+  background: repeating-linear-gradient(115deg,
+    rgba(255,99,88,.75) 0 9px, transparent 9px 20px);
+  opacity: .5;
+  mask-image: linear-gradient(90deg, #000 70%, transparent);
+}
+
+/* boot-in animation: panels flicker alive in sequence */
+.holo { opacity: 0; animation: boot .7s ease-out forwards; animation-delay: var(--boot, 0s); }
+@keyframes boot { /* opacity only — a transform here would keep applying
+                     (fill: forwards) and override the hover lift */
+  0%   { opacity: 0; }
+  8%   { opacity: .9; }
+  14%  { opacity: .25; }
+  22%  { opacity: 1; }
+  34%  { opacity: .55; }
+  46%, 100% { opacity: 1; }
+}
+/* gentle perpetual shimmer on the frames */
+.holo > .holo-frame { animation: shimmer 5.5s ease-in-out infinite; }
+@keyframes shimmer {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.45); }
+}
+
+/* ============================================================ titlebar */
+.titlebar {
+  display: flex; align-items: center; gap: 18px;
+  padding: 8px 26px 0;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .22em;
+  color: var(--holo-ink-2);
+  -webkit-app-region: drag;
+}
+.titlebar .rail { flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,123,111,.4), transparent);
+  position: relative;
+}
+.titlebar .rail i { position: absolute; top: -2px; width: 26px; height: 5px;
+  background: var(--holo-bright); box-shadow: 0 0 10px rgba(255,123,111,.9);
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+}
+.titlebar .rail i:nth-child(1) { left: 12%; opacity: .9; }
+.titlebar .rail i:nth-child(2) { left: calc(12% + 34px); opacity: .45; }
+.titlebar .rail i:nth-child(3) { right: 18%; opacity: .7; }
+.titlebar .sysdot { width: 7px; height: 7px; transform: rotate(45deg);
+  background: var(--holo-bright); box-shadow: 0 0 10px rgba(255,123,111,.95);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.titlebar .brand { color: var(--holo-bright); text-shadow: 0 0 12px rgba(255,123,111,.7); }
+.winctl { display: flex; gap: 10px; -webkit-app-region: no-drag; }
+.winctl span { width: 22px; height: 14px; cursor: pointer; opacity: .65;
+  border: 1px solid var(--holo-mid); clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  transition: .15s;
+}
+.winctl span:hover { opacity: 1; background: rgba(255,123,111,.25); box-shadow: 0 0 10px rgba(255,123,111,.6); }
+
+/* ============================================================ sidebar */
+.sidebar { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.sidebar .holo-body { display: flex; flex-direction: column; min-height: 0; }
+
+.side-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px 10px;
+  font-family: var(--font-display); font-size: 11px; font-weight: 700;
+  letter-spacing: .3em; color: var(--holo-bright);
+  text-shadow: 0 0 14px rgba(255,123,111,.8);
+}
+.side-head .codeline { font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em; color: var(--holo-ink-2); }
+
+.btn-new {
+  margin: 4px 14px 12px; padding: 10px 12px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: .28em;
+  color: #1f0a06; cursor: pointer;
+  background: linear-gradient(180deg, var(--holo-core), var(--holo-bright));
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  box-shadow: 0 0 18px rgba(255,123,111,.55), inset 0 0 12px rgba(255,255,255,.35);
+  transition: .15s;
+}
+.btn-new:hover { box-shadow: 0 0 30px rgba(255,160,140,.9), inset 0 0 16px rgba(255,255,255,.5); }
+
+.side-label {
+  padding: 10px 16px 6px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .34em;
+  color: var(--holo-ink-2);
+  display: flex; align-items: center; gap: 10px;
+}
+.side-label::after { content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, rgba(201,120,95,.45), transparent); }
+
+.session-list { overflow-y: auto; min-height: 0; padding-bottom: 8px; scrollbar-width: none; }
+.session-list::-webkit-scrollbar { display: none; }
+
+.session {
+  position: relative; margin: 3px 12px; padding: 8px 12px 8px 16px; cursor: pointer;
+  border-left: 2px solid rgba(232,77,47,.35);
+  background: linear-gradient(90deg, rgba(232,77,47,.07), transparent 75%);
+  transition: .15s;
+}
+.session:hover {
+  border-left-color: var(--holo-bright);
+  background: linear-gradient(90deg, rgba(255,123,111,.16), transparent 80%);
+  box-shadow: 0 0 14px rgba(240,90,60,.18);
+}
+.session .t { font-size: 13.5px; font-weight: 600; letter-spacing: .04em; color: var(--holo-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.session .m { font-family: var(--font-mono); font-size: 9px; letter-spacing: .12em; color: var(--holo-ink-2); margin-top: 2px; }
+.session.pinned::after { content: '◆'; position: absolute; right: 10px; top: 9px; font-size: 8px;
+  color: var(--holo-bright); text-shadow: 0 0 8px rgba(255,123,111,.9); }
+
+.profile {
+  margin-top: auto; padding: 11px 16px;
+  display: flex; align-items: center; gap: 11px;
+  border-top: 1px solid rgba(232,77,47,.3);
+  background: linear-gradient(180deg, transparent, rgba(110,35,20,.25));
+}
+.profile .avatar { width: 30px; height: 30px; flex: none;
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 11px; font-weight: 900; color: var(--holo-core);
+  border: 1px solid var(--holo-bright);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: rgba(232,77,47,.18);
+  box-shadow: 0 0 12px rgba(255,123,111,.45);
+}
+.profile .who b { display: block; font-size: 13px; letter-spacing: .08em; color: var(--holo-ink); }
+.profile .who span { font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; color: var(--holo-ink-2); }
+
+/* ============================================================ hero */
+.hero { flex: 1; min-height: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px; position: relative; }
+
+/* rotating holo-rings behind the wordmark */
+.hero .rings { position: absolute; width: 560px; height: 560px; top: 50%; left: 50%;
+  transform: translate(-50%, -56%); opacity: .5; pointer-events: none; }
+.hero .rings i { position: absolute; inset: 0; border-radius: 50%;
+  border: 1px solid rgba(250,110,80,.25); }
+.hero .rings i:nth-child(1) { border-style: dashed; animation: spin 38s linear infinite; }
+.hero .rings i:nth-child(2) { inset: 11%;
+  border-top: 2px solid rgba(255,123,111,.55); border-left-color: transparent;
+  border-right-color: transparent; border-bottom-color: transparent;
+  animation: spin 7s linear infinite; filter: drop-shadow(0 0 6px rgba(255,123,111,.8)); }
+.hero .rings i:nth-child(3) { inset: 24%; border: 1px solid rgba(220,80,50,.2);
+  animation: spin 22s linear infinite reverse; }
+.hero .rings i:nth-child(4) { inset: 24%; border: none; border-bottom: 2px solid rgba(255,180,160,.5);
+  animation: spin 13s linear infinite reverse; filter: drop-shadow(0 0 8px rgba(255,160,140,.9)); }
+.hero .rings .hex { position: absolute; inset: 33%; border: 1px solid rgba(255,123,111,.4);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: radial-gradient(60% 60% at 50% 50%, rgba(240,90,60,.12), transparent 75%);
+  animation: hexfloat 6s ease-in-out infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes hexfloat { 0%,100% { transform: scale(1); opacity: .8; } 50% { transform: scale(1.05); opacity: .45; } }
+
+.wordmark {
+  position: relative;
+  font-family: var(--font-display); font-weight: 900;
+  font-size: clamp(40px, 6.2vw, 84px); letter-spacing: .14em;
+  color: var(--holo-core); white-space: nowrap;
+  text-shadow:
+    0 0 6px  rgba(255,205,190,.9),
+    0 0 22px rgba(255,123,111,.75),
+    0 0 70px rgba(240,80,50,.5);
+  animation: holotext 4s ease-in-out infinite;
+  background: linear-gradient(180deg, #ffefea 35%, #ffb29f 50%, #f56e57 52%, #ffe2d9 70%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+@keyframes holotext {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; } 93% { opacity: .65; } 94% { opacity: 1; }
+  96% { opacity: .8; } 97% { opacity: 1; }
+}
+.word-sub {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .52em;
+  color: var(--holo-ink-2); text-indent: .52em; margin-top: -2px;
+}
+.intro-line {
+  margin-top: 18px; max-width: 560px; text-align: center;
+  font-size: 16.5px; font-weight: 500; letter-spacing: .045em; line-height: 1.55;
+  color: var(--holo-ink);
+  text-shadow: 0 0 18px rgba(250,110,80,.35);
+  min-height: 3.1em;
+}
+.intro-line .caret { display: inline-block; width: 9px; height: 1.05em;
+  vertical-align: text-bottom; margin-left: 3px;
+  background: var(--holo-bright); box-shadow: 0 0 10px rgba(255,123,111,.9);
+  animation: pulse 1s steps(2) infinite; }
+
+/* ============================================================ composer */
+.composer-zone { flex: none; padding: 8px 6vw 6px; }
+.composer .holo-body { padding: 0; }
+.composer-input {
+  display: block; width: 100%; resize: none; border: 0; outline: 0;
+  background: transparent; padding: 16px 20px 8px;
+  font-family: var(--font-ui); font-size: 16px; font-weight: 500; letter-spacing: .04em;
+  color: #ffe5d9; caret-color: var(--holo-bright);
+  text-shadow: 0 0 10px rgba(255,123,111,.3);
+}
+.composer-input::placeholder { color: rgba(230,150,120,.55); }
+.composer-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px 12px;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 14px; cursor: pointer;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em;
+  color: var(--holo-ink);
+  border: 1px solid rgba(250,110,80,.5);
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  background: rgba(160,55,30,.18);
+  transition: .15s;
+}
+.chip:hover { border-color: var(--holo-bright); background: rgba(240,90,60,.3);
+  box-shadow: 0 0 14px rgba(255,123,111,.4); color: #ffeee6; }
+.chip .glyph { color: var(--holo-bright); font-size: 12px; }
+.composer-row .spacer { flex: 1; }
+.send {
+  width: 42px; height: 36px; cursor: pointer; display: grid; place-items: center;
+  background: linear-gradient(180deg, var(--holo-core), var(--holo-bright) 70%);
+  clip-path: polygon(25% 0, 100% 0, 75% 100%, 0 100%);
+  box-shadow: 0 0 20px rgba(255,123,111,.6);
+  transition: .15s;
+}
+.send:hover { box-shadow: 0 0 34px rgba(255,180,160,.95); }
+.send svg { width: 16px; height: 16px; fill: #1f0a07; transform: translateX(1px); }
+.composer-hint {
+  margin-top: 7px; text-align: center;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .3em; color: rgba(201,118,93,.6);
+}
+
+/* ============================================================ right wing */
+.stack { display: flex; flex-direction: column; gap: 18px; height: 100%; min-height: 0; }
+.card .holo-body { padding: 12px 14px 14px; }
+.card h4 {
+  font-family: var(--font-display); font-size: 9.5px; font-weight: 700; letter-spacing: .3em;
+  color: var(--holo-bright); text-shadow: 0 0 10px rgba(255,123,111,.7);
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.card h4 .mono { font-family: var(--font-mono); font-size: 8.5px; color: var(--holo-ink-2); letter-spacing: .1em; }
+
+/* gateway status */
+.status-line { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.status-line .dot { width: 8px; height: 8px; transform: rotate(45deg); flex: none;
+  background: var(--holo-bright); box-shadow: 0 0 12px rgba(255,123,111,1);
+  animation: pulse 2s ease-in-out infinite; }
+.status-line b { font-family: var(--font-display); font-size: 13px; letter-spacing: .2em; color: var(--holo-core);
+  text-shadow: 0 0 12px rgba(255,170,150,.8); }
+.kv { display: flex; justify-content: space-between; padding: 3px 0;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; }
+.kv span { color: var(--holo-ink-2); }
+.kv b { color: var(--holo-ink); font-weight: 400; }
+
+/* ring gauge */
+.gauge-wrap { display: flex; align-items: center; gap: 14px; }
+.gauge { width: 92px; height: 92px; flex: none; position: relative; }
+.gauge svg { width: 100%; height: 100%; transform: rotate(-90deg);
+  filter: drop-shadow(0 0 8px rgba(255,123,111,.7)); }
+.gauge .track { stroke: rgba(190,67,47,.3); }
+.gauge .val { stroke: url(#gaugeGrad); stroke-linecap: butt;
+  stroke-dasharray: 226; stroke-dashoffset: 226;
+  animation: gauge-in 1.6s .9s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes gauge-in { to { stroke-dashoffset: calc(226 * (1 - var(--pct, .39))); } }
+.gauge .num { position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--holo-core);
+  text-shadow: 0 0 14px rgba(255,160,140,.9); }
+.gauge .num small { font-size: 10px; }
+
+/* bar chart */
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 64px; padding-top: 4px; }
+.bars i { flex: 1; min-height: 8%;
+  background: linear-gradient(180deg, rgba(255,180,160,.9), rgba(210,77,47,.35));
+  box-shadow: 0 0 8px rgba(250,120,90,.45);
+  animation: bar-in .8s cubic-bezier(.2,.8,.3,1) both; animation-delay: calc(1s + var(--i) * .05s);
+  transform-origin: bottom; }
+@keyframes bar-in { from { transform: scaleY(0); } }
+
+/* mini context meter (compact strip at the bottom of the right wing) */
+.card.mini .holo-body { padding: 9px 12px 11px; }
+.card.mini h4 { margin-bottom: 7px; font-size: 8.5px; }
+.meter-row { display: flex; align-items: center; gap: 9px;
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em;
+  color: var(--holo-ink); }
+.meter-row .pct { color: var(--holo-core); text-shadow: 0 0 10px rgba(255,160,140,.8); }
+.meter { flex: 1; height: 9px; position: relative;
+  border: 1px solid rgba(250,110,80,.55);
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  background: rgba(160,55,30,.16); overflow: hidden; }
+.meter i { position: absolute; inset: 1px auto 1px 1px; width: var(--fill, 8%);
+  background: linear-gradient(90deg, var(--holo-mid), var(--holo-bright));
+  box-shadow: 0 0 10px rgba(255,123,111,.9);
+  animation: meter-in 1.2s 1.3s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes meter-in { from { width: 0; } }
+.meter-sub { display: flex; justify-content: space-between; margin-top: 6px;
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em;
+  color: var(--holo-ink-2); }
+.meter-sub b { color: var(--holo-ink); font-weight: 400; }
+
+/* telemetry feed */
+.feed { font-family: var(--font-mono); font-size: 9px; line-height: 1.85; letter-spacing: .06em;
+  color: var(--holo-ink-2); height: 96px; overflow: hidden; position: relative; }
+.feed::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, var(--glass) 0%, transparent 30%, transparent 70%, var(--glass) 100%); }
+.feed .scroll { animation: feed-scroll 18s linear infinite; }
+@keyframes feed-scroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+.feed em { color: var(--holo-bright); font-style: normal; }
+
+@media (max-width: 1180px) { .deck { grid-template-columns: 270px minmax(0,1fr); } .wing.right { display: none; } }
+@media (max-width: 880px)  { .deck { grid-template-columns: minmax(0,1fr); } .wing.left { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="environment"></div>
+
+<div class="scene" data-parallax>
+
+  <!-- ════════ titlebar ════════ -->
+  <div class="titlebar">
+    <span class="sysdot"></span>
+    <span class="brand">HERMES&nbsp;//&nbsp;DESKTOP</span>
+    <div class="rail"><i></i><i></i><i></i></div>
+    <span id="clock">00:00:00</span>
+    <div class="winctl" title="window controls"><span></span><span></span><span></span></div>
+  </div>
+
+  <div class="deck">
+
+    <!-- ════════ left wing: sessions ════════ -->
+    <div class="wing left">
+      <div class="holo cut-2 double ticks sidebar" style="--boot:.15s; height:100%">
+        <div class="holo-frame"></div>
+        <div class="holo-body">
+          <div class="stripes"></div>
+          <div class="side-head">
+            SESSIONS
+            <span class="codeline">SYS.LOG/1138</span>
+          </div>
+
+          <div class="btn-new">⌁&nbsp;NEW CHAT</div>
+
+          <div class="session-list">
+            <div class="side-label">PINNED</div>
+            <div class="session pinned">
+              <div class="t">Gateway reconnect hardening</div>
+              <div class="m">2H AGO · 48 MSG</div>
+            </div>
+            <div class="session pinned">
+              <div class="t">Holo UI concept — home screen</div>
+              <div class="m">NOW · ACTIVE</div>
+            </div>
+
+            <div class="side-label">RECENT</div>
+            <div class="session">
+              <div class="t">Fix composer voice capture on win32</div>
+              <div class="m">YESTERDAY · 31 MSG</div>
+            </div>
+            <div class="session">
+              <div class="t">Refactor session lineage ids</div>
+              <div class="m">2D AGO · 17 MSG</div>
+            </div>
+            <div class="session">
+              <div class="t">Cron panel empty-state copy</div>
+              <div class="m">3D AGO · 9 MSG</div>
+            </div>
+            <div class="session">
+              <div class="t">Investigate slow thread hydrate</div>
+              <div class="m">4D AGO · 26 MSG</div>
+            </div>
+            <div class="session">
+              <div class="t">Model picker keyboard nav</div>
+              <div class="m">5D AGO · 12 MSG</div>
+            </div>
+          </div>
+
+          <div class="profile">
+            <div class="avatar">SR</div>
+            <div class="who">
+              <b>sirentek</b>
+              <span>PROFILE: DEFAULT</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ center: hero + composer ════════ -->
+    <div class="wing center">
+      <div class="hero">
+        <div class="rings"><i></i><i></i><i></i><i></i><span class="hex"></span></div>
+        <div class="wordmark">HERMES AGENT</div>
+        <div class="word-sub">NOUS RESEARCH // AUTONOMOUS INTERFACE</div>
+        <p class="intro-line"><span id="typed"></span><span class="caret"></span></p>
+      </div>
+
+      <div class="composer-zone">
+        <div class="holo cut-tr composer" style="--boot:.45s">
+          <div class="holo-frame"></div>
+          <div class="holo-body">
+            <textarea class="composer-input" rows="2" placeholder="Transmit a bug, branch, plan, or rough idea…"></textarea>
+            <div class="composer-row">
+              <span class="chip"><span class="glyph">⊕</span> ADD CONTEXT</span>
+              <span class="chip"><span class="glyph">◇</span> HERMES-4-405B</span>
+              <span class="chip"><span class="glyph">🎙</span> VOICE</span>
+              <span class="spacer"></span>
+              <span class="send" title="Send">
+                <svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="composer-hint">ENTER ⌁ TRANSMIT&nbsp;&nbsp;·&nbsp;&nbsp;SHIFT+ENTER ⌁ NEWLINE&nbsp;&nbsp;·&nbsp;&nbsp;@ ⌁ CONTEXT REF</div>
+      </div>
+    </div>
+
+    <!-- ════════ right wing: telemetry ════════ -->
+    <div class="wing right">
+      <div class="stack">
+
+        <div class="holo cut-tr card" style="--boot:.65s">
+          <div class="holo-frame"></div>
+          <div class="holo-body">
+            <h4>GATEWAY <span class="mono">WS://LOCAL</span></h4>
+            <div class="status-line"><span class="dot"></span><b>ONLINE</b></div>
+            <div class="kv"><span>LATENCY</span><b>12 MS</b></div>
+            <div class="kv"><span>UPTIME</span><b>04:12:56</b></div>
+            <div class="kv"><span>PROFILE</span><b>DEFAULT</b></div>
+          </div>
+        </div>
+
+        <div class="holo cut-2 card" style="--boot:.8s">
+          <div class="holo-frame"></div>
+          <div class="holo-body">
+            <h4>CONTEXT LOAD <span class="mono">128K WIN</span></h4>
+            <div class="gauge-wrap">
+              <div class="gauge" style="--pct:.39">
+                <svg viewBox="0 0 84 84">
+                  <defs>
+                    <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stop-color="#ffd9cf"/>
+                      <stop offset="1" stop-color="#e8472f"/>
+                    </linearGradient>
+                  </defs>
+                  <circle class="track" cx="42" cy="42" r="36" fill="none" stroke-width="5"/>
+                  <circle class="val"   cx="42" cy="42" r="36" fill="none" stroke-width="5"/>
+                </svg>
+                <div class="num">39<small>%</small></div>
+              </div>
+              <div style="flex:1">
+                <div class="kv"><span>TOKENS</span><b>49.9K</b></div>
+                <div class="kv"><span>CACHED</span><b>38.1K</b></div>
+                <div class="kv"><span>COST</span><b>$0.214</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="holo cut-tr card" style="--boot:.95s">
+          <div class="holo-frame"></div>
+          <div class="holo-body">
+            <h4>ACTIVITY <span class="mono">7D</span></h4>
+            <div class="bars">
+              <i style="--i:0;height:42%"></i><i style="--i:1;height:68%"></i>
+              <i style="--i:2;height:55%"></i><i style="--i:3;height:90%"></i>
+              <i style="--i:4;height:34%"></i><i style="--i:5;height:72%"></i>
+              <i style="--i:6;height:61%"></i><i style="--i:7;height:26%"></i>
+              <i style="--i:8;height:48%"></i><i style="--i:9;height:81%"></i>
+              <i style="--i:10;height:39%"></i><i style="--i:11;height:58%"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="holo cut-2 card" style="--boot:1.1s; flex:1; min-height:0">
+          <div class="holo-frame"></div>
+          <div class="holo-body">
+            <h4>SYS FEED <span class="mono">TAIL -F</span></h4>
+            <div class="feed">
+              <div class="scroll" id="feed">
+                <div><em>[OK]</em> gateway.handshake … 12ms</div>
+                <div><em>[OK]</em> session.store hydrate (142)</div>
+                <div>[..] model.options → hermes-4-405b</div>
+                <div><em>[OK]</em> skills.index 36 loaded</div>
+                <div>[..] cron.scheduler armed (3 jobs)</div>
+                <div><em>[OK]</em> voice.capture device ready</div>
+                <div>[..] artifacts.watch ∅ pending</div>
+                <div><em>[OK]</em> mcp.bridge 2 servers up</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="holo cut-2 card mini" style="--boot:1.25s">
+          <div class="holo-frame"></div>
+          <div class="holo-body">
+            <h4>CONTEXT <span class="mono">256K WIN</span></h4>
+            <div class="meter-row">
+              <span>20.7K/256.0K</span>
+              <div class="meter"><i style="--fill:8%"></i></div>
+              <span class="pct">8%</span>
+            </div>
+            <div class="meter-sub"><span>SESSION</span><b>4:05:05</b></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="scanner"></div>
+<div class="crt"></div>
+
+<script>
+/* depth echo: every panel gets a projected duplicate frame behind it */
+document.querySelectorAll('.holo').forEach(p => {
+  const echo = document.createElement('div')
+  echo.className = 'holo-echo'
+  p.prepend(echo)
+})
+
+/* parallax: tilt the wings toward the cursor */
+const scene = document.querySelector('.scene')
+addEventListener('mousemove', e => {
+  scene.style.setProperty('--mx', ((e.clientX / innerWidth) - .5) * 2)
+  scene.style.setProperty('--my', ((e.clientY / innerHeight) - .5) * 2)
+})
+
+/* clock */
+const clock = document.getElementById('clock')
+setInterval(() => { clock.textContent = new Date().toLocaleTimeString('en-GB') }, 1000)
+clock.textContent = new Date().toLocaleTimeString('en-GB')
+
+/* typed intro copy — mirrors the real intro.tsx rotation */
+const COPIES = [
+  "Send a bug, branch, plan, or rough idea. I'll inspect the repo and turn it into the next concrete step.",
+  "Bring the code, question, or stuck part. I'll read the room before making changes.",
+  "Send the task, failing path, or half-formed plan. I'll help turn it into action."
+]
+const typed = document.getElementById('typed')
+const line = COPIES[Math.floor(Math.random() * COPIES.length)]
+let i = 0
+const t = setInterval(() => {
+  typed.textContent = line.slice(0, ++i)
+  if (i >= line.length) clearInterval(t)
+}, 16)
+
+/* duplicate feed content so the scroll loop is seamless */
+const feed = document.getElementById('feed')
+feed.innerHTML += feed.innerHTML
+</script>
+</body>
+</html>

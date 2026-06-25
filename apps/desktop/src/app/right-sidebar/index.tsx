@@ -16,6 +16,7 @@ import { $currentCwd } from '@/store/session'
 
 import { SidebarPanelLabel } from '../shell/sidebar-label'
 
+import { ContextHud } from './context-hud'
 import { ProjectTree } from './files/tree'
 import { useProjectTree } from './files/use-project-tree'
 
@@ -89,26 +90,32 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder, onChangeCwd
           ? 'border-r shadow-[inset_-0.0625rem_0_0_color-mix(in_srgb,white_18%,transparent)]'
           : 'border-l shadow-[inset_0.0625rem_0_0_color-mix(in_srgb,white_18%,transparent)]'
       )}
+      data-slot="right-sidebar"
     >
-      <FilesystemTab
-        canCollapse={canCollapse}
-        collapseNonce={collapseNonce}
-        cwd={currentCwd}
-        cwdName={cwdName}
-        data={data}
-        error={rootError}
-        hasCwd={hasCwd}
-        loading={rootLoading}
-        onActivateFile={onActivateFile}
-        onActivateFolder={onActivateFolder}
-        onChangeFolder={chooseFolder}
-        onCollapseAll={collapseAll}
-        onLoadChildren={loadChildren}
-        onNodeOpenChange={setNodeOpen}
-        onPreviewFile={previewFile}
-        onRefresh={() => void refreshRoot()}
-        openState={openState}
-      />
+      {/* Holo draws its chamfered frame around this wrapper, so the ContextHud
+          below sits outside the frame as a sibling card at the same level. */}
+      <div className="flex min-h-0 flex-1 flex-col" data-slot="right-sidebar-panel">
+        <FilesystemTab
+          canCollapse={canCollapse}
+          collapseNonce={collapseNonce}
+          cwd={currentCwd}
+          cwdName={cwdName}
+          data={data}
+          error={rootError}
+          hasCwd={hasCwd}
+          loading={rootLoading}
+          onActivateFile={onActivateFile}
+          onActivateFolder={onActivateFolder}
+          onChangeFolder={chooseFolder}
+          onCollapseAll={collapseAll}
+          onLoadChildren={loadChildren}
+          onNodeOpenChange={setNodeOpen}
+          onPreviewFile={previewFile}
+          onRefresh={() => void refreshRoot()}
+          openState={openState}
+        />
+      </div>
+      <ContextHud />
     </aside>
   )
 }
