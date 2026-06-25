@@ -1,4 +1,15 @@
 import './styles.css'
+// Side-effect: swaps the bundled brand mark (nous-girl.jpg) for Lera.png.
+// Imported after styles.css so its rules win.
+import './components/brand-mark-lera.css'
+// Side-effect: restores the holo hexagon wall on the chat/home screen by
+// stopping the chat-surface chrome fill from compounding over it.
+import './styles/holo-hex-restore.css'
+// Side-effect: applies the persisted window translucency on load.
+import './store/translucency'
+// Side-effect: rebrands the "Hermes Desktop" product label to "LERA" across
+// all locales. Must run before any UI reads the i18n catalog.
+import './i18n/brand-override'
 
 import { QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
@@ -24,20 +35,27 @@ if (import.meta.env.MODE !== 'production') {
   import('./app/chat/perf-probe')
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary label="root">
-      <QueryClientProvider client={queryClient}>
-        <I18nProvider>
-          <ThemeProvider>
-            <HapticsProvider>
-              <HashRouter>
-                <App />
-              </HashRouter>
-            </HapticsProvider>
-          </ThemeProvider>
-        </I18nProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
-  </StrictMode>
-)
+// The pet overlay rides this same bundle (`?win=overlay`) but mounts a tiny,
+// transparent, gateway-less surface instead of the full app. Branch before any
+// app-shell work so the overlay window stays cheap.
+if (new URLSearchParams(window.location.search).get('win') === 'overlay') {
+  void import('./app/pet-overlay/overlay-root').then(({ mountPetOverlay }) => mountPetOverlay())
+} else {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <ErrorBoundary label="root">
+        <QueryClientProvider client={queryClient}>
+          <I18nProvider>
+            <ThemeProvider>
+              <HapticsProvider>
+                <HashRouter>
+                  <App />
+                </HashRouter>
+              </HapticsProvider>
+            </ThemeProvider>
+          </I18nProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    </StrictMode>
+  )
+}

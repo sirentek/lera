@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LERA - Holo Synthesis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --ember-core: #ffd9cf;
+  --ember-hot: #ff7a6f;
+  --ember-mid: #e8472f;
+  --red-core: #ffd1c7;
+  --red-hot: #ff5144;
+  --red-deep: #991f18;
+  --ink: #ffb29f;
+  --ink-soft: #c9705d;
+  --bg: #060302;
+  --font-display: "Orbitron", sans-serif;
+  --font-ui: "Rajdhani", sans-serif;
+  --font-mono: "Share Tech Mono", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.environment {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(95% 80% at 50% -12%, rgba(74, 24, 17, .78), transparent 58%),
+    radial-gradient(62% 62% at 49% 48%, rgba(177, 37, 24, .28), transparent 58%),
+    radial-gradient(80% 80% at 22% 108%, rgba(52, 17, 12, .82), transparent 60%),
+    linear-gradient(180deg, #0b0403 0%, #190805 58%, #050302 100%);
+}
+
+.environment::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 130, 105, .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 130, 105, .055) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(86% 74% at 50% 46%, #000 0%, transparent 100%);
+}
+
+.environment::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(38% 32% at 33% 38%, rgba(255, 101, 73, .08), transparent 72%),
+    radial-gradient(34% 32% at 68% 56%, rgba(255, 81, 68, .11), transparent 72%);
+  animation: haze 22s ease-in-out infinite alternate;
+}
+
+@keyframes haze {
+  from { transform: translate3d(-1.8%, -1%, 0) scale(1); }
+  to { transform: translate3d(1.6%, 2%, 0) scale(1.05); }
+}
+
+.scene {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr) 76px;
+  perspective: 1200px;
+  perspective-origin: 50% 42%;
+}
+
+.stage {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  transform-style: preserve-3d;
+}
+
+.prompt-line {
+  position: fixed;
+  left: 50%;
+  bottom: clamp(22px, 4.4vh, 54px);
+  z-index: 6;
+  width: min(860px, calc(100vw - 36px));
+  transform: translateX(-50%);
+  color: rgba(255, 209, 199, .82);
+  font-family: var(--font-ui);
+  font-size: clamp(15px, 1.7vw, 22px);
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  text-shadow:
+    0 0 8px rgba(255, 81, 68, .56),
+    0 0 26px rgba(232, 71, 47, .34);
+}
+
+.prompt-line::before,
+.prompt-line::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: clamp(30px, 8vw, 110px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 122, 111, .68));
+  box-shadow: 0 0 12px rgba(255, 81, 68, .52);
+}
+
+.prompt-line::before {
+  right: calc(100% + 14px);
+}
+
+.prompt-line::after {
+  left: calc(100% + 14px);
+  transform: rotate(180deg);
+}
+
+.orbital {
+  position: relative;
+  width: min(78vw, 720px);
+  aspect-ratio: 1 / 1;
+  transform: rotateX(5deg) translateZ(16px);
+  animation: boot-in 900ms cubic-bezier(.19, 1, .22, 1) both;
+}
+
+@keyframes boot-in {
+  from {
+    opacity: 0;
+    transform: rotateX(14deg) translateY(26px) translateZ(-60px) scale(.94);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: rotateX(5deg) translateZ(16px);
+    filter: blur(0);
+  }
+}
+
+.orbital::before,
+.orbital::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.orbital::before {
+  inset: 7%;
+  border: 1px solid rgba(255, 122, 111, .32);
+  box-shadow:
+    0 0 18px rgba(255, 122, 111, .42),
+    inset 0 0 34px rgba(255, 122, 111, .12);
+  animation: pulse 3.4s ease-in-out infinite;
+}
+
+.orbital::after {
+  inset: 14%;
+  border: 1px dashed rgba(255, 81, 68, .34);
+  box-shadow: 0 0 30px rgba(255, 81, 68, .20);
+  animation: rotate 18s linear infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: .5; transform: scale(.985); }
+  50% { opacity: .95; transform: scale(1.015); }
+}
+
+@keyframes rotate {
+  to { transform: rotate(360deg); }
+}
+
+.reactor {
+  position: absolute;
+  inset: 11%;
+  border-radius: 50%;
+  overflow: hidden;
+  clip-path: circle(50% at 50% 50%);
+  filter:
+    drop-shadow(0 0 8px rgba(255, 81, 68, .88))
+    drop-shadow(0 0 32px rgba(255, 81, 68, .48))
+    drop-shadow(0 0 82px rgba(232, 71, 47, .28));
+}
+
+canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+}
+
+.ring-pass {
+  position: absolute;
+  inset: -5%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(from 20deg,
+    transparent 0deg,
+    rgba(255, 122, 111, .34) 36deg,
+    transparent 72deg,
+    transparent 148deg,
+    rgba(255, 81, 68, .32) 188deg,
+    transparent 232deg,
+    rgba(255, 217, 207, .24) 296deg,
+    transparent 360deg);
+  mask-image: radial-gradient(circle, transparent 55%, #000 58%, #000 62%, transparent 65%);
+  animation: rotate 10s linear infinite reverse;
+}
+
+.scanline {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 46%;
+  height: 13%;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 81, 68, .05) 18%,
+    rgba(255, 217, 207, .40) 49%,
+    rgba(255, 81, 68, .08) 78%,
+    transparent 100%);
+  border-radius: 50%;
+  mask-image: radial-gradient(ellipse at 50% 50%, #000 0%, #000 64%, transparent 78%);
+  filter: blur(1px);
+  opacity: 0;
+  animation: flare 6.24s steps(43, end) forwards;
+}
+
+@keyframes flare {
+  0%, 20% { opacity: 0; transform: translateY(-10%) scaleX(.6); }
+  24%, 34% { opacity: .72; transform: translateY(-3%) scaleX(1); }
+  40%, 100% { opacity: 0; transform: translateY(0) scaleX(1.08); }
+}
+
+.hud-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud-lines i {
+  position: absolute;
+  width: 26%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 217, 207, .78), transparent);
+  box-shadow: 0 0 18px rgba(255, 122, 111, .5);
+  animation: hud-flicker 2.6s ease-in-out infinite;
+}
+
+.hud-lines i:nth-child(1) { top: 19%; left: 8%; }
+.hud-lines i:nth-child(2) { top: 28%; right: 5%; animation-delay: .3s; }
+.hud-lines i:nth-child(3) { bottom: 24%; left: 6%; animation-delay: .8s; }
+.hud-lines i:nth-child(4) { bottom: 16%; right: 12%; animation-delay: 1.2s; }
+
+@keyframes hud-flicker {
+  0%, 100% { opacity: .24; transform: scaleX(.72); }
+  50% { opacity: .88; transform: scaleX(1); }
+}
+
+.floor {
+  position: fixed;
+  left: -12%;
+  right: -12%;
+  bottom: -22%;
+  height: 45vh;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 122, 111, .20) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 122, 111, .16) 1px, transparent 1px);
+  background-size: 58px 58px;
+  transform: perspective(520px) rotateX(68deg);
+  transform-origin: center bottom;
+  mask-image: linear-gradient(0deg, #000 0%, transparent 84%);
+  opacity: .58;
+}
+
+.scanner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: -22vh;
+  z-index: 12;
+  height: 18vh;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(255, 110, 90, .03) 45%,
+    rgba(255, 130, 110, .10) 80%,
+    rgba(255, 160, 140, .18) 100%);
+  animation: scan-sweep 6.5s cubic-bezier(.33, 0, .67, 1) infinite;
+}
+
+.scanner::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 200, 190, .85) 12%,
+    var(--ember-core) 50%,
+    rgba(255, 200, 190, .85) 88%,
+    transparent 100%);
+  box-shadow:
+    0 0 12px 2px rgba(255, 140, 120, .9),
+    0 0 36px 8px rgba(245, 80, 60, .55),
+    0 0 90px 20px rgba(230, 50, 40, .3);
+}
+
+@keyframes scan-sweep {
+  from { transform: translateY(0); }
+  to { transform: translateY(146vh); }
+}
+
+.crt {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 170, 140, .025) 0 1px, transparent 1px 3px),
+    radial-gradient(90% 70% at 50% 45%, transparent 44%, rgba(0, 0, 0, .32) 100%);
+  mix-blend-mode: screen;
+}
+
+.crt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 22% 30%, rgba(255, 255, 255, .045) 0 1px, transparent 1px),
+    radial-gradient(circle at 74% 64%, rgba(255, 255, 255, .035) 0 1px, transparent 1px);
+  background-size: 43px 37px, 59px 53px;
+  opacity: .38;
+  animation: noise-shift .42s steps(2, end) infinite;
+}
+
+@keyframes noise-shift {
+  to { transform: translate3d(2px, -1px, 0); }
+}
+
+@media (max-width: 720px) {
+  .scene { grid-template-rows: 50px minmax(0, 1fr) 62px; }
+  .orbital { width: min(94vw, 560px); }
+  .reactor { inset: 7%; }
+  .prompt-line::before,
+  .prompt-line::after { display: none; }
+}
+</style>
+</head>
+<body>
+  <div class="environment"></div>
+  <div class="floor"></div>
+
+  <main class="scene" aria-label="LERA generated holographic boot effect">
+    <div aria-hidden="true"></div>
+
+    <section class="stage">
+      <div class="orbital">
+        <div class="reactor">
+          <canvas id="leraCanvas" aria-label="Generated LERA holographic effect"></canvas>
+          <div class="ring-pass"></div>
+          <div class="scanline"></div>
+        </div>
+        <div class="hud-lines"><i></i><i></i><i></i><i></i></div>
+      </div>
+    </section>
+
+    <div aria-hidden="true"></div>
+  </main>
+
+  <div class="scanner"></div>
+  <p class="prompt-line">Search the repo, edit files, run tests, open PRs. Tell me the goal and I'll handle the mechanical parts.</p>
+  <div class="crt"></div>
+
+<script>
+const canvas = document.getElementById("leraCanvas");
+const ctx = canvas.getContext("2d", { alpha: true });
+const sequenceSteps = 43;
+const stepMs = 145;
+const sequenceMs = sequenceSteps * stepMs;
+const start = performance.now();
+const targetFrameMs = 1000 / 42;
+let lastPaint = -Infinity;
+const particles = [];
+const ringSeeds = [];
+const sparks = [];
+const letterGlitch = {
+  nextAt: sequenceMs / 1000 + 5 + randomBetween(0, 15),
+  startAt: -1,
+  duration: .18,
+  letter: 0,
+  pool: []
+};
+
+function mulberry32(seed) {
+  return function rand() {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+const rand = mulberry32(1138);
+
+function randomUnit() {
+  if (globalThis.crypto?.getRandomValues) {
+    const value = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(value);
+    return value[0] / 4294967296;
+  }
+
+  return Math.random();
+}
+
+function randomBetween(min, max) {
+  return min + randomUnit() * (max - min);
+}
+
+function refillLetterPool(previousLetter) {
+  const pool = [0, 1, 2, 3];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(randomUnit() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  if (pool[0] === previousLetter) {
+    [pool[0], pool[1]] = [pool[1], pool[0]];
+  }
+
+  return pool;
+}
+
+for (let i = 0; i < 420; i++) {
+  particles.push({
+    a: rand() * Math.PI * 2,
+    r: .10 + rand() * .34,
+    s: .3 + rand() * 1.8,
+    z: .2 + rand() * .8,
+    blink: rand() * Math.PI * 2
+  });
+}
+
+for (let i = 0; i < 72; i++) {
+  ringSeeds.push({
+    a: rand() * Math.PI * 2,
+    wobble: rand() * 16,
+    len: .018 + rand() * .052,
+    amp: .92 + rand() * .22
+  });
+}
+
+for (let i = 0; i < 42; i++) {
+  sparks.push({
+    x: rand() * 2 - 1,
+    y: rand() * 2 - 1,
+    life: rand(),
+    speed: .18 + rand() * .48
+  });
+}
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+window.addEventListener("resize", resize);
+resize();
+
+function smooth(edge0, edge1, x) {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+function getLetterGlitch(time, ready) {
+  if (!ready) {
+    return { amount: 0, letter: -1 };
+  }
+
+  if (letterGlitch.startAt < 0 && time >= letterGlitch.nextAt) {
+    if (letterGlitch.pool.length === 0) {
+      letterGlitch.pool = refillLetterPool(letterGlitch.letter);
+    }
+
+    letterGlitch.startAt = time;
+    letterGlitch.duration = randomBetween(.16, .34);
+    letterGlitch.letter = letterGlitch.pool.shift();
+  }
+
+  if (letterGlitch.startAt >= 0) {
+    const t = (time - letterGlitch.startAt) / letterGlitch.duration;
+    if (t >= 1) {
+      letterGlitch.startAt = -1;
+      letterGlitch.nextAt = time + randomBetween(5, 20);
+      return { amount: 0, letter: -1 };
+    }
+
+    const amount = Math.sin(t * Math.PI) ** 2;
+    return { amount, letter: letterGlitch.letter };
+  }
+
+  return { amount: 0, letter: -1 };
+}
+
+function drawNoisyArc(cx, cy, radius, width, alpha, time, turn, color) {
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.strokeStyle = color;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = width * 1.7;
+  ctx.lineWidth = width;
+  for (const seed of ringSeeds) {
+    const drift = Math.sin(time * seed.amp + seed.wobble) * .018;
+    const a0 = seed.a + turn + drift;
+    const a1 = a0 + seed.len;
+    const rr = radius + Math.sin(seed.a * 5 + time * 1.7) * width * 1.2;
+    ctx.globalAlpha = alpha * (.22 + .78 * Math.sin(seed.a * 9 + time * 2.3) ** 2);
+    ctx.beginPath();
+    ctx.arc(cx, cy, rr, a0, a1);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCore(cx, cy, unit, time, p) {
+  const core = unit * (.145 + Math.sin(time * 2.1) * .006);
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, core * 1.25);
+  g.addColorStop(0, "rgba(255,209,199,.48)");
+  g.addColorStop(.52, "rgba(255,81,68,.18)");
+  g.addColorStop(1, "rgba(255,81,68,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, core * 1.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,209,199,.22)";
+  ctx.lineWidth = Math.max(1, unit * .004);
+  ctx.shadowColor = "rgba(255,81,68,.85)";
+  ctx.shadowBlur = unit * .016;
+  for (let lat = -2; lat <= 2; lat++) {
+    ctx.globalAlpha = .20 + p * .16;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, core * (1 - Math.abs(lat) * .055), core * (.30 + Math.abs(lat) * .045), time * .45 + lat * .35, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  for (let i = 0; i < 6; i++) {
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, core * .98, core * .24, time * .28 + i * Math.PI / 10, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawParticles(cx, cy, unit, time, p, reveal) {
+  ctx.save();
+  ctx.fillStyle = "rgba(255,209,199,.95)";
+  ctx.shadowColor = "rgba(255,81,68,.95)";
+  ctx.shadowBlur = unit * .009;
+  for (const pt of particles) {
+    const orbit = pt.a + time * .08 * pt.s;
+    const breathe = Math.sin(time * pt.s + pt.blink);
+    const radial = unit * (pt.r + Math.sin(time * .7 + pt.a * 3) * .012);
+    const flatten = .82 + .06 * Math.sin(time * .5);
+    const x = cx + Math.cos(orbit) * radial;
+    const y = cy + Math.sin(orbit) * radial * flatten;
+    const dot = unit * (.0022 + pt.z * .0032);
+    ctx.globalAlpha = (.10 + .34 * (breathe * .5 + .5)) * (.55 + p * .45) * reveal;
+    ctx.beginPath();
+    ctx.arc(x, y, dot, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawGlitchWord(cx, cy, unit, time, reveal, step) {
+  if (reveal <= 0) return;
+
+  const letters = ["L", "E", "R", "A"];
+  const fontSize = unit * .165;
+  const slot = unit * .172;
+  const total = slot * letters.length;
+  const left = cx - total / 2 + slot / 2;
+  const slices = 16;
+  const postReveal = smooth(.96, 1, reveal);
+  const glitch = getLetterGlitch(time, postReveal > .995);
+  const bootJitter = Math.max(0, 1 - reveal) * unit * .034 + (step < 39 ? unit * .009 : 0);
+  let glitchX = cx;
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `900 ${fontSize}px Orbitron, sans-serif`;
+  ctx.lineJoin = "round";
+
+  for (let letterIndex = 0; letterIndex < letters.length; letterIndex++) {
+    const letter = letters[letterIndex];
+    const lx = left + slot * letterIndex;
+    const letterGlitchAmount = glitch.letter === letterIndex ? glitch.amount : 0;
+    const alivePulse = letterGlitchAmount;
+    const microGlitch = letterGlitchAmount;
+    const baseJitter = bootJitter + microGlitch * unit * .018;
+    const letterLife = 1 + letterGlitchAmount * Math.sin(time * 22 + letterIndex * 1.4) * .035;
+    const letterReveal = Math.min(1, smooth(.05 + letterIndex * .16, .48 + letterIndex * .12, reveal) * letterLife);
+    const ignition = smooth(.01 + letterIndex * .14, .18 + letterIndex * .14, reveal);
+    if (ignition <= 0) continue;
+
+    if (letterGlitchAmount > 0) {
+      glitchX = lx;
+    }
+
+    const signalAlpha = ignition * (Math.max(0, 1 - smooth(.68, .98, letterReveal)) + letterGlitchAmount * .8);
+
+    ctx.save();
+    ctx.globalAlpha = signalAlpha * .46;
+    ctx.strokeStyle = "rgba(255,81,68,.62)";
+    ctx.lineWidth = Math.max(1, unit * .0025);
+    ctx.shadowColor = "rgba(255,81,68,.9)";
+    ctx.shadowBlur = unit * .010;
+    for (let i = 0; i < 7; i++) {
+      const y = cy - fontSize * .42 + i * fontSize * .084;
+      const phase = signalAlpha > 0 ? Math.sin(time * 9 + i * 1.8 + letterIndex) : 0;
+      const span = slot * (.22 + letterReveal * .54) * (.72 + Math.abs(phase) * .28);
+      const x0 = lx - span / 2 + phase * unit * .008;
+      const x1 = lx + span / 2 + Math.cos(time * 7 + i) * unit * .008;
+      ctx.beginPath();
+      ctx.moveTo(x0, y);
+      ctx.lineTo(x1, y + Math.sin(time * 13 + i) * unit * .003);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    for (let i = 0; i < slices; i++) {
+      const sliceProgress = smooth(i / slices - .08, i / slices + .30, letterReveal);
+      if (sliceProgress <= 0) continue;
+
+      const phase = letterGlitchAmount > 0 ? Math.sin(time * 10.5 + i * 4.17 + letterIndex * 2.1) : 0;
+      const bandY = cy - fontSize * .52 + i * (fontSize / slices);
+      const bandHeight = fontSize / slices * (1.15 + Math.abs(phase) * .28);
+      const offset = phase * baseJitter + (i % 3 - 1) * baseJitter * .32;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(lx - slot * .48, bandY, slot * .96, bandHeight);
+      ctx.clip();
+      const sliceBlink = letterGlitchAmount * Math.max(0, Math.sin(time * 18 + i * 1.7 + letterIndex)) ** 8;
+      ctx.globalAlpha = ignition * sliceProgress * (.36 + Math.abs(phase) * .22 + sliceBlink * .18);
+      ctx.fillStyle = "rgba(255,209,199,.94)";
+      ctx.shadowColor = "rgba(255,81,68,.98)";
+      ctx.shadowBlur = unit * (.007 + sliceProgress * .010);
+      ctx.fillText(letter, lx + offset, cy);
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalAlpha = letterReveal * (.30 + alivePulse * .08);
+    ctx.strokeStyle = "rgba(255,209,199,.88)";
+    ctx.lineWidth = Math.max(1, unit * .005);
+    ctx.shadowColor = "rgba(255,81,68,.95)";
+    ctx.shadowBlur = unit * .018;
+    ctx.strokeText(letter, lx, cy);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = smooth(.72, 1, letterReveal) * (.30 + alivePulse * .08);
+    ctx.fillStyle = "rgba(255,217,207,.74)";
+    ctx.shadowColor = "rgba(255,81,68,.95)";
+    ctx.shadowBlur = unit * .012;
+    ctx.fillText(letter, lx + letterGlitchAmount * Math.sin(time * 18 + letterIndex) * unit * .003, cy - unit * .002);
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.globalAlpha = reveal * glitch.amount * (.18 + .18 * Math.max(0, Math.sin(time * 20)));
+  ctx.strokeStyle = "rgba(255,209,199,.50)";
+  ctx.lineWidth = Math.max(1, unit * .003);
+  for (let i = 0; i < 7; i++) {
+    const y = cy - unit * .075 + (i - 8.5) * unit * .009;
+    const wave = Math.sin(time * 7 + i * .8);
+    const x0 = glitchX - slot * (.38 + wave * .08);
+    const x1 = glitchX + slot * (.38 + Math.cos(time * 8 + i) * .08);
+    ctx.beginPath();
+    ctx.moveTo(x0, y);
+    ctx.lineTo(x1, y + Math.sin(time * 12 + i) * unit * .004);
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawFilaments(cx, cy, unit, time, intensity) {
+  if (intensity <= 0) return;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(1, unit * .0024);
+  ctx.strokeStyle = "rgba(255,209,199,.46)";
+  ctx.shadowColor = "rgba(255,81,68,.95)";
+  ctx.shadowBlur = unit * .010;
+  for (let i = 0; i < 18; i++) {
+    const a = i * .71 + time * (.18 + (i % 5) * .018);
+    const r0 = unit * (.16 + (i % 7) * .028);
+    const r1 = r0 + unit * (.04 + Math.sin(time * 2 + i) * .018);
+    const bend = Math.sin(time * 1.7 + i) * .18;
+    ctx.globalAlpha = intensity * (.12 + .28 * Math.sin(time * 4 + i) ** 2);
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0 * .82);
+    ctx.quadraticCurveTo(
+      cx + Math.cos(a + bend) * (r0 + r1) * .5,
+      cy + Math.sin(a - bend) * (r0 + r1) * .41,
+      cx + Math.cos(a + .22) * r1,
+      cy + Math.sin(a + .22) * r1 * .82
+    );
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawSparks(cx, cy, unit, time, burst) {
+  if (burst <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,209,199,.85)";
+  ctx.shadowColor = "rgba(255,81,68,1)";
+  ctx.shadowBlur = unit * .014;
+  ctx.lineWidth = Math.max(1, unit * .003);
+  for (const sp of sparks) {
+    const age = (sp.life + time * sp.speed) % 1;
+    const angle = Math.atan2(sp.y, sp.x);
+    const radius = unit * (.18 + age * .38);
+    const alpha = burst * (1 - age);
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius * .82;
+    ctx.globalAlpha = alpha * .55;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * unit * .028, y + Math.sin(angle) * unit * .028);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawVignette(w, h, cx, cy, unit) {
+  const g = ctx.createRadialGradient(cx, cy, unit * .12, cx, cy, unit * .66);
+  g.addColorStop(0, "rgba(40,6,4,0)");
+  g.addColorStop(.50, "rgba(40,6,4,.08)");
+  g.addColorStop(1, "rgba(0,0,0,.50)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function draw() {
+  const now = performance.now();
+  const elapsed = now - start;
+  if (elapsed < sequenceMs && elapsed - lastPaint < targetFrameMs) {
+    requestAnimationFrame(draw);
+    return;
+  }
+  lastPaint = elapsed;
+
+  const clamped = Math.min(elapsed, sequenceMs);
+  const step = Math.min(sequenceSteps - 1, Math.floor(clamped / stepMs));
+  const p = clamped / sequenceMs;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  const unit = Math.min(w, h);
+  const cx = w / 2;
+  const cy = h / 2;
+  const time = elapsed * .001;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.globalCompositeOperation = "source-over";
+
+  const bg = ctx.createRadialGradient(cx, cy, unit * .08, cx, cy, unit * .56);
+  bg.addColorStop(0, "rgba(177,37,24,.22)");
+  bg.addColorStop(.45, "rgba(114,23,17,.16)");
+  bg.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.globalCompositeOperation = "lighter";
+  const collapse = smooth(.58, .78, p);
+  const secondPass = smooth(32 / 43, 42 / 43, p);
+  const wordReveal = smooth(20 / 43, 42 / 43, p);
+  const ringRadius = unit * (.365 - collapse * .065 + Math.sin(time * .8) * .007);
+  const outerRadius = unit * (.424 - collapse * .038 + Math.cos(time * .5) * .006);
+
+  drawParticles(cx, cy, unit, time, p, 1 - collapse * .22 + secondPass * .18);
+  drawNoisyArc(cx, cy, outerRadius, unit * .011, .62 - collapse * .24 + secondPass * .20, time, time * .10, "rgba(255,209,199,.84)");
+  drawNoisyArc(cx, cy, outerRadius * .91, unit * .005, .26 + secondPass * .14, time, -time * .26, "rgba(255,81,68,.58)");
+  drawNoisyArc(cx, cy, ringRadius, unit * .006, .42 + secondPass * .20, time, -time * .16, "rgba(255,81,68,.70)");
+  drawNoisyArc(cx, cy, unit * .255, unit * .004, .20 + secondPass * .18, time, time * .22, "rgba(255,209,199,.45)");
+  drawNoisyArc(cx, cy, unit * .205, unit * .003, .14 + wordReveal * .22, time, -time * .34, "rgba(255,81,68,.42)");
+  drawFilaments(cx, cy, unit, time, smooth(12 / 43, 42 / 43, p));
+  drawCore(cx, cy, unit, time, p);
+
+  const inBoot = elapsed < sequenceMs;
+  const burstA = inBoot ? Math.max(0, 1 - Math.abs(step - 10) / 5) : 0;
+  const burstB = inBoot ? Math.max(0, 1 - Math.abs(step - 38) / 6) : 0;
+  drawSparks(cx, cy, unit, time, Math.max(burstA * .6, burstB));
+  drawGlitchWord(cx, cy + unit * .008, unit, time, wordReveal, step);
+
+  ctx.globalCompositeOperation = "source-over";
+  drawVignette(w, h, cx, cy, unit);
+
+  requestAnimationFrame(draw);
+}
+
+document.fonts.ready.then(() => requestAnimationFrame(draw));
+</script>
+</body>
+</html>

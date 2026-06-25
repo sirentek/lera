@@ -3,7 +3,7 @@
  * Add new themes here — no code changes needed elsewhere.
  */
 
-import type { DesktopTheme, DesktopThemeTypography } from './types'
+import type { DesktopTheme, DesktopThemeColors, DesktopThemeTypography } from './types'
 
 // Color-emoji fonts to append to every stack as a last resort. None of the UI
 // text/mono fonts carry emoji glyphs, so without this emoji render as tofu
@@ -278,13 +278,64 @@ export const slateTheme: DesktopTheme = {
   }
 }
 
+const HOLO_COLORS: DesktopThemeColors = {
+  background: '#0d0605',
+  foreground: '#ffb29f',
+  card: '#1a0b08',
+  cardForeground: '#ffd9cf',
+  muted: '#2a100a',
+  mutedForeground: '#c9705d',
+  popover: '#200d09',
+  popoverForeground: '#ffd9cf',
+  primary: '#ff7a6f',
+  primaryForeground: '#1f0a06',
+  secondary: '#2c110b',
+  secondaryForeground: '#ffc9b8',
+  accent: '#33120a',
+  accentForeground: '#ffd9cf',
+  border: '#4a1c12',
+  input: '#4a1c12',
+  ring: '#ff7a6f',
+  midground: '#ff7a6f',
+  composerRing: '#ff7a6f',
+  destructive: '#ff3b30',
+  destructiveForeground: '#ffffff',
+  sidebarBackground: '#0a0504',
+  sidebarBorder: '#3c1711',
+  userBubble: '#2a100a',
+  userBubbleBorder: '#5a2418'
+}
+
+/**
+ * Red holographic HUD — the sci-fi concept from holo-home-concept.html.
+ * The palette drives every token red; the structural layer (chamfered neon
+ * frames, scanlines, environment glow) lives in `src/styles/holo.css`,
+ * scoped to `[data-hermes-theme='holo']`. Light and dark share the same
+ * palette: the HUD is inherently dark, so the light synth pass must never
+ * fight the structural overlay.
+ */
+export const holoTheme: DesktopTheme = {
+  name: 'holo',
+  label: 'Holo',
+  description: 'Red holographic HUD — neon frames and scanlines',
+  colors: HOLO_COLORS,
+  darkColors: HOLO_COLORS,
+  typography: {
+    fontSans: `"Rajdhani", ${SYSTEM_SANS}`,
+    fontMono: `"Share Tech Mono", ${SYSTEM_MONO}`,
+    fontUrl:
+      'https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap'
+  }
+}
+
 export const BUILTIN_THEMES: Record<string, DesktopTheme> = {
   nous: nousTheme,
   midnight: midnightTheme,
   ember: emberTheme,
   mono: monoTheme,
   cyberpunk: cyberpunkTheme,
-  slate: slateTheme
+  slate: slateTheme,
+  holo: holoTheme
 }
 
 export const BUILTIN_THEME_LIST = Object.values(BUILTIN_THEMES)

@@ -1,0 +1,41 @@
+/*
+ * Holo hexagon-wall restore (override, no source edit).
+ *
+ * The honeycomb "tron wall" lives on :root[data-hermes-theme='holo']::before
+ * (z-index -2, opacity 0.5, faint warm stroke) and is intact — we DON'T touch
+ * its strength here, so it keeps the subtle v0.16 look. Two layers above it
+ * were burying it on the chat / empty home screen:
+ *
+ *   1. body { background: #0c0504 }  — a FULLY OPAQUE base (the real blocker;
+ *      see below).
+ *   2. the chat surface / composer / intro panes, all painting the translucent
+ *      chrome colour rgba(16,7,5,0.42) on top of the root's same fill — the
+ *      stacked 0.42 layers compounded toward opaque and dimmed the wall.
+ *
+ * Imported after styles.css and holo.css (see main.tsx) so it wins.
+ */
+
+/* (2) Stop the chat-surface chrome fill from compounding over the wall. */
+:root[data-hermes-theme='holo'] {
+  --ui-chat-surface-background: transparent;
+}
+
+/* (1) THE ACTUAL BLOCKER: the hex wall lives on html::before at z-index -2, but
+ * holo.css paints `body { background: #0c0504 }` as a FULLY OPAQUE layer.
+ * body sits in normal flow (z auto) in front of html's negative-z pseudo, so
+ * its opaque fill completely covers the honeycomb — which is why nothing read
+ * through no matter how strong we made the wall. (In v0.16 the body base was
+ * translucent so the wall showed.)
+ *
+ * Fix: make the body base transparent and move the dark floor onto the html
+ * element instead. html paints behind html::before, so the floor still backs
+ * the scene but the hex pseudo now renders ON TOP of it and is visible. The
+ * single chrome layer (sidebar-wrapper, 0.42) still tints over everything.
+ */
+:root[data-hermes-theme='holo'] {
+  background-color: #0c0504;
+}
+
+:root[data-hermes-theme='holo'] body {
+  background: transparent;
+}

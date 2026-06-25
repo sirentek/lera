@@ -6,6 +6,12 @@ import { defineFieldCopy, fieldCopyForSchemaKey, schemaKeyToFieldCopyKey } from 
 import { enumOptionsFor, getNested, providerGroup, setNested, stripToolsetLabel, toolsetDisplayLabel } from './helpers'
 
 describe('settings helpers', () => {
+  it('lists Hindsight as a built-in desktop memory provider option', () => {
+    const options = enumOptionsFor('memory.provider', '', {})
+
+    expect(options).toContain('hindsight')
+  })
+
   describe('defineFieldCopy', () => {
     it('flattens nested field copy paths', () => {
       const copy = defineFieldCopy({
@@ -126,9 +132,9 @@ describe('settings helpers', () => {
       // KIMI_CN_ likewise must beat KIMI_.
       expect(providerGroup('KIMI_CN_API_KEY')).toBe('Kimi (China)')
       expect(providerGroup('KIMI_API_KEY')).toBe('Kimi / Moonshot')
-      // HERMES_QWEN_ and HERMES_GEMINI_ both share the HERMES_ stem.
+      // HERMES_QWEN_ shares the HERMES_ stem with other integrations.
       expect(providerGroup('HERMES_QWEN_BASE_URL')).toBe('DashScope (Qwen)')
-      expect(providerGroup('HERMES_GEMINI_CLIENT_ID')).toBe('Gemini')
+      expect(providerGroup('GEMINI_API_KEY')).toBe('Gemini')
     })
 
     it('falls back to "Other" for un-grouped env vars', () => {
@@ -155,6 +161,21 @@ describe('settings helpers', () => {
     it('renders dropdowns for per-backend model/device sub-fields', () => {
       expect(enumOptionsFor('stt.openai.model', 'whisper-1', config)).toContain('gpt-4o-transcribe')
       expect(enumOptionsFor('tts.openai.model', 'gpt-4o-mini-tts', config)).toContain('tts-1-hd')
+      expect(enumOptionsFor('tts.openai.voice', 'shimmer', config)).toEqual([
+        'alloy',
+        'ash',
+        'ballad',
+        'coral',
+        'echo',
+        'fable',
+        'nova',
+        'onyx',
+        'sage',
+        'shimmer',
+        'verse',
+        'marin',
+        'cedar'
+      ])
       expect(enumOptionsFor('tts.neutts.device', 'cpu', config)).toEqual(['cpu', 'cuda', 'mps'])
     })
 
