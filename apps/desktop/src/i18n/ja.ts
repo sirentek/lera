@@ -1758,6 +1758,10 @@ export const ja = defineLocale({
     windowControls: 'ウィンドウコントロール',
     paneControls: 'ペインコントロール',
     appControls: 'アプリコントロール',
+    minimizeWindow: '最小化',
+    maximizeWindow: '最大化',
+    restoreWindow: '元のサイズに戻す',
+    closeWindow: '閉じる',
     modelMenu: {
       search: 'モデルを検索',
       noModels: 'モデルが見つかりません',

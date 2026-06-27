@@ -1630,6 +1630,10 @@ export const en: Translations = {
     windowControls: 'Window controls',
     paneControls: 'Pane controls',
     appControls: 'App controls',
+    minimizeWindow: 'Minimize',
+    maximizeWindow: 'Maximize',
+    restoreWindow: 'Restore',
+    closeWindow: 'Close',
     modelMenu: {
       search: 'Search models',
       noModels: 'No models found',

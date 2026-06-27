@@ -33,6 +33,19 @@ declare global {
       openSessionWindow: (sessionId: string, opts?: { watch?: boolean }) => Promise<{ ok: boolean; error?: string }>
       // Open (or focus) a compact secondary window on the new-session draft.
       openNewSessionWindow: () => Promise<{ ok: boolean; error?: string }>
+      // Frameless (holo) main-window chrome controls. The transparent notched
+      // window has no OS frame, so the renderer paints min/max/close + edge
+      // resize grips and drives them through these. `startResize` begins a
+      // pointer-tracked drag in the given direction; `endResize` ends it.
+      window?: {
+        minimize: () => void
+        toggleMaximize: () => void
+        close: () => void
+        startResize: (
+          direction: 'top' | 'right' | 'bottom' | 'left' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+        ) => void
+        endResize: () => void
+      }
       // The pop-out pet overlay: a transparent always-on-top window hosting only
       // the mascot. The main renderer drives it (open/close/drag + state push);
       // the overlay sends control messages back (pop-in, composer submit).
@@ -302,6 +315,10 @@ export interface DesktopUpdateProgress {
 export interface HermesConnection {
   baseUrl: string
   isFullscreen: boolean
+  // True while the main window fills the screen (maximized or Aero-snapped).
+  // The holo window shell squares its chamfered corners when set so the cut
+  // corners don't expose the desktop behind the screen edges.
+  isMaximized?: boolean
   mode?: 'local' | 'remote'
   authMode?: 'oauth' | 'token'
   nativeOverlayWidth: number
@@ -322,6 +339,7 @@ export interface HermesTitleBarTheme {
 
 export interface HermesWindowState {
   isFullscreen: boolean
+  isMaximized?: boolean
   nativeOverlayWidth: number
   windowButtonPosition: { x: number; y: number } | null
 }

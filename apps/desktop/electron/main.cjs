@@ -514,6 +514,15 @@ function getWindowBackgroundColor() {
   return nativeTheme.shouldUseDarkColors ? '#111111' : '#f7f7f7'
 }
 
+// Apply the titlebar overlay options only when the main window actually has an
+// overlay. The frameless+transparent main window (Windows/Linux) is created
+// without `titleBarOverlay`, so calling setTitleBarOverlay on it throws
+// "Titlebar overlay is not enabled". Only the framed macOS window carries one.
+function applyMainTitleBarOverlay() {
+  if (!IS_MAC) return
+  mainWindow?.setTitleBarOverlay?.(getTitleBarOverlayOptions())
+}
+
 function getTitleBarOverlayOptions() {
   if (IS_MAC) {
     return { height: TITLEBAR_HEIGHT }
@@ -3600,6 +3609,11 @@ function getNativeOverlayWidth() {
 function getWindowState() {
   return {
     isFullscreen: Boolean(mainWindow?.isFullScreen?.()),
+    // The holo window shell flattens its chamfered corners to square when the
+    // window fills the screen (maximized or snapped), so the cut corners never
+    // expose the desktop/taskbar behind the screen edges. Snap on Windows
+    // reports as maximized, so this one flag covers both.
+    isMaximized: Boolean(mainWindow?.isMaximized?.()),
     nativeOverlayWidth: getNativeOverlayWidth(),
     windowButtonPosition: getWindowButtonPosition()
   }
@@ -5599,14 +5613,26 @@ function createWindow() {
     minWidth: WINDOW_MIN_WIDTH,
     minHeight: WINDOW_MIN_HEIGHT,
     title: 'Lera',
-    // Frameless title bar on every platform so the renderer can paint the
-    // "hide sidebar" button (and other left-side titlebar tools) flush with
-    // the top edge — matching the macOS layout where the traffic lights sit
-    // inside the same band. On Windows/Linux, titleBarOverlay tells Electron
-    // to paint native min/max/close in the top-right of the renderer; on
-    // macOS it just reserves a content inset alongside the traffic lights.
+    // FRAMELESS + TRANSPARENT main window (Windows/Linux) so the renderer can
+    // paint a non-rectangular, chamfered "sci-fi HUD" outer shell (the holo
+    // window frame) with cut corners — a plain OS frame can only be a rectangle.
+    // Going frameless means the OS no longer paints min/max/close or provides
+    // edge-resize/snap, so the renderer rebuilds those: custom window-control
+    // buttons (titlebar-controls.tsx) + 8 invisible resize hit-zones wired to
+    // the `hermes:window:*` IPC below. On macOS we keep the native titlebar +
+    // traffic lights (transparency there fights vibrancy + the traffic-light
+    // hit-test), so the notched shell is a Windows/Linux affordance.
+    //
+    // `roundedCorners: false` stops Windows 11 from re-rounding the transparent
+    // window's corners over our clip-path. `transparent` windows ignore
+    // `backgroundColor`, so the renderer's holo body fill is the real backdrop.
+    frame: IS_MAC,
+    transparent: !IS_MAC,
+    roundedCorners: IS_MAC ? undefined : false,
     titleBarStyle: 'hidden',
-    titleBarOverlay: getTitleBarOverlayOptions(),
+    // titleBarOverlay can't render on a transparent window — only request it
+    // where the frame survives (macOS).
+    titleBarOverlay: IS_MAC ? getTitleBarOverlayOptions() : undefined,
     trafficLightPosition: IS_MAC ? WINDOW_BUTTON_POSITION : undefined,
     vibrancy: IS_MAC ? 'sidebar' : undefined,
     opacity: windowOpacity(),
@@ -5615,7 +5641,10 @@ function createWindow() {
     // `backgroundColor` and follows the OS appearance) can't flash a light
     // material before the renderer paints the app theme. See createSessionWindow.
     show: false,
-    backgroundColor: getWindowBackgroundColor(),
+    // A transparent window paints nothing behind the renderer, so a fully
+    // transparent backing color avoids any pre-paint flash through the cut
+    // corners; the framed macOS window keeps the themed solid backstop.
+    backgroundColor: IS_MAC ? getWindowBackgroundColor() : '#00000000',
     // Shared with the secondary session windows (chatWindowWebPreferences) so
     // both keep `backgroundThrottling: false` — the chat transcript streams via
     // a requestAnimationFrame-gated flush that Chromium pauses for blurred
@@ -5634,7 +5663,7 @@ function createWindow() {
     if (!nativeThemeListenerInstalled) {
       nativeThemeListenerInstalled = true
       nativeTheme.on('updated', () => {
-        mainWindow?.setTitleBarOverlay?.(getTitleBarOverlayOptions())
+        applyMainTitleBarOverlay()
       })
     }
   }
@@ -5649,6 +5678,12 @@ function createWindow() {
   mainWindow.on('enter-full-screen', () => sendWindowStateChanged(true))
   mainWindow.on('will-leave-full-screen', () => sendWindowStateChanged(false))
   mainWindow.on('leave-full-screen', () => sendWindowStateChanged(false))
+
+  // Push the maximized flag so the holo shell can square its chamfers live when
+  // the window fills the screen (and restore the cut corners when it floats
+  // again). Windows Aero-snap fires (un)maximize too, so this covers snap.
+  mainWindow.on('maximize', () => sendWindowStateChanged())
+  mainWindow.on('unmaximize', () => sendWindowStateChanged())
 
   // Reopen where the user left off. resized/moved settle once per drag; close is
   // the cross-platform backstop, flushed synchronously before the window is gone.
@@ -5783,6 +5818,107 @@ ipcMain.handle('hermes:window:openNewSession', async () => {
 
   return { ok: true }
 })
+
+// ── Frameless main-window controls ──────────────────────────────────────────
+// Going frameless (transparent holo shell) drops the OS-painted min/max/close
+// and native edge-resize, so the renderer's custom titlebar buttons + resize
+// hit-zones drive these. Resolve the sender's own window (so a secondary
+// session window, which keeps its native frame, can't be steered by accident).
+function windowFromEvent(event) {
+  return BrowserWindow.fromWebContents(event.sender) ?? null
+}
+
+ipcMain.on('hermes:window:minimize', event => {
+  const win = windowFromEvent(event)
+  if (win && !win.isDestroyed()) win.minimize()
+})
+
+ipcMain.on('hermes:window:toggleMaximize', event => {
+  const win = windowFromEvent(event)
+  if (!win || win.isDestroyed()) return
+  if (win.isMaximized()) win.unmaximize()
+  else win.maximize()
+})
+
+ipcMain.on('hermes:window:close', event => {
+  const win = windowFromEvent(event)
+  if (win && !win.isDestroyed()) win.close()
+})
+
+// Native-feeling edge/corner resize for the frameless window. The renderer's
+// invisible hit-zones call this on pointer-down with a direction; we hand the
+// drag to the OS so the resize tracks the cursor with the platform's own
+// threshold and rubber-banding (no per-frame setBounds from JS).
+const RESIZE_DIRECTIONS = new Set(['top', 'right', 'bottom', 'left', 'top-left', 'top-right', 'bottom-left', 'bottom-right'])
+
+ipcMain.on('hermes:window:startResize', (event, direction) => {
+  const win = windowFromEvent(event)
+  if (!win || win.isDestroyed() || !RESIZE_DIRECTIONS.has(direction)) return
+  // `customWindowEvents`/`win.resize` isn't exposed cross-platform; emulate the
+  // native edge drag by tracking the pointer against the window's pinned anchor.
+  startManualResize(win, direction)
+})
+
+// Manual resize loop: capture the screen cursor + window bounds at drag start,
+// then follow `screen.getCursorScreenPoint()` until the button is released.
+// One short-lived interval per drag (no standing cost); cleared on mouseup.
+function startManualResize(win, direction) {
+  if (manualResizeTimer) return
+  if (win.isMaximized()) return
+
+  const startCursor = screen.getCursorScreenPoint()
+  const start = win.getBounds()
+  const minSize = (() => {
+    const [w, h] = win.getMinimumSize?.() ?? [WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT]
+    return { width: w || WINDOW_MIN_WIDTH, height: h || WINDOW_MIN_HEIGHT }
+  })()
+
+  const apply = () => {
+    if (win.isDestroyed()) return stopManualResize()
+    const cursor = screen.getCursorScreenPoint()
+    const dx = cursor.x - startCursor.x
+    const dy = cursor.y - startCursor.y
+
+    let { x, y, width, height } = start
+
+    if (direction.includes('right')) width = start.width + dx
+    if (direction.includes('left')) {
+      width = start.width - dx
+      x = start.x + dx
+    }
+    if (direction.includes('bottom')) height = start.height + dy
+    if (direction.includes('top')) {
+      height = start.height - dy
+      y = start.y + dy
+    }
+
+    // Clamp to the minimum size, pinning the opposite edge while shrinking.
+    if (width < minSize.width) {
+      if (direction.includes('left')) x = start.x + (start.width - minSize.width)
+      width = minSize.width
+    }
+    if (height < minSize.height) {
+      if (direction.includes('top')) y = start.y + (start.height - minSize.height)
+      height = minSize.height
+    }
+
+    win.setBounds({ x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) })
+  }
+
+  // ~120fps cap keeps the edge glued to the cursor without busy-spinning.
+  manualResizeTimer = setInterval(apply, 8)
+}
+
+let manualResizeTimer = null
+
+function stopManualResize() {
+  if (manualResizeTimer) {
+    clearInterval(manualResizeTimer)
+    manualResizeTimer = null
+  }
+}
+
+ipcMain.on('hermes:window:endResize', () => stopManualResize())
 
 // --- Pet overlay (pop-out mascot) -----------------------------------------
 // `request` is `{ bounds, screen }`. A fresh pop-out passes viewport-space
@@ -6318,7 +6454,7 @@ ipcMain.on('hermes:titlebar-theme', (_event, payload) => {
     background: payload.background,
     foreground: payload.foreground
   }
-  mainWindow?.setTitleBarOverlay?.(getTitleBarOverlayOptions())
+  applyMainTitleBarOverlay()
 })
 
 // Pin the native appearance to the app theme (see NATIVE_THEME_CONFIG_PATH).

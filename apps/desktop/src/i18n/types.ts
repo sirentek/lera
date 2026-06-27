@@ -1293,6 +1293,10 @@ export interface Translations {
     windowControls: string
     paneControls: string
     appControls: string
+    minimizeWindow: string
+    maximizeWindow: string
+    restoreWindow: string
+    closeWindow: string
     modelMenu: {
       search: string
       noModels: string

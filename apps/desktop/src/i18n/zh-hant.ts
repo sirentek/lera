@@ -1700,6 +1700,10 @@ export const zhHant = defineLocale({
     windowControls: '視窗控制項',
     paneControls: '窗格控制項',
     appControls: '應用程式控制項',
+    minimizeWindow: '最小化',
+    maximizeWindow: '最大化',
+    restoreWindow: '還原',
+    closeWindow: '關閉',
     modelMenu: {
       search: '搜尋模型',
       noModels: '找不到模型',

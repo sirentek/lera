@@ -1807,6 +1807,10 @@ export const zh: Translations = {
     windowControls: '窗口控件',
     paneControls: '面板控件',
     appControls: '应用控件',
+    minimizeWindow: '最小化',
+    maximizeWindow: '最大化',
+    restoreWindow: '还原',
+    closeWindow: '关闭',
     modelMenu: {
       search: '搜索模型',
       noModels: '未找到模型',

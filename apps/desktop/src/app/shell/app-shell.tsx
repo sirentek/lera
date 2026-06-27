@@ -25,6 +25,7 @@ import { KeybindPanel } from './keybind-panel'
 import { StatusbarControls, type StatusbarItem } from './statusbar-controls'
 import { TITLEBAR_HEIGHT, titlebarControlsPosition } from './titlebar'
 import { TitlebarControls, type TitlebarTool } from './titlebar-controls'
+import { WindowFrame } from './window-frame'
 
 interface AppShellProps {
   children: ReactNode
@@ -207,6 +208,11 @@ export function AppShell({
       {/* Petdex floating mascot — in-window, always-on-top, reactive to agent
           activity. Renders nothing unless a pet is installed + enabled. */}
       <FloatingPet />
+
+      {/* Frameless holo window shell: the chamfered glowing outer frame +
+          custom min/max/close + edge-resize grips. Renders nothing unless the
+          holo skin is active on the primary Windows/Linux window. */}
+      <WindowFrame />
     </SidebarProvider>
   )
 }

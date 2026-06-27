@@ -7,6 +7,15 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
   getGatewayWsUrl: profile => ipcRenderer.invoke('hermes:gateway:ws-url', profile),
   openSessionWindow: (sessionId, opts) => ipcRenderer.invoke('hermes:window:openSession', sessionId, opts),
   openNewSessionWindow: () => ipcRenderer.invoke('hermes:window:openNewSession'),
+  // Frameless (holo) main-window controls — the renderer paints its own
+  // min/max/close + resize grips since the OS no longer does (see main.cjs).
+  window: {
+    minimize: () => ipcRenderer.send('hermes:window:minimize'),
+    toggleMaximize: () => ipcRenderer.send('hermes:window:toggleMaximize'),
+    close: () => ipcRenderer.send('hermes:window:close'),
+    startResize: direction => ipcRenderer.send('hermes:window:startResize', direction),
+    endResize: () => ipcRenderer.send('hermes:window:endResize')
+  },
   petOverlay: {
     // Main renderer → main process: window lifecycle + drag. `request` is
     // `{ bounds, screen }`; resolves with the screen bounds it actually used.

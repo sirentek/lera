@@ -2331,6 +2331,424 @@
    gone (the reactor now uses a content-independent box-shadow, see above), so
    these permanent compositor animations are cheap to keep running. */
 
+/* ════════════════════════════════════════════════════════════════════════
+   HOLO window shell — the chamfered, glowing sci-fi OUTER FRAME.
+
+   On Windows/Linux the main BrowserWindow is created frameless + transparent
+   (electron/main.cjs), and WindowFrame (app/shell/window-frame.tsx) flags
+   <html> with data-window-shell='holo'. That lets the whole app paint into a
+   notched, non-rectangular window with a glowing red border + cut corners —
+   the "screen with thickness" from the reference image, in Lera red.
+
+   Two pieces:
+     1. CLIP the app's opaque fill to the chamfer (so the cut corners actually
+        show through to the desktop — without this the body fill squares them).
+     2. Paint the glowing border line + outward neon halo just inside the edge
+        (data-slot='window-frame'), reusing the side-panels' proven static
+        stacked-drop-shadow bloom — NO animation, GPU-cached once, zero per-frame
+        cost (CPU stays stable, per the user's hard requirement).
+
+   Everything is gated on [data-window-shell='holo'] so non-holo skins and the
+   framed macOS window keep their normal rectangular window untouched.
+   ════════════════════════════════════════════════════════════════════════ */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] {
+  /* Gap between the OS window edge and the glowing border line. Gives the frame
+     its floating "thickness" and leaves room for the resize grips + halo. */
+  --holo-win-inset: 7px;
+  /* Border line thickness — kept thin like the side-panel frame lines so the
+     edge reads as a soft glowing filament, not a heavy bar. */
+  --holo-win-stroke: 2px;
+
+  /* ── THE WINDOW SILHOUETTE ────────────────────────────────────────────────
+     A SYMMETRIC sci-fi HUD frame matching the planetary-analysis reference:
+       • four corners are LARGE diagonal bevels (~40px), the dominant feature
+       • each edge runs flat from the corner, then near each end has a small
+         rectangular NOTCH (a short inward step) before continuing
+       • the left + right edges bow OUT in a centered segment (a panel that
+         juts past the flat edge), and the bottom edge has a wider centered LIP
+         (the status-bar tray)
+     Read clockwise from the top-left. One shared shape var so the backdrop, hex
+     wall, and glowing frame ring all trace the SAME path and stay in sync —
+     tune the silhouette here only.
+     NOTE: a custom-property value may NOT contain CSS comments (they invalidate
+     the value, dropping clip-path to none), so the notes stay above.
+
+     Layout per edge (clockwise):
+       TL corner bevel → top edge → notch → top edge → TR corner bevel →
+       right edge → out-segment → right edge → BR bevel → bottom edge →
+       centered LIP → bottom edge → BL bevel → left edge → out-segment →
+       left edge → back to TL. */
+  --holo-win-shape: polygon(40px 0, calc(50% - 90px) 0, calc(50% - 78px) 12px, calc(50% - 54px) 12px, calc(50% - 42px) 0, calc(100% - 40px) 0, 100% 40px, 100% calc(50% - 150px), calc(100% - 14px) calc(50% - 134px), calc(100% - 14px) calc(50% + 134px), 100% calc(50% + 150px), 100% calc(100% - 40px), calc(100% - 40px) 100%, calc(50% + 130px) 100%, calc(50% + 110px) calc(100% - 16px), calc(50% - 110px) calc(100% - 16px), calc(50% - 130px) 100%, 40px 100%, 0 calc(100% - 40px), 0 calc(50% + 150px), 14px calc(50% + 134px), 14px calc(50% - 134px), 0 calc(50% - 150px), 0 40px);
+}
+
+/* (1) The opaque floor, clipped to the chamfer.
+
+   In the holo skin the dark floor (#0c0504) normally lives on the :root element
+   and the hex wall on :root::before (z -2), with the body transparent above
+   them (holo-hex-restore.css). A transparent frameless window paints nothing of
+   its own, so any transparent region shows the desktop straight through — we
+   want that ONLY at the cut corners, never across the interior, and we must NOT
+   bury the hex wall (which the user values).
+
+   An opaque full-viewport backdrop element was tried first and BURIED all the
+   content (the floor sat above the app, painting everything black). The robust
+   fix is to keep the floor where the holo skin already puts it — on :root — and
+   simply CLIP :root (and its hex-wall ::before) to the silhouette. Modern
+   Chromium honors clip-path on the root element, so the floor + hex wall keep
+   their exact stacking under the app (content paints normally on top) and only
+   the cut corners fall away to the transparent window → desktop. No extra opaque
+   layer, so nothing can cover the content. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] {
+  /* CRITICAL: for the cut corners to show the DESKTOP (true transparency), the
+     html + body canvas must paint NOTHING opaque. So :root and body are fully
+     transparent here and the dark floor moves to a CLIPPED pseudo (::after
+     below). If :root itself carried the opaque floor, the clipped-away corners
+     would still be filled by Chromium's canvas backstop and read black — which
+     is exactly the "corners are black" bug.
+
+     Also force color-scheme to `normal` (!important — themes/context.tsx sets it
+     inline per render, no !important, so this wins): `dark` makes Chromium paint
+     an opaque black canvas behind the page, defeating the window transparency. */
+  background: transparent !important;
+  color-scheme: normal !important;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] body {
+  background: transparent !important;
+}
+
+/* The dark floor + hex wall, COMBINED on :root::after, CLIPPED to the silhouette.
+
+   Why combined: the separate hex pseudo (:root::before, z:-2) was being covered
+   by the app's z:3 main content column — even though that column is transparent,
+   it's a higher stacking context, so the negative-z hex behind :root never
+   showed through in the real window (a solid-lime test proved the hex pseudo was
+   almost entirely occluded). Painting the honeycomb AS the floor's own
+   background — bright hex SVG layered over the #0c0504 fill, on the SAME z:-3
+   element — guarantees it renders wherever the floor does (the whole interior),
+   while the clip keeps it out of the transparent cut corners. */
+:root[data-hermes-theme='holo'][data-window-shell='holo']::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  background: #0c0504;
+  clip-path: var(--holo-win-shape);
+}
+
+/* The base holo hex wall pseudo (:root::before) is retired on the frameless
+   window — the honeycomb now lives in the [data-slot='window-hex'] top overlay
+   (above), which is the only place it actually shows over the chat surface.
+   Hide the pseudo so it doesn't paint a second (occluded) copy or spill into the
+   cut corners. */
+:root[data-hermes-theme='holo'][data-window-shell='holo']::before {
+  display: none;
+}
+
+/* The app's full-viewport chrome layer (`bg-background`, rgba 0.42) sits in
+   normal flow ABOVE the hex wall pseudo (z -2) and washes the honeycomb out, AND
+   it's not clipped, so it would tint the cut corners. Make it fully transparent
+   on the frameless holo window: the clipped floor (::after) + panel tints carry
+   the surface, and now the hex pattern reads through the whole interior and the
+   corners stay truly transparent. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .bg-background {
+  background-color: transparent !important;
+}
+
+/* Inset the app content off the window frame.
+
+   The side panels + chat column fill the whole viewport edge-to-edge, so they
+   butt right up against the glowing HUD frame (inset 7px). Pad the sidebar
+   wrapper so all content starts a comfortable gap inside the frame line — the
+   frame sits in this gutter and the panels float clear of it. The :root floor +
+   hex wall are NOT inset (they're on :root, behind this), so the honeycomb still
+   fills the whole window up to the frame. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='sidebar-wrapper'] {
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+/* The petek (hex) honeycomb as a TOP overlay.
+
+   Every attempt to paint the hex behind the content failed: the app's z:3 main
+   column (and the chat surface inside it) occlude anything behind :root or the
+   wrapper, even when those layers report transparent (a solid-lime test showed
+   the behind-content hex was almost fully hidden). So the honeycomb is drawn as
+   a pointer-events:none overlay ABOVE the content at a low opacity — visible
+   everywhere (panels, chat, gutters) like an ambient HUD wall, without blocking
+   interaction or hurting legibility. Clipped to the silhouette so it never
+   paints in the transparent cut corners. data-slot='window-hex' is rendered by
+   WindowFrame. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-hex'] {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='196'%3E%3Cpath d='M56 130L0 98L0 32L56 0L112 32L112 98L56 130L56 196' fill='none' stroke='rgba(255,110,85,1)' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-size: 64px 112px;
+  background-repeat: repeat;
+  clip-path: var(--holo-win-shape);
+  opacity: 0.12;
+}
+
+/* The silhouette is kept even when maximized (user preference) — the notched
+   corners stay the HUD shape at all window states. */
+
+/* (2) The glowing border line — traced along the SAME asymmetric silhouette.
+
+   A hand-written inner polygon for an asymmetric shape is unmaintainable, so
+   instead of an evenodd hollow ring we use a TWO-LAYER mask: ::before fills the
+   full silhouette with the red gradient; ::after is the same silhouette inset
+   by the stroke, painted in the backdrop color, punching a hole so only the
+   stroke-wide band remains. Both trace --holo-win-shape, so the band follows
+   every notch/tab/step automatically — tune the silhouette in one place.
+
+   The frame element itself just hosts the static neon bloom (the stacked
+   drop-shadow stack) over the band its ::before/::after produce. The shadow
+   re-samples the band's alpha, so it hugs the silhouette, not a rectangle. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-frame'] {
+  position: fixed;
+  inset: var(--holo-win-inset);
+  /* Negative z puts the frame just ABOVE the :root floor (and its hex wall) but
+     BELOW all app content. The frame's inner ::after mask is the floor color, so
+     it must never sit over content — keeping the whole frame beneath content
+     guarantees that. The border line lives in the 7px inset gutter outside the
+     content area, so content never overlaps it. */
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Outer fill — the warm-red edge gradient over the whole silhouette. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-frame']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: var(--holo-win-shape);
+  background: linear-gradient(
+    160deg,
+    #ff9a84 0%,
+    #ff6558 30%,
+    var(--holo-mid) 55%,
+    #ff6558 80%,
+    #ff9a84 100%
+  );
+  /* Static neon bloom — STRONGER than the panel lines so the outer window edge
+     reads as the brightest, most glowing frame in the app (user wants the outer
+     border to out-glow the inner sidebar border). Stacked stepped radii compound
+     the rim alpha into a wide bright falloff; the inner radii are pushed to full
+     alpha and the outer reach is extended. Composited ONCE, never animated (CPU
+     stays stable). */
+  filter:
+    drop-shadow(0 0 1px rgba(255, 200, 180, 1))
+    drop-shadow(0 0 3px rgba(255, 140, 120, 1))
+    drop-shadow(0 0 6px rgba(255, 100, 80, 1))
+    drop-shadow(0 0 12px rgba(255, 80, 62, 0.9))
+    drop-shadow(0 0 22px rgba(255, 70, 55, 0.75))
+    drop-shadow(0 0 34px rgba(255, 60, 48, 0.55));
+}
+
+/* Inner hole — the same silhouette inset by the stroke, in the FLOOR color,
+   leaving only the stroke-wide rim of ::before's gradient showing as the edge
+   line. Safe to be opaque because the whole frame sits at z-index:-1 (above the
+   floor, below content), so this slab covers the floor — never the app content.
+   Matches the :root floor (#0c0504) so the interior reads as the normal floor. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-frame']::after {
+  content: '';
+  position: absolute;
+  inset: var(--holo-win-stroke);
+  clip-path: var(--holo-win-shape);
+  background: #0c0504;
+}
+
+/* Glow overlay — ABOVE the app content so the edge halo is never dimmed by the
+   floor or panels (that's why the z:-1 frame glow read faint). It's the same
+   silhouette but TRANSPARENT-filled, so it covers nothing; the neon comes from
+   stacked INSET box-shadows that hug the clipped edge and bleed inward, plus a
+   couple of outset shadows for the outward bloom. Static (composited once, no
+   animation → CPU stays stable). Tuned brighter than the panel frame so the
+   outer window border is the most luminous edge in the app. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-frame-glow'] {
+  position: fixed;
+  inset: var(--holo-win-inset);
+  z-index: 60;
+  pointer-events: none;
+  clip-path: var(--holo-win-shape);
+  background: transparent;
+  box-shadow:
+    inset 0 0 2px 0 rgba(255, 210, 195, 0.95),
+    inset 0 0 6px 0 rgba(255, 140, 120, 0.9),
+    inset 0 0 14px 0 rgba(255, 95, 76, 0.65),
+    inset 0 0 28px 0 rgba(255, 75, 60, 0.4);
+}
+
+/* The frame ring keeps the silhouette at every window state (user preference). */
+
+/* ── frameless resize grips ──────────────────────────────────────────────────
+   Eight invisible hit-zones around the window edges/corners. They re-create the
+   native edge-resize the OS frame used to provide; pointer-down hands the drag
+   to the main process (window.startResize). Cursors match the direction. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-resize-layer'] {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483645;
+  pointer-events: none;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-resize-handle {
+  position: absolute;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+/* Edge strips (6px grab band) */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-resize-handle[data-resize='top'] {
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  cursor: ns-resize;
+}
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-resize-handle[data-resize='bottom'] {
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  cursor: ns-resize;
+}
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-resize-handle[data-resize='left'] {
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 6px;
+  cursor: ew-resize;
+}
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-resize-handle[data-resize='right'] {
+  right: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+/* Corner squares (12px) — take priority over the edges they overlap. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-resize-handle[data-resize='top-left'] {
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-resize-handle[data-resize='top-right'] {
+  top: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-resize-handle[data-resize='bottom-left'] {
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-resize-handle[data-resize='bottom-right'] {
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+/* ── custom window controls (min / max / close) ──────────────────────────────
+   Replace the OS overlay the transparent window can't draw. Pinned top-right
+   inside the frame inset, above everything, drag-excluded. HUD chip styling to
+   match the rest of the holo chrome. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-controls'] {
+  position: fixed;
+  /* The top-right corner is a 40px diagonal bevel; the flat top edge ends at
+     100%-40px. Pin the min/max/close cluster against that flat edge, clear of
+     the bevel (40px + breathing room) so it never lands on the cut corner, and
+     drop it a little so it clears the bright top border line. This is the
+     rightmost cluster — the titlebar UI buttons sit to its LEFT. */
+  top: calc(var(--holo-win-inset) + 14px);
+  right: 44px;
+  z-index: 2147483647;
+  display: flex;
+  gap: 2px;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+/* Push the titlebar UI cluster (haptics / keybinds / settings / right-sidebar)
+   to the LEFT of the window-controls cluster so the two never overlap, and so
+   neither sits on the top-right bevel. --titlebar-tools-right is the right edge
+   the app-shell anchors that cluster to; widen it to clear:
+     window-controls right offset (56) + its width (~94) + a 14px gap. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] {
+  --titlebar-tools-right: 164px;
+}
+
+/* Drop the titlebar button clusters (left tools, pane tools, app controls) down
+   off the bright top border line so they don't sit on the glow. The app-shell
+   sets their top via the inline --titlebar-controls-top var; override the `top`
+   property directly here (a real property beats the inline custom-property
+   indirection) and add side padding so the left/right clusters clear the corner
+   bevels. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [aria-label='Window controls'].fixed,
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [aria-label='Pane controls'].fixed,
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [aria-label='App controls'].fixed {
+  top: calc(var(--titlebar-controls-top, 0px) + 14px);
+}
+
+/* The left tool cluster (sidebar toggle, flip) must clear the top-left bevel
+   (40px diagonal). Push it well clear of the cut so it never starts on the
+   corner line. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [aria-label='Window controls'].fixed {
+  left: 50px;
+}
+
+/* The bottom statusbar clusters butt against the bottom-left + bottom-right
+   bevels too. Inset the statusbar so its left/right items clear those corners
+   the way the top clusters clear the top corners. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='statusbar'] {
+  padding-left: 50px;
+  padding-right: 50px;
+  box-sizing: border-box;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 209, 199, 0.78);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-control:hover {
+  background: color-mix(in srgb, var(--holo-mid) 30%, transparent);
+  color: var(--holo-core);
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-control-close:hover {
+  background: #e8472f;
+  color: #fff;
+}
+
+/* The controls stay inside the frame inset at every window state — the
+   silhouette keeps its top-right bevel even when maximized, so pinning them to
+   the squared corner would push them onto the cut. */
+
 /* ── motion safety ───────────────────────────────────────────────────────── */
 /* Keep this in sync with the static hero rules above; reduced-motion should
    never re-enable any intro orb animation through a broader theme rule. */
