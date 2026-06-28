@@ -122,10 +122,24 @@ export function WindowFrame() {
           out-glow the inner sidebar frame. Styling in holo.css. */}
       <div aria-hidden="true" className="lera-window-frame-glow" data-slot="window-frame-glow" />
 
-      {/* Hex (petek) honeycomb wall — a low-opacity overlay above content so the
-          ambient HUD pattern is visible everywhere (behind-content layers were
-          occluded by the chat surface). pointer-events:none; styling in holo.css. */}
-      <div aria-hidden="true" className="lera-window-hex" data-slot="window-hex" />
+      {/* Holographic ROOM — an empty cube interior whose FIVE surfaces (back
+          wall + ceiling/floor/left/right) are each tiled with the petek
+          honeycomb and tilted into one-point perspective with CSS 3D transforms,
+          so the UI reads as a hologram projected inside a real petek-walled room
+          (the reference image). MUST be a real positive-z overlay, NOT a
+          behind-content pseudo: a behind-:root layer is occluded by the z:3
+          content column on the real GPU-composited window (it showed only in
+          offscreen captures). pointer-events:none; full geometry + the per-face
+          hex tiling live in holo.css. The old flat full-screen petek overlay was
+          removed — the honeycomb is now the ROOM's wall texture, not a screen
+          filter. */}
+      <div aria-hidden="true" className="lera-window-room" data-slot="window-room">
+        <div className="lera-room-face" data-face="back" />
+        <div className="lera-room-face" data-face="ceiling" />
+        <div className="lera-room-face" data-face="floor" />
+        <div className="lera-room-face" data-face="left" />
+        <div className="lera-room-face" data-face="right" />
+      </div>
 
       {/* Resize grips. Hidden while maximized (no floating edges). */}
       {!isMaximized && (

@@ -681,7 +681,15 @@
   /* The frame glow is drawn by the dedicated ring/bloom pseudos below. Keep
      the aside itself unfiltered so child text never casts a neon shadow. */
   filter: none;
-  transform: none;
+  /* Wall-mount tilt: each side panel rotates 3° in 3D so its INNER edge (toward
+     the screen centre) leans away from the viewer — like the room's side walls —
+     making the whole environment read as a 3D space rather than flat panels. The
+     sign + transform-origin flip per side (set in the .border-l/.border-r rules
+     below). perspective() is local to the panel so it doesn't disturb the room's
+     own camera; the rotation is static (one-time GPU transform, zero per-frame
+     cost, per this file's no-heat rule). --holo-tilt also still steers the echo
+     ring offset, so frame + echo stay consistent with the lean. */
+  transform: perspective(1600px) rotateY(var(--holo-tilt, 0deg));
   transform-origin: left center;
 }
 
@@ -750,13 +758,18 @@
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar'],
 :root[data-hermes-theme='holo'] [data-slot='sidebar'].border-l {
   --holo-ex: -11px;
-  --holo-tilt: -4deg;
+  /* Left panel pivots about its inner (right) edge: -5° recedes the inner (right)
+     edge while the outer (left) edge stays forward at the screen edge — leans
+     inward like the room's left wall. */
+  --holo-tilt: -5deg;
   transform-origin: right center;
 }
 
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar'].border-r {
   --holo-ex: 11px;
-  --holo-tilt: 4deg;
+  /* Right panel mirrors: pivots about its inner (left) edge, +5° recedes the
+     inner (left) edge while the outer (right) edge stays forward. */
+  --holo-tilt: 5deg;
   transform-origin: left center;
 }
 
@@ -2426,7 +2439,12 @@
    almost entirely occluded). Painting the honeycomb AS the floor's own
    background — bright hex SVG layered over the #0c0504 fill, on the SAME z:-3
    element — guarantees it renders wherever the floor does (the whole interior),
-   while the clip keeps it out of the transparent cut corners. */
+   while the clip keeps it out of the transparent cut corners.
+
+   (The holographic ROOM depth layer is NOT here — a behind-content z:-3 layer is
+   occluded by the z:3 content column on the real GPU-composited window, so it
+   only showed in offscreen captures. It lives on [data-slot='window-room'], a
+   positive-z overlay below the hex — same fix the hex itself needed. See below.) */
 :root[data-hermes-theme='holo'][data-window-shell='holo']::after {
   content: '';
   position: fixed;
@@ -2469,27 +2487,168 @@
   box-sizing: border-box;
 }
 
-/* The petek (hex) honeycomb as a TOP overlay.
+/* ── HOLOGRAPHIC ROOM — empty-cube interior, depth cue ───────────────────────
+   Gives the UI a sense of being a hologram projected INSIDE a receding 3D space:
+   a vanishing-point glow at the centre, warm edge-glows on all four walls
+   (ceiling/floor/left/right), and faint perspective corner-wires running to the
+   centre.
 
-   Every attempt to paint the hex behind the content failed: the app's z:3 main
-   column (and the chat surface inside it) occlude anything behind :root or the
-   wrapper, even when those layers report transparent (a solid-lime test showed
-   the behind-content hex was almost fully hidden). So the honeycomb is drawn as
-   a pointer-events:none overlay ABOVE the content at a low opacity — visible
-   everywhere (panels, chat, gutters) like an ambient HUD wall, without blocking
-   interaction or hurting legibility. Clipped to the silhouette so it never
-   paints in the transparent cut corners. data-slot='window-hex' is rendered by
-   WindowFrame. */
-:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-hex'] {
+   WHY AN OVERLAY (not a behind-content pseudo): the very first attempt painted
+   this onto the :root::after floor at z:-3. Computed styles were correct and
+   OFFSCREEN CDP captures showed it, but on the real GPU-composited frameless
+   window it was invisible — the z:3 content column occludes everything behind
+   :root (exactly the lesson the petek overlay below already encodes). So the
+   room is a real pointer-events:none overlay ABOVE content, sitting just BELOW
+   the hex (z:40) so the petek stays the dominant front texture. Clipped to the
+   silhouette so it never paints in the transparent cut corners.
+   data-slot='window-room' is rendered by WindowFrame.
+
+   COST: pure static gradients on one element — rasterized ONCE into its GPU
+   backing store, then just composites. NO animation, NO blend mode, NO
+   backdrop-filter (all per-frame heat sources this file's history removed). */
+/* ── HOLOGRAPHIC PETEK ROOM — five hex-tiled walls in 3D perspective ──────────
+   The reference look: an empty cube room whose back wall + ceiling + floor +
+   left + right surfaces are each tiled with the petek honeycomb and tilted into
+   one-point perspective, so the UI floats inside a real petek-walled chamber.
+
+   Built with CSS 3D transforms, NOT a hand-warped SVG: each face is a plain div
+   tiled with one repeating hex SVG, then rotated/pushed into place; the browser
+   does the perspective foreshortening of the tile for free. Static — no
+   animation, no blend-mode, no backdrop-filter — so each face rasterizes ONCE
+   into a GPU layer and just composites (CPU stays flat, per this file's rules).
+
+   The old flat full-screen [data-slot='window-hex'] overlay is GONE: the
+   honeycomb is now the room's WALL texture, not a screen filter. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 38;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='196'%3E%3Cpath d='M56 130L0 98L0 32L56 0L112 32L112 98L56 130L56 196' fill='none' stroke='rgba(255,110,85,1)' stroke-width='1.5'/%3E%3C/svg%3E");
-  background-size: 64px 112px;
-  background-repeat: repeat;
   clip-path: var(--holo-win-shape);
-  opacity: 0.12;
+  /* The camera. A tighter perspective + bigger back wall makes the room FILL the
+     screen (walls reach the corners, like the reference) instead of floating in
+     the centre. perspective-origin slightly above centre lifts the vanishing
+     point so the floor reads larger than the ceiling. */
+  perspective: 1150px;
+  perspective-origin: 50% 47%;
+  /* Whole room dimmed so the walls read as an ambient backdrop behind the UI.
+     0.3 = half the previous 0.6 — uniformly halves the prominence of the WHOLE
+     backdrop (hex texture + edge glow + back-wall gradient) in one knob. */
+  opacity: 0.3;
+  /* Warm pool at the far (back) wall so the depth reads as lit. */
+  background:
+    radial-gradient(
+      48% 44% at 50% 47%,
+      rgba(255, 150, 110, 0.22) 0%,
+      rgba(255, 140, 100, 0.06) 50%,
+      transparent 80%
+    );
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] .lera-room-face {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* Hex tiles, repeated. BIGGER cells than the old wall so the honeycomb reads
+     clearly even on the steeply-angled side walls. One pointy-top unit; bright
+     stroke since perspective + room dimming already fade the far tiles. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='112' height='196'%3E%3Cpath d='M56 130L0 98L0 32L56 0L112 32L112 98L56 130L56 196' fill='none' stroke='rgba(255,120,90,0.45)' stroke-width='2'/%3E%3C/svg%3E");
+  background-size: 104px 182px;
+  background-repeat: repeat;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  /* Bright neon EDGE on every wall — a box-shadow inset border traces each
+     face's rectangle, so where two faces meet you get the glowing room ayrıt
+     (cube seam) from the reference. Stronger than the faint hex fill so the room
+     structure dominates and the honeycomb is just the wall texture. */
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 155, 110, 0.32),
+    inset 0 0 22px 4px rgba(255, 110, 75, 0.2),
+    inset 0 0 48px 8px rgba(255, 90, 60, 0.1);
+}
+
+/* The five walls. --room-d is the room depth; --room-w/-h is the back wall size.
+   CRITICAL: the back wall is sized in VIEWPORT units, not fixed px, so the room
+   fills the screen at ANY window size (fixed px filled a small window but left
+   gutters when maximized). The back wall sits at depth --room-d and is scaled
+   down by perspective P/(P+d); sizing it to ~165vw/165vh over-fills so even
+   after that shrink it covers the viewport edge-to-edge at every window size. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] {
+  /* All three viewport-relative so the room scales with the window: the back
+     wall stays a centred rectangle (gutter around it for the walls), and the
+     wall depth scales too so the side/floor/ceiling walls always reach the
+     screen edges — no gutters left blank when maximized. */
+  --room-d: 48vw; /* room depth — scales with width so walls reach the edges */
+  /* CRITICAL geometry: the side/floor/ceiling walls run straight FORWARD from the
+     back-wall edge to the camera plane (z:0) — they do NOT splay outward. So their
+     FRONT opening lands at exactly ±room-w/2 / ±room-h/2. For the walls to reach
+     the screen edges (no blank gutters), the FRONT OPENING must be ≥ the viewport,
+     i.e. room-w ≥ 100vw and room-h ≥ 100vh. We overshoot to be safe at every
+     aspect ratio. The back wall is the same rectangle pushed to depth -room-d, so
+     perspective shrinks IT (giving the receding room) while the opening still
+     covers the screen edge-to-edge. */
+  --room-w: 116vw; /* front opening width — must exceed 100vw so walls hit the edge */
+  --room-h: 116vh; /* front opening height — must exceed 100vh */
+}
+
+/* All faces share the same hinge model: each is a div whose own size is
+   (back-wall-edge-length × room-depth). We translate it to the back wall's plane
+   (translateZ -room-d), move it to the relevant back-wall EDGE, set the
+   transform-origin to that edge, then rotate 90° so the wall swings FORWARD to
+   the camera (z: -room-d → 0). Transforms read left→right but apply right→left,
+   so rotate is listed last (applied first, in the face's local frame), then the
+   translates place the rotated wall. */
+
+/* BACK WALL — flat, pushed straight back. The far rectangle. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] .lera-room-face[data-face='back'] {
+  width: var(--room-w);
+  height: var(--room-h);
+  margin-left: calc(var(--room-w) / -2);
+  margin-top: calc(var(--room-h) / -2);
+  transform: translateZ(calc(var(--room-d) * -1));
+}
+
+/* CEILING — width = back-wall width, length(height) = room depth. Its FRONT edge
+   (bottom in local space) hinges at the back wall's top edge. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] .lera-room-face[data-face='ceiling'] {
+  width: var(--room-w);
+  height: var(--room-d);
+  margin-left: calc(var(--room-w) / -2);
+  margin-top: calc(var(--room-d) * -1);
+  transform-origin: center bottom;
+  /* place its bottom edge at the back wall's top, then tilt up toward camera */
+  transform: translateY(calc(var(--room-h) / -2)) translateZ(calc(var(--room-d) * -1)) rotateX(-90deg);
+}
+
+/* FLOOR — mirror of the ceiling, hinged at the back wall's bottom edge. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] .lera-room-face[data-face='floor'] {
+  width: var(--room-w);
+  height: var(--room-d);
+  margin-left: calc(var(--room-w) / -2);
+  margin-top: 0;
+  transform-origin: center top;
+  transform: translateY(calc(var(--room-h) / 2)) translateZ(calc(var(--room-d) * -1)) rotateX(90deg);
+}
+
+/* LEFT WALL — height = back-wall height, width = room depth. Its RIGHT edge
+   hinges at the back wall's left edge. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] .lera-room-face[data-face='left'] {
+  width: var(--room-d);
+  height: var(--room-h);
+  margin-left: calc(var(--room-d) * -1);
+  margin-top: calc(var(--room-h) / -2);
+  transform-origin: right center;
+  transform: translateX(calc(var(--room-w) / -2)) translateZ(calc(var(--room-d) * -1)) rotateY(90deg);
+}
+
+/* RIGHT WALL — mirror, hinged at the back wall's right edge. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] .lera-room-face[data-face='right'] {
+  width: var(--room-d);
+  height: var(--room-h);
+  margin-left: 0;
+  margin-top: calc(var(--room-h) / -2);
+  transform-origin: left center;
+  transform: translateX(calc(var(--room-w) / 2)) translateZ(calc(var(--room-d) * -1)) rotateY(-90deg);
 }
 
 /* The silhouette is kept even when maximized (user preference) — the notched
