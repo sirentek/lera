@@ -2365,8 +2365,13 @@
    framed macOS window keep their normal rectangular window untouched.
    ════════════════════════════════════════════════════════════════════════ */
 :root[data-hermes-theme='holo'][data-window-shell='holo'] {
-  /* Gap between the OS window edge and the glowing border line. Gives the frame
-     its floating "thickness" and leaves room for the resize grips + halo. */
+  /* Gap between the OS window edge and the glowing border line. Kept at 7px so the
+     frame border hugs the window edge and stays clear of all app content (buttons,
+     titlebar text, sidebars) — the layout is tuned to this value. Do NOT widen it
+     to make the glow spill: that moves the border INWARD into the content. The
+     glow spills outward via the frame's outward drop-shadow bloom, which already
+     bleeds past this 7px into the transparent gutter (floor + room are inset to
+     the border, so everything outside it is transparent → desktop shows through). */
   --holo-win-inset: 7px;
   /* Border line thickness — kept thin like the side-panel frame lines so the
      edge reads as a soft glowing filament, not a heavy bar. */
@@ -2444,11 +2449,21 @@
    (The holographic ROOM depth layer is NOT here — a behind-content z:-3 layer is
    occluded by the z:3 content column on the real GPU-composited window, so it
    only showed in offscreen captures. It lives on [data-slot='window-room'], a
-   positive-z overlay below the hex — same fix the hex itself needed. See below.) */
+   positive-z overlay below the hex — same fix the hex itself needed. See below.)
+
+   INSET to the glow frame (var(--holo-win-inset)), NOT inset:0. The frame ring
+   lives at inset:7px and traces --holo-win-shape in its OWN box, so the floor at
+   inset:0 traced a silhouette 7px LARGER on every side — an opaque #0c0504 band
+   that filled the gutter OUTSIDE the glowing border (and the chamfer corners
+   beyond it) with black. The user wants nothing but the glow out there: the
+   region past the frame must be the transparent window (→ desktop), so the frame
+   glow can bleed outward over it. Insetting the floor to the same gutter makes
+   its silhouette coincide with the frame's outer edge — the floor stops exactly
+   under the border line, and everything beyond the glow is truly transparent. */
 :root[data-hermes-theme='holo'][data-window-shell='holo']::after {
   content: '';
   position: fixed;
-  inset: 0;
+  inset: var(--holo-win-inset);
   z-index: -3;
   pointer-events: none;
   background: #0c0504;
@@ -2521,7 +2536,10 @@
    honeycomb is now the room's WALL texture, not a screen filter. */
 :root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] {
   position: fixed;
-  inset: 0;
+  /* Inset to the glow frame (matches the floor ::after), so the room's hex walls
+     + edge glow stay INSIDE the border and never spill into the now-transparent
+     outer gutter — out there we want only the frame's own glow, nothing else. */
+  inset: var(--holo-win-inset);
   z-index: 38;
   pointer-events: none;
   clip-path: var(--holo-win-shape);
@@ -2704,7 +2722,9 @@
     drop-shadow(0 0 6px rgba(255, 100, 80, 1))
     drop-shadow(0 0 12px rgba(255, 80, 62, 0.9))
     drop-shadow(0 0 22px rgba(255, 70, 55, 0.75))
-    drop-shadow(0 0 34px rgba(255, 60, 48, 0.55));
+    drop-shadow(0 0 34px rgba(255, 60, 48, 0.6))
+    drop-shadow(0 0 48px rgba(255, 55, 44, 0.42))
+    drop-shadow(0 0 64px rgba(255, 50, 40, 0.26));
 }
 
 /* Inner hole — the same silhouette inset by the stroke, in the FLOOR color,
