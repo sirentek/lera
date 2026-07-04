@@ -2365,14 +2365,17 @@
    framed macOS window keep their normal rectangular window untouched.
    ════════════════════════════════════════════════════════════════════════ */
 :root[data-hermes-theme='holo'][data-window-shell='holo'] {
-  /* Gap between the OS window edge and the glowing border line. Kept at 7px so the
-     frame border hugs the window edge and stays clear of all app content (buttons,
-     titlebar text, sidebars) — the layout is tuned to this value. Do NOT widen it
-     to make the glow spill: that moves the border INWARD into the content. The
-     glow spills outward via the frame's outward drop-shadow bloom, which already
-     bleeds past this 7px into the transparent gutter (floor + room are inset to
-     the border, so everything outside it is transparent → desktop shows through). */
-  --holo-win-inset: 7px;
+  /* --holo-win-glow-room: the TRANSPARENT gutter between the OS window edge and
+     the glowing border, reserved for the outer glow to bloom into. The window is
+     transparent and clips at its own bounds, so the outer halo can only be as
+     thick as this gutter — at 7px it was fully clipped and no brightness helped.
+     WIDENED so the reference-style halo has room. CRITICAL: the content padding
+     below is (this + a fixed content gap), so moving the border inward ALSO moves
+     the content inward by the same amount — the border never reaches the buttons /
+     sidebars (that was the earlier overlap bug). Tune the halo thickness here. */
+  --holo-win-glow-room: 18px;
+  /* The border line's distance from the window edge = the glow gutter. */
+  --holo-win-inset: var(--holo-win-glow-room);
   /* Border line thickness — kept thin like the side-panel frame lines so the
      edge reads as a soft glowing filament, not a heavy bar. */
   --holo-win-stroke: 2px;
@@ -2498,7 +2501,11 @@
    hex wall are NOT inset (they're on :root, behind this), so the honeycomb still
    fills the whole window up to the frame. */
 :root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='sidebar-wrapper'] {
-  padding: 18px;
+  /* Content sits the glow gutter PLUS an 11px border-to-content gap in from the
+     window edge, so it always clears the border wherever the border is. This is
+     what keeps buttons/sidebars off the border when --holo-win-glow-room widens
+     to open the outer-glow gutter — both move inward together. */
+  padding: calc(var(--holo-win-glow-room) + 11px);
   box-sizing: border-box;
 }
 
@@ -2710,21 +2717,24 @@
     #ff6558 80%,
     #ff9a84 100%
   );
-  /* Static neon bloom — STRONGER than the panel lines so the outer window edge
-     reads as the brightest, most glowing frame in the app (user wants the outer
-     border to out-glow the inner sidebar border). Stacked stepped radii compound
-     the rim alpha into a wide bright falloff; the inner radii are pushed to full
-     alpha and the outer reach is extended. Composited ONCE, never animated (CPU
-     stays stable). */
+  /* Static neon bloom — the OUTER glow, as bright and dense as the ~7px gutter
+     allows. The border stays hugging the window edge (--holo-win-inset: 7px) by
+     the user's choice, so the OS window bounds clip anything past ~7-20px — a
+     very-wide bloom would be almost entirely thrown away. So the energy is PACKED
+     into the near band (0-24px) at high/full alpha to make the visible halo as
+     saturated and luminous as possible, with just two wider rings trailing off
+     into the little room that remains. No 50px+ rings — they'd only be clipped,
+     costing raster time for no visible glow. Composited ONCE, never animated →
+     zero per-frame CPU. */
   filter:
-    drop-shadow(0 0 1px rgba(255, 200, 180, 1))
-    drop-shadow(0 0 3px rgba(255, 140, 120, 1))
-    drop-shadow(0 0 6px rgba(255, 100, 80, 1))
-    drop-shadow(0 0 12px rgba(255, 80, 62, 0.9))
-    drop-shadow(0 0 22px rgba(255, 70, 55, 0.75))
-    drop-shadow(0 0 34px rgba(255, 60, 48, 0.6))
-    drop-shadow(0 0 48px rgba(255, 55, 44, 0.42))
-    drop-shadow(0 0 64px rgba(255, 50, 40, 0.26));
+    drop-shadow(0 0 1px rgba(255, 225, 212, 1))
+    drop-shadow(0 0 2px rgba(255, 190, 170, 1))
+    drop-shadow(0 0 4px rgba(255, 150, 128, 1))
+    drop-shadow(0 0 7px rgba(255, 115, 95, 1))
+    drop-shadow(0 0 11px rgba(255, 98, 80, 1))
+    drop-shadow(0 0 16px rgba(255, 88, 70, 0.98))
+    drop-shadow(0 0 24px rgba(255, 78, 62, 0.85))
+    drop-shadow(0 0 36px rgba(255, 68, 52, 0.6));
 }
 
 /* Inner hole — the same silhouette inset by the stroke, in the FLOOR color,
@@ -2740,25 +2750,92 @@
   background: #0c0504;
 }
 
-/* Glow overlay — ABOVE the app content so the edge halo is never dimmed by the
-   floor or panels (that's why the z:-1 frame glow read faint). It's the same
-   silhouette but TRANSPARENT-filled, so it covers nothing; the neon comes from
-   stacked INSET box-shadows that hug the clipped edge and bleed inward, plus a
-   couple of outset shadows for the outward bloom. Static (composited once, no
-   animation → CPU stays stable). Tuned brighter than the panel frame so the
-   outer window border is the most luminous edge in the app. */
+/* Glow overlay — ABOVE the app content (z:60) so the halo is never occluded by the
+   floor / panels / content (the z:-1 frame's outward glow was buried by the app's
+   stacking — THAT is why no brightness on the frame ever showed outside).
+
+   HOW THE OUTWARD HALO ESCAPES: the host has NO clip-path and IS an isolated
+   stacking group (isolation:isolate). Inside it:
+     • ::before fills the silhouette with the opaque red edge gradient (the glow
+       SOURCE), clipped to the shape.
+     • ::after punches the interior back out with mix-blend-mode:destination-out,
+       so only the stroke-wide BORDER RING of ::before survives (the fill can't
+       cover the app). isolation:isolate keeps this blend from eating anything
+       behind the host.
+   Then the HOST's own filter:drop-shadow() samples that composited ring and
+   smears it OUTWARD. filter runs after the host's content compositing and the
+   host has no clip-path, so the halo spills freely into the transparent gutter →
+   onto the desktop. This is the visible outer glow.
+
+   Static — composited once into the GPU layer, no animation → zero per-frame CPU. */
 :root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-frame-glow'] {
   position: fixed;
   inset: var(--holo-win-inset);
   z-index: 60;
   pointer-events: none;
+  background: transparent;
+  /* The OUTWARD halo — TIGHT and balanced, hugging the line (the reference look:
+     a crisp neon filament with a soft falloff, NOT a fat fog). Few, small-radius
+     shadows: each drop-shadow re-blurs the previous output, so radii compound
+     fast — 6 wide rings turned the frame into a blurry slab that drowned the
+     chamfer notches (the "rectangularized" bug) and fogged the titlebar buttons.
+     Three tight rings keep the line crisp and the silhouette readable. */
+  filter:
+    drop-shadow(0 0 3px rgba(255, 165, 140, 0.9))
+    drop-shadow(0 0 8px rgba(255, 105, 85, 0.7))
+    drop-shadow(0 0 18px rgba(255, 80, 62, 0.45));
+}
+
+/* Glow SOURCE + border ring — the silhouette gradient, MASKED down to just the
+   stroke-wide edge ring. The mask (fill minus an inset copy of the shape) leaves
+   the interior GENUINELY transparent (unlike a blend/opaque hole, which left the
+   inside black over the app). So this pseudo paints only the glowing border line;
+   the host's drop-shadow above samples that ring and blooms it outward. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-frame-glow']::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: var(--holo-win-shape);
+  background: linear-gradient(
+    160deg,
+    #ff9a84 0%,
+    #ff6558 30%,
+    var(--holo-mid) 55%,
+    #ff6558 80%,
+    #ff9a84 100%
+  );
+  /* Ring mask: full box MINUS an inset box = a border-width ring of real alpha
+     (interior genuinely transparent — no black slab over content, unlike a blend
+     or an opaque hole). The outer edge stays chamfered via clip-path above; the
+     inner edge is a plain inset (it's hidden behind content anyway). The ring is
+     THIN (3px) so it reads as ONE crisp filament with the frame's 2px stroke —
+     the earlier 12px ring drew a fat band over the UI edge and, with the wide
+     shadow stack, blurred the whole frame into a fog. */
+  padding: 3px;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+}
+
+/* The inner INWARD neon bleed, hugging the ring from inside — a separate clipped
+   pseudo so it never spills onto content and never touches the outward halo. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-frame-glow']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   clip-path: var(--holo-win-shape);
   background: transparent;
+  /* Subtle — the reference keeps the interior clean; a faint inner sheen only,
+     so panels/buttons near the edge never sit under red fog. */
   box-shadow:
-    inset 0 0 2px 0 rgba(255, 210, 195, 0.95),
-    inset 0 0 6px 0 rgba(255, 140, 120, 0.9),
-    inset 0 0 14px 0 rgba(255, 95, 76, 0.65),
-    inset 0 0 28px 0 rgba(255, 75, 60, 0.4);
+    inset 0 0 2px 0 rgba(255, 205, 185, 0.7),
+    inset 0 0 7px 0 rgba(255, 130, 108, 0.35),
+    inset 0 0 16px 0 rgba(255, 95, 76, 0.16);
 }
 
 /* The frame ring keeps the silhouette at every window state (user preference). */
