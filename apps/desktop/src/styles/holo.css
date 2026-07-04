@@ -2941,13 +2941,23 @@
   -webkit-app-region: no-drag;
 }
 
-/* Push the titlebar UI cluster (haptics / keybinds / settings / right-sidebar)
-   to the LEFT of the window-controls cluster so the two never overlap, and so
-   neither sits on the top-right bevel. --titlebar-tools-right is the right edge
-   the app-shell anchors that cluster to; widen it to clear:
-     window-controls right offset (60) + its width (~94) + a 26px gap. */
-:root[data-hermes-theme='holo'][data-window-shell='holo'] {
-  --titlebar-tools-right: 180px;
+/* Separate the two top-right button triads.
+
+   In the holo frameless shell there is NO native OS min/max/close overlay —
+   WindowFrame paints a CUSTOM .lera-window-controls cluster instead (pinned at
+   right:60px, ~94px wide → its LEFT edge sits at right:154px). But app-shell
+   still anchors the app-tool cluster (haptics / keybinds / settings /
+   right-sidebar) to `--titlebar-tools-right = nativeOverlayWidth` (~144px on
+   Windows) as an INLINE style, sized to dodge that (here nonexistent) OS
+   overlay. Result: the app cluster's right edge lands right on top of the
+   custom controls and the two triads overlap ("birbirine girmiş").
+
+   The inline var can't be beaten by a normal rule, so pin the app cluster's
+   `right` directly with !important. right:180px puts its right edge ~26px clear
+   of the custom controls' left edge (154px) — two clean, separated groups of
+   three on the same center line. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [aria-label='App controls'].fixed {
+  right: 180px !important;
 }
 
 /* Drop the titlebar button clusters (left tools, pane tools, app controls) down
