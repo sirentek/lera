@@ -2925,11 +2925,15 @@
   position: fixed;
   /* The top-right corner is a 40px diagonal bevel; the flat top edge ends at
      100%-40px. Pin the min/max/close cluster against that flat edge, clear of
-     the bevel (40px + breathing room) so it never lands on the cut corner, and
-     drop it a little so it clears the bright top border line. This is the
-     rightmost cluster — the titlebar UI buttons sit to its LEFT. */
-  top: calc(var(--holo-win-inset) + 14px);
-  right: 44px;
+     the bevel (40px + breathing room) so it never lands on the cut corner. Its
+     vertical position is tuned so the 22px-tall glyph buttons share the SAME
+     center line as the app-control cluster to their LEFT (which sits at
+     --titlebar-controls-top + 20 = 26px with 22px buttons → center 37). With
+     --holo-win-inset = 18px, +8 puts this cluster's top at 26px too, so both
+     rows line up exactly. */
+  top: calc(var(--holo-win-inset) + 8px);
+  right: 60px;
+  align-items: center;
   z-index: 2147483647;
   display: flex;
   gap: 2px;
@@ -2941,9 +2945,9 @@
    to the LEFT of the window-controls cluster so the two never overlap, and so
    neither sits on the top-right bevel. --titlebar-tools-right is the right edge
    the app-shell anchors that cluster to; widen it to clear:
-     window-controls right offset (56) + its width (~94) + a 14px gap. */
+     window-controls right offset (60) + its width (~94) + a 26px gap. */
 :root[data-hermes-theme='holo'][data-window-shell='holo'] {
-  --titlebar-tools-right: 164px;
+  --titlebar-tools-right: 180px;
 }
 
 /* Drop the titlebar button clusters (left tools, pane tools, app controls) down
@@ -2955,14 +2959,14 @@
 :root[data-hermes-theme='holo'][data-window-shell='holo'] [aria-label='Window controls'].fixed,
 :root[data-hermes-theme='holo'][data-window-shell='holo'] [aria-label='Pane controls'].fixed,
 :root[data-hermes-theme='holo'][data-window-shell='holo'] [aria-label='App controls'].fixed {
-  top: calc(var(--titlebar-controls-top, 0px) + 14px);
+  top: calc(var(--titlebar-controls-top, 0px) + 20px);
 }
 
 /* The left tool cluster (sidebar toggle, flip) must clear the top-left bevel
    (40px diagonal). Push it well clear of the cut so it never starts on the
    corner line. */
 :root[data-hermes-theme='holo'][data-window-shell='holo'] [aria-label='Window controls'].fixed {
-  left: 50px;
+  left: 64px;
 }
 
 /* The bottom statusbar clusters butt against the bottom-left + bottom-right
@@ -2979,13 +2983,17 @@
   align-items: center;
   justify-content: center;
   width: 30px;
-  height: 24px;
+  /* Match the app-control buttons (--titlebar-control-height = 1.375rem = 22px)
+     and their glyph size (0.875rem) so the min/max/close row sits on the same
+     line and reads at the same scale as the haptics / keyboard / settings /
+     sidebar icons to its left. */
+  height: 22px;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: rgba(255, 209, 199, 0.78);
-  font-size: 13px;
+  font-size: 0.875rem;
   line-height: 1;
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
