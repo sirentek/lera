@@ -89,7 +89,7 @@
 
 :root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] {
   z-index: 2;
-  opacity: 0.4;
+  opacity: 0.32;
   background-color: #0c0504;
   background-image: var(--lera-room-image);
   background-position: center;
