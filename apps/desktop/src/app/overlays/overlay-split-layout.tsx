@@ -7,6 +7,12 @@ import { cn } from '@/lib/utils'
 
 import { PAGE_INSET_X } from '../layout-constants'
 
+// Additive width cap for split-layout overlays (cron, settings, profiles,
+// command-center). Passed to OverlayView's `rootClassName` so it *overrides*
+// the card's full-bleed default without touching the base classes — the card
+// centers and leaves the main window visible behind it, like the agents tree.
+export const OVERLAY_SPLIT_ROOT_CLASS = 'mx-auto max-w-5xl'
+
 interface OverlaySplitLayoutProps {
   children: ReactNode
   className?: string

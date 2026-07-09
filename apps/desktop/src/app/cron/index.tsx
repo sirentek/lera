@@ -36,7 +36,13 @@ import { $cronFocusJobId, $cronJobs, setCronFocusJobId, setCronJobs, updateCronJ
 import { notify, notifyError } from '@/store/notifications'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
-import { OverlayMain, OverlayNewButton, OverlaySidebar, OverlaySplitLayout } from '../overlays/overlay-split-layout'
+import {
+  OVERLAY_SPLIT_ROOT_CLASS,
+  OverlayMain,
+  OverlayNewButton,
+  OverlaySidebar,
+  OverlaySplitLayout
+} from '../overlays/overlay-split-layout'
 import { OverlayView } from '../overlays/overlay-view'
 import type { SetStatusbarItemGroup } from '../shell/statusbar-controls'
 
@@ -402,7 +408,7 @@ export function CronView({ onClose, onOpenSession, setStatusbarItemGroup: _setSt
   }
 
   return (
-    <OverlayView closeLabel={c.close} onClose={onClose}>
+    <OverlayView closeLabel={c.close} onClose={onClose} rootClassName={OVERLAY_SPLIT_ROOT_CLASS}>
       {loading && jobs.length === 0 ? (
         <PageLoader label={c.loading} />
       ) : (

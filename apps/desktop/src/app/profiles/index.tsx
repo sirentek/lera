@@ -30,7 +30,13 @@ import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
-import { OverlayMain, OverlayNewButton, OverlaySidebar, OverlaySplitLayout } from '../overlays/overlay-split-layout'
+import {
+  OVERLAY_SPLIT_ROOT_CLASS,
+  OverlayMain,
+  OverlayNewButton,
+  OverlaySidebar,
+  OverlaySplitLayout
+} from '../overlays/overlay-split-layout'
 import { OverlayView } from '../overlays/overlay-view'
 
 const PROFILE_NAME_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/
@@ -139,7 +145,7 @@ export function ProfilesView({ onClose }: ProfilesViewProps) {
   }, [p, pendingDelete, refresh])
 
   return (
-    <OverlayView closeLabel={p.close} onClose={onClose}>
+    <OverlayView closeLabel={p.close} onClose={onClose} rootClassName={OVERLAY_SPLIT_ROOT_CLASS}>
       {!profiles ? (
         <PageLoader label={p.loading} />
       ) : (

@@ -10,7 +10,13 @@ import { notifyError } from '@/store/notifications'
 
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
 import { OverlayIconButton } from '../overlays/overlay-chrome'
-import { OverlayMain, OverlayNavItem, OverlaySidebar, OverlaySplitLayout } from '../overlays/overlay-split-layout'
+import {
+  OVERLAY_SPLIT_ROOT_CLASS,
+  OverlayMain,
+  OverlayNavItem,
+  OverlaySidebar,
+  OverlaySplitLayout
+} from '../overlays/overlay-split-layout'
 import { OverlayView } from '../overlays/overlay-view'
 
 import { AboutSettings } from './about-settings'
@@ -87,7 +93,7 @@ export function SettingsView({ gateway, onClose, onConfigSaved, onMainModelChang
   }
 
   return (
-    <OverlayView closeLabel={t.settings.closeSettings} onClose={onClose}>
+    <OverlayView closeLabel={t.settings.closeSettings} onClose={onClose} rootClassName={OVERLAY_SPLIT_ROOT_CLASS}>
       <OverlaySplitLayout>
         <OverlaySidebar>
           {SECTIONS.map(s => {

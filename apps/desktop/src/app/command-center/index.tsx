@@ -26,7 +26,13 @@ import { $sessions, sessionPinId } from '@/store/session'
 
 import { useRefreshHotkey } from '../hooks/use-refresh-hotkey'
 import { useRouteEnumParam } from '../hooks/use-route-enum-param'
-import { OverlayMain, OverlayNavItem, OverlaySidebar, OverlaySplitLayout } from '../overlays/overlay-split-layout'
+import {
+  OVERLAY_SPLIT_ROOT_CLASS,
+  OverlayMain,
+  OverlayNavItem,
+  OverlaySidebar,
+  OverlaySplitLayout
+} from '../overlays/overlay-split-layout'
 import { OverlayView } from '../overlays/overlay-view'
 
 export type CommandCenterSection = 'sessions' | 'system' | 'usage'
@@ -265,7 +271,7 @@ export function CommandCenterView({ initialSection, onClose, onDeleteSession, on
   )
 
   return (
-    <OverlayView closeLabel={cc.close} onClose={onClose}>
+    <OverlayView closeLabel={cc.close} onClose={onClose} rootClassName={OVERLAY_SPLIT_ROOT_CLASS}>
       <OverlaySplitLayout>
         <OverlaySidebar>
           {SECTIONS.map(value => (
