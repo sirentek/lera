@@ -1,0 +1,104 @@
+/*
+ * Lera holo room background override.
+ *
+ * This file intentionally lives outside the upstream holo.css surface. The
+ * companion holo-room-background.ts resolves public/lera-background.png through
+ * Vite's BASE_URL, so the same image URL works from the dev server and from the
+ * packaged Electron file:// renderer.
+ */
+
+[data-slot='lera-room-background'] {
+  display: none;
+}
+
+[data-slot='lera-window-corner-glow'] {
+  display: none;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='lera-room-background'] {
+  display: none;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='lera-window-corner-glow'] {
+  position: fixed;
+  inset: var(--holo-win-inset);
+  z-index: 61;
+  display: block;
+  pointer-events: none;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='lera-window-corner-glow'] span {
+  position: absolute;
+  width: 57px;
+  height: 2px;
+  background: rgba(255, 128, 104, 0.72);
+  box-shadow:
+    0 0 4px 1px rgba(255, 170, 145, 0.78),
+    0 0 10px 3px rgba(255, 92, 74, 0.54),
+    0 0 22px 6px rgba(255, 64, 52, 0.26);
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo']
+  [data-slot='lera-window-corner-glow']
+  span[data-corner='top-left'] {
+  top: 40px;
+  left: 0;
+  transform: rotate(-45deg);
+  transform-origin: left center;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo']
+  [data-slot='lera-window-corner-glow']
+  span[data-corner='top-right'] {
+  top: 40px;
+  right: 0;
+  transform: rotate(45deg);
+  transform-origin: right center;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo']
+  [data-slot='lera-window-corner-glow']
+  span[data-corner='bottom-right'] {
+  right: 0;
+  bottom: 40px;
+  transform: rotate(-45deg);
+  transform-origin: right center;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo']
+  [data-slot='lera-window-corner-glow']
+  span[data-corner='bottom-left'] {
+  bottom: 40px;
+  left: 0;
+  transform: rotate(45deg);
+  transform-origin: left center;
+}
+
+:root[data-hermes-theme='holo']:not([data-window-shell='holo']) [data-slot='lera-room-background'] {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+  background-color: #0c0504;
+  background-image: var(--lera-room-image);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] {
+  z-index: 2;
+  opacity: 0.4;
+  background-color: #0c0504;
+  background-image: var(--lera-room-image);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  perspective: none;
+}
+
+/* The baked image already contains the perspective room and seams. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] .lera-room-face {
+  display: none;
+}

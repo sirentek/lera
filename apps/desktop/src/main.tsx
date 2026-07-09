@@ -5,6 +5,9 @@ import './components/brand-mark-lera.css'
 // Side-effect: restores the holo hexagon wall on the chat/home screen by
 // stopping the chat-surface chrome fill from compounding over it.
 import './styles/holo-hex-restore.css'
+// Side-effect: replaces the CSS-generated hex wall + 3D cube room with a baked
+// perspective image while resolving the public asset path for dev and file://.
+import './styles/holo-room-background'
 // Side-effect: applies the persisted window translucency on load.
 import './store/translucency'
 // Side-effect: rebrands the "Hermes Desktop" product label to "LERA" across
