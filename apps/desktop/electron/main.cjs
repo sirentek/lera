@@ -137,11 +137,12 @@ if (USER_DATA_OVERRIDE) {
 }
 
 const DEV_SERVER = process.env.HERMES_DESKTOP_DEV_SERVER
-const IS_PACKAGED = app.isPackaged
+const IS_PACKAGED = app.isPackaged && !DEV_SERVER
 const IS_MAC = process.platform === 'darwin'
 const IS_WINDOWS = process.platform === 'win32'
 const IS_WSL = isWslEnvironment()
 const APP_ROOT = app.getAppPath()
+const APP_USER_MODEL_ID = IS_PACKAGED ? 'com.nousresearch.hermes' : 'com.nousresearch.hermes.dev'
 
 function hiddenWindowsChildOptions(options = {}) {
   if (!IS_WINDOWS || Object.prototype.hasOwnProperty.call(options, 'windowsHide')) {
@@ -402,10 +403,17 @@ const WINDOW_BUTTON_POSITION = {
 // non-macOS platforms.
 const NATIVE_OVERLAY_BUTTON_WIDTH = 144
 const APP_ICON_PATHS = [
+  ...(IS_WINDOWS
+    ? [
+        path.join(APP_ROOT, 'assets', 'icon.ico'),
+        path.join(unpackedPathFor(APP_ROOT), 'assets', 'icon.ico'),
+        process.resourcesPath ? path.join(process.resourcesPath, 'icon.ico') : null
+      ]
+    : []),
   path.join(APP_ROOT, 'public', 'apple-touch-icon.png'),
   path.join(APP_ROOT, 'dist', 'apple-touch-icon.png'),
   path.join(unpackedPathFor(APP_ROOT), 'dist', 'apple-touch-icon.png')
-]
+].filter(Boolean)
 
 let rendererTitleBarTheme = null
 const terminalSessions = new Map()
@@ -658,7 +666,7 @@ app.setName(APP_NAME)
 // need this, so gate it on Windows. (Fixes: desktop approval/turn notifications
 // never firing on Windows.)
 if (IS_WINDOWS) {
-  app.setAppUserModelId('com.nousresearch.hermes')
+  app.setAppUserModelId(APP_USER_MODEL_ID)
 }
 // Seed the native About panel with the live Hermes version. This is refreshed
 // on every open via the explicit "About" menu handler (refreshAboutPanel), so
@@ -3661,6 +3669,29 @@ function registerPowerResumeListeners() {
 
 function getAppIconPath() {
   return APP_ICON_PATHS.find(fileExists)
+}
+
+function ensureWindowsDevShortcut() {
+  if (!IS_WINDOWS || IS_PACKAGED) return
+
+  const icon = getAppIconPath()
+  if (!icon) return
+
+  try {
+    const shortcutPath = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Lera Dev.lnk')
+    fs.mkdirSync(path.dirname(shortcutPath), { recursive: true })
+    shell.writeShortcutLink(shortcutPath, 'create', {
+      appUserModelId: APP_USER_MODEL_ID,
+      args: `"${APP_ROOT}"`,
+      cwd: APP_ROOT,
+      description: 'Lera development desktop shell',
+      icon,
+      iconIndex: 0,
+      target: process.execPath
+    })
+  } catch (error) {
+    rememberLog(`[windows] failed to register dev shortcut: ${error.message}`)
+  }
 }
 
 function sendOpenUpdatesRequested() {
@@ -7194,6 +7225,7 @@ app.whenReady().then(() => {
   installMediaPermissions()
   registerMediaProtocol()
   registerDeepLinkProtocol()
+  ensureWindowsDevShortcut()
   ensureWslWindowsFonts()
   configureSpellChecker()
   registerPowerResumeListeners()
