@@ -7,7 +7,7 @@ import time
 import types
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -8785,6 +8785,59 @@ def test_get_usage_reports_real_current_occupancy():
     assert usage["context_used"] == 60_000
     assert usage["context_max"] == 120_000
     assert usage["context_percent"] == 50
+    assert usage["context_estimated"] is False
+
+
+def test_get_usage_estimates_current_occupancy_when_engine_does_not_report_it(monkeypatch):
+    """A caller with live history gets a bounded context estimate without
+    substituting the cumulative lifetime token counter."""
+    agent = types.SimpleNamespace(
+        model="test-model",
+        session_total_tokens=1_900_000,
+        context_compressor=types.SimpleNamespace(
+            last_prompt_tokens=0,
+            context_length=120_000,
+            compression_count=0,
+        ),
+    )
+    monkeypatch.setattr(
+        "agent.context_breakdown.compute_session_context_breakdown",
+        lambda _agent, _history: {
+            "context_used": 24_000,
+            "context_max": 120_000,
+            "context_percent": 20,
+        },
+    )
+
+    usage = server._get_usage(agent, history=[{"role": "user", "content": "hello"}])
+
+    assert usage["context_used"] == 24_000
+    assert usage["context_max"] == 120_000
+    assert usage["context_percent"] == 20
+    assert usage["context_estimated"] is True
+
+
+def test_get_usage_prefers_real_occupancy_over_history_estimate(monkeypatch):
+    """History estimation must not replace a provider-reported prompt size."""
+    agent = types.SimpleNamespace(
+        model="test-model",
+        context_compressor=types.SimpleNamespace(
+            last_prompt_tokens=30_000,
+            context_length=120_000,
+            compression_count=0,
+        ),
+    )
+    estimate = Mock()
+    monkeypatch.setattr(
+        "agent.context_breakdown.compute_session_context_breakdown",
+        estimate,
+    )
+
+    usage = server._get_usage(agent, history=[])
+
+    assert usage["context_percent"] == 25
+    assert usage["context_estimated"] is False
+    estimate.assert_not_called()
 
 
 def test_get_usage_clamps_post_compression_sentinel():

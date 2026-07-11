@@ -3050,7 +3050,7 @@ def _sync_session_key_after_compress(
             pass
 
 
-def _get_usage(agent) -> dict:
+def _get_usage(agent, history: list[dict] | None = None) -> dict:
     g = lambda k, fb=None: getattr(agent, k, 0) or (getattr(agent, fb, 0) if fb else 0)
     usage = {
         "model": getattr(agent, "model", "") or "",
@@ -3089,7 +3089,27 @@ def _get_usage(agent) -> dict:
             usage["context_used"] = last_prompt
             usage["context_max"] = ctx_max
             usage["context_percent"] = max(0, min(100, round(last_prompt / ctx_max * 100)))
+            usage["context_estimated"] = False
         usage["compressions"] = getattr(comp, "compression_count", 0) or 0
+    if agent is not None and history is not None and "context_percent" not in usage:
+        # External context engines may not expose last_prompt_tokens. Estimate
+        # the next request from the live prompt + history rather than falling
+        # back to cumulative session_total_tokens, which is not window usage.
+        try:
+            from agent.context_breakdown import compute_session_context_breakdown
+
+            breakdown = compute_session_context_breakdown(agent, history)
+            context_max = int(breakdown.get("context_max", 0) or 0)
+            context_used = int(breakdown.get("context_used", 0) or 0)
+            if context_max:
+                usage["context_used"] = context_used
+                usage["context_max"] = context_max
+                usage["context_percent"] = max(
+                    0, min(100, round(context_used / context_max * 100))
+                )
+                usage["context_estimated"] = True
+        except Exception:
+            pass
     # Live count of background/async subagents still running (delegate_task
     # batches + background single delegations). Mirrors the classic CLI status
     # bar's ⛓ indicator; sourced from the same async_delegation registry.
@@ -6295,11 +6315,12 @@ def _(rid, params: dict) -> dict:
     if err:
         return err
     agent = session.get("agent")
-    usage: dict = (
-        _get_usage(agent)
-        if agent is not None
-        else {"calls": 0, "input": 0, "output": 0, "total": 0}
-    )
+    if agent is not None:
+        with session["history_lock"]:
+            history = list(session.get("history", []))
+        usage: dict = _get_usage(agent, history=history)
+    else:
+        usage = {"calls": 0, "input": 0, "output": 0, "total": 0}
     # Nous credits block — agent-independent (a portal fetch), so it shows even
     # with zero API calls or on a resumed session. The TUI /usage panel renders
     # these lines regardless of `calls`. Fail-open: [] when not logged into Nous
@@ -8812,7 +8833,13 @@ def _run_prompt_submit(rid, sid: str, session: dict, text: Any) -> None:
                 raw = str(result)
                 status = "complete"
 
-            payload = {"text": raw, "usage": _get_usage(agent), "status": status}
+            with session["history_lock"]:
+                usage_history = list(session.get("history", []))
+            payload = {
+                "text": raw,
+                "usage": _get_usage(agent, history=usage_history),
+                "status": status,
+            }
             if last_reasoning:
                 payload["reasoning"] = last_reasoning
             if status_note:

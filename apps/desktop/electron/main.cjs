@@ -3947,6 +3947,7 @@ function getNativeOverlayWidth() {
 function getWindowState() {
   return {
     isFullscreen: Boolean(mainWindow?.isFullScreen?.()),
+    isMaximized: Boolean(mainWindow?.isMaximized?.()),
     nativeOverlayWidth: getNativeOverlayWidth(),
     windowButtonPosition: getWindowButtonPosition()
   }
@@ -5971,6 +5972,9 @@ function createWindow() {
     minWidth: WINDOW_MIN_WIDTH,
     minHeight: WINDOW_MIN_HEIGHT,
     title: 'Hermes',
+    frame: IS_MAC,
+    transparent: !IS_MAC,
+    roundedCorners: IS_MAC ? undefined : false,
     // Frameless title bar on every platform so the renderer can paint the
     // "hide sidebar" button (and other left-side titlebar tools) flush with
     // the top edge — matching the macOS layout where the traffic lights sit
@@ -5978,7 +5982,7 @@ function createWindow() {
     // to paint native min/max/close in the top-right of the renderer; on
     // macOS it just reserves a content inset alongside the traffic lights.
     titleBarStyle: 'hidden',
-    titleBarOverlay: getTitleBarOverlayOptions(),
+    titleBarOverlay: IS_MAC ? getTitleBarOverlayOptions() : undefined,
     trafficLightPosition: IS_MAC ? WINDOW_BUTTON_POSITION : undefined,
     vibrancy: IS_MAC ? 'sidebar' : undefined,
     opacity: windowOpacity(),
@@ -5987,7 +5991,7 @@ function createWindow() {
     // `backgroundColor` and follows the OS appearance) can't flash a light
     // material before the renderer paints the app theme. See createSessionWindow.
     show: false,
-    backgroundColor: getWindowBackgroundColor(),
+    backgroundColor: IS_MAC ? getWindowBackgroundColor() : '#00000000',
     // Shared with the secondary session windows (chatWindowWebPreferences) so
     // both keep `backgroundThrottling: false` — the chat transcript streams via
     // a requestAnimationFrame-gated flush that Chromium pauses for blurred
@@ -6021,6 +6025,8 @@ function createWindow() {
   mainWindow.on('enter-full-screen', () => sendWindowStateChanged(true))
   mainWindow.on('will-leave-full-screen', () => sendWindowStateChanged(false))
   mainWindow.on('leave-full-screen', () => sendWindowStateChanged(false))
+  mainWindow.on('maximize', () => sendWindowStateChanged())
+  mainWindow.on('unmaximize', () => sendWindowStateChanged())
 
   // Reopen where the user left off. resized/moved settle once per drag; close is
   // the cross-platform backstop, flushed synchronously before the window is gone.

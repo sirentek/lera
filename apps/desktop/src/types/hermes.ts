@@ -414,6 +414,7 @@ export interface SessionRuntimeInfo {
 
 export interface UsageStats {
   calls: number
+  context_estimated?: boolean
   context_max?: number
   context_percent?: number
   context_used?: number
