@@ -54,12 +54,21 @@ export function ProjectDialog() {
       setTemplates(randomIdeaTemplates())
       setGeneratingIdea(false)
       setSubmitting(false)
-
-      if (mode !== 'add-folder') {
-        window.setTimeout(() => nameRef.current?.select(), 0)
-      }
     }
   }, [open, mode, state?.name])
+
+  const focusNameWithoutScrolling = () => {
+    window.setTimeout(() => {
+      const input = nameRef.current
+
+      if (!input) {
+        return
+      }
+
+      input.focus({ preventScroll: true })
+      input.setSelectionRange(0, input.value.length)
+    }, 0)
+  }
 
   const onOpenChange = (next: boolean) => {
     if (!next) {
@@ -149,7 +158,18 @@ export function ProjectDialog() {
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="max-w-md" onInteractOutside={event => event.preventDefault()}>
+      <DialogContent
+        className="max-w-md"
+        onInteractOutside={event => event.preventDefault()}
+        onOpenAutoFocus={event => {
+          if (mode === 'add-folder') {
+            return
+          }
+
+          event.preventDefault()
+          focusNameWithoutScrolling()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {mode === 'create' && <DialogDescription>{p.createDesc}</DialogDescription>}
@@ -157,7 +177,6 @@ export function ProjectDialog() {
 
         {mode !== 'add-folder' && (
           <Input
-            autoFocus
             disabled={submitting}
             onChange={event => setName(event.target.value)}
             onKeyDown={event => {
