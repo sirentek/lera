@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { HermesReadDirResult } from '@/global'
+import { $projectDialog, closeProjectDialog } from '@/store/projects'
 import { $connection, setCurrentCwd } from '@/store/session'
 
 import { resetProjectTreeState } from './files/use-project-tree'
@@ -28,6 +29,7 @@ describe('RightSidebarPane', () => {
     $connection.set(null)
     setCurrentCwd('')
     resetProjectTreeState()
+    closeProjectDialog()
     delete (window as unknown as { hermesDesktop?: unknown }).hermesDesktop
   })
 
@@ -53,6 +55,15 @@ describe('RightSidebarPane', () => {
 
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Refresh tree' })).toBeNull())
     expect(readDir).not.toHaveBeenCalled()
+  })
+
+  it('opens project creation from the detached-chat empty state', () => {
+    setCurrentCwd('')
+
+    render(<RightSidebarPane onActivateFile={vi.fn()} onActivateFolder={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'New project' }))
+
+    expect($projectDialog.get()).toEqual({ mode: 'create' })
   })
 
   it('exposes the right-sidebar slot used by theme frame selectors', () => {

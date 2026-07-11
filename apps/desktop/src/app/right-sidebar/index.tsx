@@ -11,6 +11,7 @@ import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
 import { cn } from '@/lib/utils'
 import { $panesFlipped } from '@/store/layout'
 import { notifyError } from '@/store/notifications'
+import { openProjectCreate } from '@/store/projects'
 import { setCurrentSessionPreviewTarget } from '@/store/preview'
 import { $currentCwd } from '@/store/session'
 
@@ -147,7 +148,13 @@ function FilesystemTab({
   // No working directory (a bare/detached chat) → no tree, just a terse hint.
   // Switching workspace is a project/worktree action, never a raw folder picker.
   if (!hasWorkspace) {
-    return <PaneEmptyState label={r.noProjectOpen} />
+    return (
+      <PaneEmptyState
+        actionLabel={t.sidebar.projects.newButton}
+        label={r.noProjectOpen}
+        onAction={openProjectCreate}
+      />
+    )
   }
 
   return (
@@ -316,10 +323,24 @@ function FileTreeLoadingState() {
 // Terse pane empty state ("No files" / "No diffs"): the panel label itself —
 // same uppercase/tracking + dither dot — just muted instead of theme-primary,
 // centered. Shared by the file tree and review panes so both read identically.
-export function PaneEmptyState({ label }: { label: string }) {
+export function PaneEmptyState({
+  actionLabel,
+  label,
+  onAction
+}: {
+  actionLabel?: string
+  label: string
+  onAction?: () => void
+}) {
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center px-4">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4">
       <SidebarPanelLabel className="pl-0 text-(--ui-text-quaternary)">{label}</SidebarPanelLabel>
+      {actionLabel && onAction ? (
+        <Button onClick={onAction} size="sm" type="button" variant="outline">
+          <Codicon name="add" size="0.75rem" />
+          {actionLabel}
+        </Button>
+      ) : null}
     </div>
   )
 }
