@@ -1045,363 +1045,365 @@ export function ChatSidebar({
       collapsible="none"
     >
       <SidebarContent className="gap-0 overflow-hidden bg-transparent px-2.5">
-        <SidebarGroup className="shrink-0 p-0 pb-2 pt-[calc(var(--titlebar-height)+0.375rem)]">
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-px">
-              {SIDEBAR_NAV.map(item => {
-                const isInteractive = Boolean(item.action) || Boolean(item.route)
+        <div className="flex min-h-0 flex-1 flex-col" data-slot="sidebar-panel">
+          <SidebarGroup className="shrink-0 p-0 pb-2 pt-[calc(var(--titlebar-height)+0.375rem)]">
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-px">
+                {SIDEBAR_NAV.map(item => {
+                  const isInteractive = Boolean(item.action) || Boolean(item.route)
 
-                const active =
-                  (item.id === 'skills' && currentView === 'skills') ||
-                  (item.id === 'messaging' && currentView === 'messaging') ||
-                  (item.id === 'artifacts' && currentView === 'artifacts')
+                  const active =
+                    (item.id === 'skills' && currentView === 'skills') ||
+                    (item.id === 'messaging' && currentView === 'messaging') ||
+                    (item.id === 'artifacts' && currentView === 'artifacts')
 
-                const isNewSession = item.id === 'new-session'
+                  const isNewSession = item.id === 'new-session'
 
-                return (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      aria-disabled={!isInteractive}
-                      className={cn(
-                        // no-drag: these rows sit directly under the titlebar's
-                        // [-webkit-app-region:drag] strips (app-shell.tsx), with only
-                        // 6px of clearance. Drag regions win hit-testing over DOM
-                        // (pointer-events can't override), and on Linux/WSLg the
-                        // resolved region has been observed to swallow clicks on the
-                        // top rows. Same carve-out as USER_BUBBLE_BASE_CLASS in
-                        // thread.tsx.
-                        'flex h-7 w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none',
-                        active &&
-                          'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-foreground shadow-none hover:border-(--ui-stroke-tertiary)!',
-                        !isInteractive &&
-                          'cursor-default hover:border-transparent hover:bg-transparent hover:text-inherit'
-                      )}
-                      onClick={() => {
-                        // A plain new session lands in whatever profile the live
-                        // gateway is on (= the active switcher context). null →
-                        // no swap. The switcher header is the single place to
-                        // change which profile that is.
-                        if (isNewSession) {
-                          $newChatProfile.set(null)
-                        }
+                  return (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        aria-disabled={!isInteractive}
+                        className={cn(
+                          // no-drag: these rows sit directly under the titlebar's
+                          // [-webkit-app-region:drag] strips (app-shell.tsx), with only
+                          // 6px of clearance. Drag regions win hit-testing over DOM
+                          // (pointer-events can't override), and on Linux/WSLg the
+                          // resolved region has been observed to swallow clicks on the
+                          // top rows. Same carve-out as USER_BUBBLE_BASE_CLASS in
+                          // thread.tsx.
+                          'flex h-7 w-full justify-start gap-2 rounded-md border border-transparent px-2 text-left text-[0.8125rem] font-medium text-(--ui-text-secondary) transition-colors duration-100 ease-out [-webkit-app-region:no-drag] hover:bg-(--ui-control-hover-background) hover:text-foreground hover:transition-none',
+                          active &&
+                            'border-(--ui-stroke-tertiary) bg-(--ui-control-active-background) text-foreground shadow-none hover:border-(--ui-stroke-tertiary)!',
+                          !isInteractive &&
+                            'cursor-default hover:border-transparent hover:bg-transparent hover:text-inherit'
+                        )}
+                        onClick={() => {
+                          // A plain new session lands in whatever profile the live
+                          // gateway is on (= the active switcher context). null →
+                          // no swap. The switcher header is the single place to
+                          // change which profile that is.
+                          if (isNewSession) {
+                            $newChatProfile.set(null)
+                          }
 
-                        onNavigate(item)
-                      }}
-                      tooltip={s.nav[item.id] ?? item.label}
-                      type="button"
-                    >
-                      <item.icon className="size-4 shrink-0 text-[color-mix(in_srgb,currentColor_72%,transparent)]" />
-                      {contentVisible && (
-                        <>
-                          <span className="min-w-0 flex-1 truncate">{s.nav[item.id] ?? item.label}</span>
-                          {isNewSession && (
-                            <KbdGroup
-                              className={cn('ml-auto opacity-55', newSessionKbdFlash && 'opacity-100!')}
-                              keys={[...NEW_SESSION_KBD]}
-                              size="sm"
-                            />
-                          )}
-                        </>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {contentVisible && showSessionSections && (
-          <div className="shrink-0 px-2 pb-1 pt-1">
-            <SearchField
-              aria-label={s.searchAria}
-              inputRef={searchInputRef}
-              onChange={setSearchQuery}
-              placeholder={s.searchPlaceholder}
-              value={searchQuery}
-            />
-          </div>
-        )}
-
-        {contentVisible && showSessionSections && (
-          <div className={cn('flex min-h-0 flex-1 flex-col pb-1.75', SCROLL_Y)}>
-            {trimmedQuery && (
-              <SidebarSessionsSection
-                activeSessionId={activeSidebarSessionId}
-                contentClassName={cn('flex min-h-0 flex-1 flex-col gap-px pb-1.75', SCROLL_Y)}
-                emptyState={
-                  searchPending ? (
-                    <SidebarSessionSkeletons />
-                  ) : (
-                    <div className="wrap-anywhere grid min-h-24 place-items-center rounded-lg px-2 text-center text-xs text-(--ui-text-tertiary)">
-                      {s.noMatch(trimmedQuery)}
-                    </div>
-                  )
-                }
-                label={s.results}
-                labelMeta={String(searchResults.length)}
-                onArchiveSession={onArchiveSession}
-                onBranchSession={onBranchSession}
-                onDeleteSession={onDeleteSession}
-                onResumeSession={onResumeSession}
-                onToggle={() => undefined}
-                onTogglePin={pinSession}
-                open
-                pinned={false}
-                rootClassName="min-h-32 flex-1 overflow-hidden p-0"
-                sessions={searchResults}
-                workingSessionIdSet={workingSessionIdSet}
-              />
-            )}
-
-            {!trimmedQuery && (
-              <SidebarSessionsSection
-                activeSessionId={activeSidebarSessionId}
-                contentClassName={cn('flex max-h-44 flex-col gap-px rounded-lg pb-2 pt-1', GROUP_BODY)}
-                dndSensors={dndSensors}
-                emptyState={<SidebarPinnedEmptyState />}
-                label={s.pinned}
-                onArchiveSession={onArchiveSession}
-                onBranchSession={onBranchSession}
-                onDeleteSession={onDeleteSession}
-                onReorderSessions={reorderPinned}
-                onResumeSession={onResumeSession}
-                onToggle={() => setSidebarPinsOpen(!pinsOpen)}
-                onTogglePin={unpinSession}
-                open={pinsOpen}
-                pinned
-                rootClassName="shrink-0 p-0 pb-1"
-                sessions={pinnedSessions}
-                sortable={pinnedSessions.length > 1}
-                workingSessionIdSet={workingSessionIdSet}
-              />
-            )}
-
-            {!trimmedQuery && (
-              <SidebarSessionsSection
-                activeProjectId={activeProjectId}
-                activeSessionId={activeSidebarSessionId}
-                collapsible={!inProject}
-                contentClassName={cn(
-                  'flex min-h-0 flex-1 flex-col pb-1.75',
-                  SCROLL_Y,
-                  // Separate profile sections clearly in the ALL view; rows inside
-                  // each group keep their own tight gap-px rhythm.
-                  showAllProfiles ? 'gap-3' : 'gap-px',
-                  // Flatten into the single scroll when compact — unless this is the
-                  // virtualized long list, which must keep its own scroller.
-                  !recentsVirtualizes && COMPACT_FLAT
-                )}
-                dndSensors={dndSensors}
-                emptyState={
-                  showSessionSkeletons ? (
-                    <SidebarSessionSkeletons />
-                  ) : (
-                    <div className="grid min-h-16 place-items-center rounded-lg px-2 text-center text-xs text-(--ui-text-tertiary)">
-                      {inProject ? s.projectEmpty : pinnedSessions.length > 0 ? s.allPinned : s.noSessions}
-                    </div>
-                  )
-                }
-                footer={
-                  // Hide "load more" only when workspace-grouped (those groups page
-                  // themselves). ALL-profiles now pages per-profile from each profile
-                  // header; the global footer only applies to non-ALL views.
-                  !showAllProfiles && !agentsGrouped && !showSessionSkeletons && hasMoreSessions ? (
-                    <SidebarLoadMoreRow
-                      loading={sessionsLoading || recentsLoadMorePending}
-                      onClick={() => void onLoadMoreRecents()}
-                      // Recents are post-filtered to non-project sessions, so a
-                      // backend page size (50) is not a truthful "rows you'll
-                      // see" count. Use the generic label instead of a fake N.
-                      step={0}
-                    />
-                  ) : null
-                }
-                forceEmptyState={showSessionSkeletons}
-                groups={displayAgentGroups}
-                headerAction={
-                  inProject && enteredProject ? (
-                    <div className="group/workspace flex shrink-0 items-center gap-0.5">
-                      {enteredProject.path && (
-                        <StartWorkButton onStarted={onNewSessionInWorkspace} repoPath={enteredProject.path} />
-                      )}
-                      <ProjectMenu
-                        isActive={enteredProject.id === activeProjectId}
-                        onExitScope={exitProjectScope}
-                        project={enteredProject}
-                        scoped
-                      />
-                      <div className="grid size-6 place-items-center">
-                        <Button
-                          aria-label={s.showProjects}
-                          className={HEADER_NAV_BTN}
-                          onClick={event => {
-                            event.stopPropagation()
-                            exitProjectScope()
-                          }}
-                          size="icon-xs"
-                          variant="ghost"
-                        >
-                          <Codicon name="list-unordered" size="0.75rem" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex shrink-0 items-center gap-0.5">
-                      {!showAllProfiles ? (
-                        <Button
-                          aria-label={agentsGrouped ? s.projects.newButton : s.nav['new-session']}
-                          className={HEADER_ACTION_BTN}
-                          onClick={event => {
-                            event.stopPropagation()
-
-                            if (agentsGrouped) {
-                              openProjectCreate()
-                            } else {
-                              onNewSessionInWorkspace(null)
-                            }
-                          }}
-                          size="icon-xs"
-                          variant="ghost"
-                        >
-                          <Codicon name="add" size="0.75rem" />
-                        </Button>
-                      ) : null}
-                      <div className="grid size-6 place-items-center">
-                        {!showAllProfiles && agentSessions.length > 0 ? (
-                          <Button
-                            aria-label={agentsGrouped ? s.showSessions : s.showProjects}
-                            className={cn(
-                              HEADER_NAV_BTN,
-                              agentsGrouped && 'bg-(--ui-control-active-background) text-foreground opacity-100'
+                          onNavigate(item)
+                        }}
+                        tooltip={s.nav[item.id] ?? item.label}
+                        type="button"
+                      >
+                        <item.icon className="size-4 shrink-0 text-[color-mix(in_srgb,currentColor_72%,transparent)]" />
+                        {contentVisible && (
+                          <>
+                            <span className="min-w-0 flex-1 truncate">{s.nav[item.id] ?? item.label}</span>
+                            {isNewSession && (
+                              <KbdGroup
+                                className={cn('ml-auto opacity-55', newSessionKbdFlash && 'opacity-100!')}
+                                keys={[...NEW_SESSION_KBD]}
+                                size="sm"
+                              />
                             )}
+                          </>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          {contentVisible && showSessionSections && (
+            <div className="shrink-0 px-2 pb-1 pt-1">
+              <SearchField
+                aria-label={s.searchAria}
+                inputRef={searchInputRef}
+                onChange={setSearchQuery}
+                placeholder={s.searchPlaceholder}
+                value={searchQuery}
+              />
+            </div>
+          )}
+
+          {contentVisible && showSessionSections && (
+            <div className={cn('flex min-h-0 flex-1 flex-col pb-1.75', SCROLL_Y)}>
+              {trimmedQuery && (
+                <SidebarSessionsSection
+                  activeSessionId={activeSidebarSessionId}
+                  contentClassName={cn('flex min-h-0 flex-1 flex-col gap-px pb-1.75', SCROLL_Y)}
+                  emptyState={
+                    searchPending ? (
+                      <SidebarSessionSkeletons />
+                    ) : (
+                      <div className="wrap-anywhere grid min-h-24 place-items-center rounded-lg px-2 text-center text-xs text-(--ui-text-tertiary)">
+                        {s.noMatch(trimmedQuery)}
+                      </div>
+                    )
+                  }
+                  label={s.results}
+                  labelMeta={String(searchResults.length)}
+                  onArchiveSession={onArchiveSession}
+                  onBranchSession={onBranchSession}
+                  onDeleteSession={onDeleteSession}
+                  onResumeSession={onResumeSession}
+                  onToggle={() => undefined}
+                  onTogglePin={pinSession}
+                  open
+                  pinned={false}
+                  rootClassName="min-h-32 flex-1 overflow-hidden p-0"
+                  sessions={searchResults}
+                  workingSessionIdSet={workingSessionIdSet}
+                />
+              )}
+
+              {!trimmedQuery && (
+                <SidebarSessionsSection
+                  activeSessionId={activeSidebarSessionId}
+                  contentClassName={cn('flex max-h-44 flex-col gap-px rounded-lg pb-2 pt-1', GROUP_BODY)}
+                  dndSensors={dndSensors}
+                  emptyState={<SidebarPinnedEmptyState />}
+                  label={s.pinned}
+                  onArchiveSession={onArchiveSession}
+                  onBranchSession={onBranchSession}
+                  onDeleteSession={onDeleteSession}
+                  onReorderSessions={reorderPinned}
+                  onResumeSession={onResumeSession}
+                  onToggle={() => setSidebarPinsOpen(!pinsOpen)}
+                  onTogglePin={unpinSession}
+                  open={pinsOpen}
+                  pinned
+                  rootClassName="shrink-0 p-0 pb-1"
+                  sessions={pinnedSessions}
+                  sortable={pinnedSessions.length > 1}
+                  workingSessionIdSet={workingSessionIdSet}
+                />
+              )}
+
+              {!trimmedQuery && (
+                <SidebarSessionsSection
+                  activeProjectId={activeProjectId}
+                  activeSessionId={activeSidebarSessionId}
+                  collapsible={!inProject}
+                  contentClassName={cn(
+                    'flex min-h-0 flex-1 flex-col pb-1.75',
+                    SCROLL_Y,
+                    // Separate profile sections clearly in the ALL view; rows inside
+                    // each group keep their own tight gap-px rhythm.
+                    showAllProfiles ? 'gap-3' : 'gap-px',
+                    // Flatten into the single scroll when compact — unless this is the
+                    // virtualized long list, which must keep its own scroller.
+                    !recentsVirtualizes && COMPACT_FLAT
+                  )}
+                  dndSensors={dndSensors}
+                  emptyState={
+                    showSessionSkeletons ? (
+                      <SidebarSessionSkeletons />
+                    ) : (
+                      <div className="grid min-h-16 place-items-center rounded-lg px-2 text-center text-xs text-(--ui-text-tertiary)">
+                        {inProject ? s.projectEmpty : pinnedSessions.length > 0 ? s.allPinned : s.noSessions}
+                      </div>
+                    )
+                  }
+                  footer={
+                    // Hide "load more" only when workspace-grouped (those groups page
+                    // themselves). ALL-profiles now pages per-profile from each profile
+                    // header; the global footer only applies to non-ALL views.
+                    !showAllProfiles && !agentsGrouped && !showSessionSkeletons && hasMoreSessions ? (
+                      <SidebarLoadMoreRow
+                        loading={sessionsLoading || recentsLoadMorePending}
+                        onClick={() => void onLoadMoreRecents()}
+                        // Recents are post-filtered to non-project sessions, so a
+                        // backend page size (50) is not a truthful "rows you'll
+                        // see" count. Use the generic label instead of a fake N.
+                        step={0}
+                      />
+                    ) : null
+                  }
+                  forceEmptyState={showSessionSkeletons}
+                  groups={displayAgentGroups}
+                  headerAction={
+                    inProject && enteredProject ? (
+                      <div className="group/workspace flex shrink-0 items-center gap-0.5">
+                        {enteredProject.path && (
+                          <StartWorkButton onStarted={onNewSessionInWorkspace} repoPath={enteredProject.path} />
+                        )}
+                        <ProjectMenu
+                          isActive={enteredProject.id === activeProjectId}
+                          onExitScope={exitProjectScope}
+                          project={enteredProject}
+                          scoped
+                        />
+                        <div className="grid size-6 place-items-center">
+                          <Button
+                            aria-label={s.showProjects}
+                            className={HEADER_NAV_BTN}
                             onClick={event => {
                               event.stopPropagation()
-                              setSidebarRecentsOpen(true)
-                              setSidebarAgentsGrouped(!agentsGrouped)
+                              exitProjectScope()
                             }}
                             size="icon-xs"
                             variant="ghost"
                           >
-                            <Codicon name={agentsGrouped ? 'list-unordered' : 'root-folder'} size="0.75rem" />
+                            <Codicon name="list-unordered" size="0.75rem" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        {!showAllProfiles ? (
+                          <Button
+                            aria-label={agentsGrouped ? s.projects.newButton : s.nav['new-session']}
+                            className={HEADER_ACTION_BTN}
+                            onClick={event => {
+                              event.stopPropagation()
+
+                              if (agentsGrouped) {
+                                openProjectCreate()
+                              } else {
+                                onNewSessionInWorkspace(null)
+                              }
+                            }}
+                            size="icon-xs"
+                            variant="ghost"
+                          >
+                            <Codicon name="add" size="0.75rem" />
                           </Button>
                         ) : null}
+                        <div className="grid size-6 place-items-center">
+                          {!showAllProfiles && agentSessions.length > 0 ? (
+                            <Button
+                              aria-label={agentsGrouped ? s.showSessions : s.showProjects}
+                              className={cn(
+                                HEADER_NAV_BTN,
+                                agentsGrouped && 'bg-(--ui-control-active-background) text-foreground opacity-100'
+                              )}
+                              onClick={event => {
+                                event.stopPropagation()
+                                setSidebarRecentsOpen(true)
+                                setSidebarAgentsGrouped(!agentsGrouped)
+                              }}
+                              size="icon-xs"
+                              variant="ghost"
+                            >
+                              <Codicon name={agentsGrouped ? 'list-unordered' : 'root-folder'} size="0.75rem" />
+                            </Button>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  )
-                }
-                label={sessionsLabel}
-                labelMeta={
-                  worktreeGroupingActive ? (
-                    reposScanning && !projectsSkeletonVisible ? (
-                      <GlyphSpinner ariaLabel={s.loading} className="text-[0.6875rem] text-(--ui-text-quaternary)" />
-                    ) : undefined
-                  ) : (
-                    recentsMeta
-                  )
-                }
-                liveSessions={inProject ? agentSessions : undefined}
-                onArchiveSession={onArchiveSession}
-                onBranchSession={onBranchSession}
-                onDeleteSession={onDeleteSession}
-                onEnterProject={onEnterProject}
-                onNewSessionInWorkspace={showAllProfiles ? undefined : onNewSessionInWorkspace}
-                onReorderProjects={showAllProfiles ? undefined : reorderProjects}
-                onReorderSessions={showAllProfiles ? undefined : reorderSessions}
-                onResumeSession={onResumeSession}
-                onToggle={() => setSidebarRecentsOpen(!agentsOpen)}
-                onTogglePin={pinSession}
-                open={agentsOpen}
-                pinned={false}
-                projectBackRow={
-                  inProject ? <ProjectBackRow label={s.projects.back} onClick={exitProjectScope} /> : undefined
-                }
-                projectContent={inProject ? enteredProjectContent : undefined}
-                projectOverview={projectOverview}
-                projectOverviewPreviews={overviewPreviews}
-                projectRepoWorktrees={inProject ? scopedRepoWorktrees : undefined}
-                projectsLoading={worktreeGroupingActive ? projectTreeLoading : false}
-                removedSessionIds={inProject ? removedSessionIds : undefined}
-                rootClassName={cn(
-                  'min-h-32 flex-1 overflow-hidden p-0',
-                  !recentsVirtualizes && 'compact:min-h-0 compact:flex-none compact:overflow-visible'
-                )}
-                sessions={displayAgentSessions}
-                sortable={!showAllProfiles && agentSessions.length > 1}
-                workingSessionIdSet={workingSessionIdSet}
-              />
-            )}
+                    )
+                  }
+                  label={sessionsLabel}
+                  labelMeta={
+                    worktreeGroupingActive ? (
+                      reposScanning && !projectsSkeletonVisible ? (
+                        <GlyphSpinner ariaLabel={s.loading} className="text-[0.6875rem] text-(--ui-text-quaternary)" />
+                      ) : undefined
+                    ) : (
+                      recentsMeta
+                    )
+                  }
+                  liveSessions={inProject ? agentSessions : undefined}
+                  onArchiveSession={onArchiveSession}
+                  onBranchSession={onBranchSession}
+                  onDeleteSession={onDeleteSession}
+                  onEnterProject={onEnterProject}
+                  onNewSessionInWorkspace={showAllProfiles ? undefined : onNewSessionInWorkspace}
+                  onReorderProjects={showAllProfiles ? undefined : reorderProjects}
+                  onReorderSessions={showAllProfiles ? undefined : reorderSessions}
+                  onResumeSession={onResumeSession}
+                  onToggle={() => setSidebarRecentsOpen(!agentsOpen)}
+                  onTogglePin={pinSession}
+                  open={agentsOpen}
+                  pinned={false}
+                  projectBackRow={
+                    inProject ? <ProjectBackRow label={s.projects.back} onClick={exitProjectScope} /> : undefined
+                  }
+                  projectContent={inProject ? enteredProjectContent : undefined}
+                  projectOverview={projectOverview}
+                  projectOverviewPreviews={overviewPreviews}
+                  projectRepoWorktrees={inProject ? scopedRepoWorktrees : undefined}
+                  projectsLoading={worktreeGroupingActive ? projectTreeLoading : false}
+                  removedSessionIds={inProject ? removedSessionIds : undefined}
+                  rootClassName={cn(
+                    'min-h-32 flex-1 overflow-hidden p-0',
+                    !recentsVirtualizes && 'compact:min-h-0 compact:flex-none compact:overflow-visible'
+                  )}
+                  sessions={displayAgentSessions}
+                  sortable={!showAllProfiles && agentSessions.length > 1}
+                  workingSessionIdSet={workingSessionIdSet}
+                />
+              )}
 
-            {!trimmedQuery &&
-              !worktreeGroupingActive &&
-              messagingGroups.map(group => {
-                const visible = messagingVisible[group.sourceId] ?? NON_SESSION_INITIAL_ROWS
-                const shownSessions = group.sessions.slice(0, visible)
-                // More to show if rows are hidden behind the cap, or the backend
-                // still has older threads on disk.
-                const canRevealMore = visible < group.sessions.length || group.hasMore
+              {!trimmedQuery &&
+                !worktreeGroupingActive &&
+                messagingGroups.map(group => {
+                  const visible = messagingVisible[group.sourceId] ?? NON_SESSION_INITIAL_ROWS
+                  const shownSessions = group.sessions.slice(0, visible)
+                  // More to show if rows are hidden behind the cap, or the backend
+                  // still has older threads on disk.
+                  const canRevealMore = visible < group.sessions.length || group.hasMore
 
-                return (
-                  <SidebarSessionsSection
-                    activeSessionId={activeSidebarSessionId}
-                    contentClassName={cn('flex max-h-56 flex-col gap-px pb-1.75', GROUP_BODY)}
-                    emptyState={null}
-                    footer={
-                      canRevealMore ? (
-                        <SidebarLoadMoreRow
-                          loading={Boolean(messagingLoadMorePending[group.sourceId])}
-                          onClick={() => revealMoreMessaging(group.sourceId, group.sessions.length, group.hasMore)}
-                          step={Math.min(NON_SESSION_LOAD_STEP, Math.max(0, group.total - shownSessions.length))}
+                  return (
+                    <SidebarSessionsSection
+                      activeSessionId={activeSidebarSessionId}
+                      contentClassName={cn('flex max-h-56 flex-col gap-px pb-1.75', GROUP_BODY)}
+                      emptyState={null}
+                      footer={
+                        canRevealMore ? (
+                          <SidebarLoadMoreRow
+                            loading={Boolean(messagingLoadMorePending[group.sourceId])}
+                            onClick={() => revealMoreMessaging(group.sourceId, group.sessions.length, group.hasMore)}
+                            step={Math.min(NON_SESSION_LOAD_STEP, Math.max(0, group.total - shownSessions.length))}
+                          />
+                        ) : null
+                      }
+                      key={group.sourceId}
+                      label={group.label}
+                      labelIcon={
+                        <PlatformAvatar
+                          className="size-4 rounded-[4px] text-[0.5625rem] [&_svg]:size-3"
+                          platformId={group.sourceId}
+                          platformName={group.label}
                         />
-                      ) : null
-                    }
-                    key={group.sourceId}
-                    label={group.label}
-                    labelIcon={
-                      <PlatformAvatar
-                        className="size-4 rounded-[4px] text-[0.5625rem] [&_svg]:size-3"
-                        platformId={group.sourceId}
-                        platformName={group.label}
-                      />
-                    }
-                    labelMeta={countLabel(group.sessions.length, group.total)}
-                    onArchiveSession={onArchiveSession}
-                    onDeleteSession={onDeleteSession}
-                    onResumeSession={onResumeSession}
-                    onToggle={() => toggleSidebarMessagingOpen(group.sourceId)}
-                    onTogglePin={pinSession}
-                    open={messagingOpenIds.includes(group.sourceId)}
-                    pinned={false}
-                    rootClassName="shrink-0 p-0"
-                    sessions={shownSessions}
-                    workingSessionIdSet={workingSessionIdSet}
-                  />
-                )
-              })}
+                      }
+                      labelMeta={countLabel(group.sessions.length, group.total)}
+                      onArchiveSession={onArchiveSession}
+                      onDeleteSession={onDeleteSession}
+                      onResumeSession={onResumeSession}
+                      onToggle={() => toggleSidebarMessagingOpen(group.sourceId)}
+                      onTogglePin={pinSession}
+                      open={messagingOpenIds.includes(group.sourceId)}
+                      pinned={false}
+                      rootClassName="shrink-0 p-0"
+                      sessions={shownSessions}
+                      workingSessionIdSet={workingSessionIdSet}
+                    />
+                  )
+                })}
 
-            {!trimmedQuery && !worktreeGroupingActive && cronJobs.length > 0 && (
-              <SidebarCronJobsSection
-                jobs={cronJobs}
-                label={s.cronJobs}
-                onManageJob={onManageCronJob}
-                onOpenRun={onResumeSession}
-                onToggle={() => setSidebarCronOpen(!cronOpen)}
-                onTriggerJob={onTriggerCronJob}
-                open={cronOpen}
-              />
-            )}
-          </div>
-        )}
+              {!trimmedQuery && !worktreeGroupingActive && cronJobs.length > 0 && (
+                <SidebarCronJobsSection
+                  jobs={cronJobs}
+                  label={s.cronJobs}
+                  onManageJob={onManageCronJob}
+                  onOpenRun={onResumeSession}
+                  onToggle={() => setSidebarCronOpen(!cronOpen)}
+                  onTriggerJob={onTriggerCronJob}
+                  open={cronOpen}
+                />
+              )}
+            </div>
+          )}
 
-        {contentVisible && !showSessionSections && <SidebarBlankState onNewProject={openProjectCreate} />}
+          {contentVisible && !showSessionSections && <SidebarBlankState onNewProject={openProjectCreate} />}
 
-        {contentVisible && (
-          <div className="shrink-0 px-0.5 pb-1 pt-0.5">
-            <ProfileRail />
-          </div>
-        )}
+          {contentVisible && (
+            <div className="shrink-0 px-0.5 pb-1 pt-0.5">
+              <ProfileRail />
+            </div>
+          )}
+        </div>
+        {contentVisible && <ModelHud />}
       </SidebarContent>
-      {contentVisible && <ModelHud />}
       <ProjectDialog />
     </Sidebar>
   )
