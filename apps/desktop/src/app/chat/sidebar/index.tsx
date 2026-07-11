@@ -1257,7 +1257,7 @@ export function ChatSidebar({
                               event.stopPropagation()
 
                               if (agentsGrouped) {
-                                openProjectCreate()
+                                void openProjectCreate()
                               } else {
                                 onNewSessionInWorkspace(null)
                               }
@@ -1394,7 +1394,9 @@ export function ChatSidebar({
             </div>
           )}
 
-          {contentVisible && !showSessionSections && <SidebarBlankState onNewProject={openProjectCreate} />}
+          {contentVisible && !showSessionSections && (
+            <SidebarBlankState onNewProject={() => void openProjectCreate()} />
+          )}
 
           {contentVisible && (
             <div className="shrink-0 px-0.5 pb-1 pt-0.5">

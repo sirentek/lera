@@ -4,6 +4,7 @@ import { $sidebarAgentsGrouped } from '@/store/layout'
 
 import {
   $activeProjectId,
+  $projectDialog,
   $projectScope,
   $projectsRpcAvailable,
   $worktreeRefreshToken,
@@ -184,13 +185,30 @@ describe('projects RPC capability', () => {
     expect($projectsRpcAvailable.get()).toBe(false)
   })
 
-  it('blocks opening the create dialog once the backend is known stale', () => {
+  it('re-probes and blocks opening the create dialog when the backend is still stale', async () => {
     $projectsRpcAvailable.set(false)
+    activeGateway.mockReturnValue({
+      connectionState: 'open',
+      request: vi.fn().mockRejectedValue(new Error('unknown method: projects.list'))
+    } as never)
 
-    openProjectCreate()
+    await openProjectCreate()
 
     expect(notify).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'warning', message: 'sidebar.projects.staleBackend' })
     )
+  })
+
+  it('opens the create dialog when a previously stale backend now supports projects', async () => {
+    $projectsRpcAvailable.set(false)
+    activeGateway.mockReturnValue({
+      connectionState: 'open',
+      request: vi.fn().mockResolvedValue({ active_id: null, projects: [] })
+    } as never)
+
+    await openProjectCreate()
+
+    expect($projectsRpcAvailable.get()).toBe(true)
+    expect($projectDialog.get()).toEqual({ mode: 'create' })
   })
 })

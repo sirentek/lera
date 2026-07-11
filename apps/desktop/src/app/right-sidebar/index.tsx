@@ -152,7 +152,7 @@ function FilesystemTab({
       <PaneEmptyState
         actionLabel={t.sidebar.projects.newButton}
         label={r.noProjectOpen}
-        onAction={openProjectCreate}
+        onAction={() => void openProjectCreate()}
       />
     )
   }

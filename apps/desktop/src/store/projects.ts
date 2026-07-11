@@ -635,7 +635,15 @@ export interface ProjectDialogState {
 
 export const $projectDialog = atom<null | ProjectDialogState>(null)
 
-export function openProjectCreate(): void {
+export async function openProjectCreate(): Promise<void> {
+  // A desktop can reconnect to a freshly updated/restarted backend after an
+  // earlier projects.list probe marked the old connection stale. Re-probe on
+  // explicit user intent instead of leaving project creation locked out for
+  // the rest of the renderer lifetime.
+  if ($projectsRpcAvailable.get() === false) {
+    await refreshProjects()
+  }
+
   if ($projectsRpcAvailable.get() === false) {
     notify({
       kind: 'warning',

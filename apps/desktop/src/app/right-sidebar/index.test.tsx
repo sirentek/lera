@@ -57,13 +57,13 @@ describe('RightSidebarPane', () => {
     expect(readDir).not.toHaveBeenCalled()
   })
 
-  it('opens project creation from the detached-chat empty state', () => {
+  it('opens project creation from the detached-chat empty state', async () => {
     setCurrentCwd('')
 
     render(<RightSidebarPane onActivateFile={vi.fn()} onActivateFolder={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'New project' }))
 
-    expect($projectDialog.get()).toEqual({ mode: 'create' })
+    await waitFor(() => expect($projectDialog.get()).toEqual({ mode: 'create' }))
   })
 
   it('exposes the right-sidebar slot used by theme frame selectors', () => {
