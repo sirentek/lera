@@ -1096,6 +1096,24 @@
   text-shadow: none !important;
 }
 
+/* Give the perspective-rasterized sidebar copy a little more pixel coverage.
+   Keep this on the panel roots so HUD cards and floating dialogs retain their
+   intentionally compact type scale. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'],
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] {
+  font-size: 1.0625rem;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] .row-hover {
+  font-size: 0.8125rem;
+}
+
+:root[data-hermes-theme='holo']
+  [data-slot='sidebar-panel']
+  [data-slot='sidebar-menu-button'] {
+  font-size: 0.875rem;
+}
+
 /* ── sidebar: gradient NEW-SESSION CTA ──────────────────────────────────── */
 :root[data-hermes-theme='holo']
   [data-slot='sidebar']
@@ -2163,7 +2181,10 @@
    HUD frame as the dropdowns so the sub-windows match the parent window. */
 :root[data-hermes-theme='holo'] [data-slot='dialog-content'] {
   --holo-chamfer: 16px;
-  position: relative;
+  /* DialogContent is position: fixed and centered by Radix. Do not replace it
+     with relative positioning here: that leaves the overlay visible while the
+     dialog itself is laid out off-screen. A fixed element already establishes
+     the containing block needed by the decorative pseudo-elements below. */
   border-color: transparent !important;
   border-radius: 0 !important;
   /* Keep the root unclipped so the chamfered fill/ring pseudos can draw the

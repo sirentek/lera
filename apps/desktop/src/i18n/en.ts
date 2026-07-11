@@ -1505,7 +1505,7 @@ export const en: Translations = {
     noSessions: 'No sessions yet',
     projects: {
       sectionLabel: 'Projects',
-      newButton: 'New project',
+      newButton: 'New Project',
       createTitle: 'New project',
       createDesc: 'Name a workspace and add one or more folders.',
       renameTitle: 'Rename project',

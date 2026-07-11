@@ -61,7 +61,7 @@ describe('RightSidebarPane', () => {
     setCurrentCwd('')
 
     render(<RightSidebarPane onActivateFile={vi.fn()} onActivateFolder={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'New project' }))
+    fireEvent.click(screen.getByRole('button', { name: 'New Project' }))
 
     await waitFor(() => expect($projectDialog.get()).toEqual({ mode: 'create' }))
   })
