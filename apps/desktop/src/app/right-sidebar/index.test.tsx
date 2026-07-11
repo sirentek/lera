@@ -54,4 +54,12 @@ describe('RightSidebarPane', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Refresh tree' })).toBeNull())
     expect(readDir).not.toHaveBeenCalled()
   })
+
+  it('exposes the right-sidebar slot used by theme frame selectors', () => {
+    setCurrentCwd('/repo')
+
+    const { container } = render(<RightSidebarPane onActivateFile={vi.fn()} onActivateFolder={vi.fn()} />)
+
+    expect(container.querySelector('aside')?.getAttribute('data-slot')).toBe('right-sidebar')
+  })
 })
