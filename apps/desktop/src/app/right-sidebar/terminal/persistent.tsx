@@ -2,7 +2,10 @@ import { useStore } from '@nanostores/react'
 import { atom } from 'nanostores'
 import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { TerminalTab } from './index'
+import { $terminalTakeover } from '../store'
+
+import { ensureTerminal } from './terminals'
+import { TerminalWorkspace } from './workspace'
 
 /**
  * One xterm Terminal mounted at the layout root and CSS-overlayed onto
@@ -38,7 +41,6 @@ export function TerminalSlot({ className = SLOT_CLASS }: { className?: string })
 }
 
 interface PersistentTerminalProps {
-  cwd: string
   onAddSelectionToChat: (text: string, label?: string) => void
 }
 
@@ -52,55 +54,26 @@ interface Rect {
 const sameRect = (a: Rect | null, b: Rect) =>
   !!a && a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height
 
-// Transition properties that can move or resize the slot (sidebar slides,
-// panel collapses). Anything else — color, opacity, shadow — can't displace
-// it, so those transitions don't trigger a re-measure.
-const LAYOUT_TRANSITION_PROPS = new Set([
-  'width',
-  'height',
-  'min-width',
-  'min-height',
-  'max-width',
-  'max-height',
-  'top',
-  'right',
-  'bottom',
-  'left',
-  'inset',
-  'margin',
-  'margin-top',
-  'margin-right',
-  'margin-bottom',
-  'margin-left',
-  'padding',
-  'padding-top',
-  'padding-right',
-  'padding-bottom',
-  'padding-left',
-  'flex-basis',
-  'flex-grow',
-  'grid-template-columns',
-  'grid-template-rows',
-  'transform',
-  'translate'
-])
-
-// How long the rect must hold still before the measure loop goes back to
-// sleep. Long enough to bridge a transition's start-up frames, short enough
-// that an idle app does zero per-frame work.
-const SETTLE_MS = 220
-
-export function PersistentTerminal({ cwd, onAddSelectionToChat }: PersistentTerminalProps) {
+export function PersistentTerminal({ onAddSelectionToChat }: PersistentTerminalProps) {
   const slot = useStore($slot)
+  const terminalTakeover = useStore($terminalTakeover)
   const [rect, setRect] = useState<Rect | null>(null)
   const [ready, setReady] = useState(false)
 
-  // A permanent rAF loop here kept the renderer painting (and a core busy)
-  // the entire time the window was visible. Instead, re-measure only when
-  // something signals the slot may have moved (resize/scroll/layout
-  // transitions), and run a short rAF "settle" loop that lives only while
-  // the rect is still changing — sidebar slides stay pixel-tracked, idle
-  // cost is zero.
+  // VS Code parity: once the pane has ever been opened, keep the terminals
+  // mounted — and their shells alive — even while hidden. Hiding the pane just
+  // collapses the slot, so the overlay below goes invisible; nothing is torn
+  // down. Only an explicit per-tab close kills a PTY. Re-opening re-ensures one
+  // terminal exists (covers having closed the last tab).
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    if (terminalTakeover && ready) {
+      setMounted(true)
+      ensureTerminal()
+    }
+  }, [terminalTakeover, ready])
+
   useLayoutEffect(() => {
     if (!slot) {
       setRect(null)
@@ -110,9 +83,8 @@ export function PersistentTerminal({ cwd, onAddSelectionToChat }: PersistentTerm
 
     let prev: Rect | null = null
     let frame = 0
-    let settleUntil = 0
 
-    const measure = () => {
+    const tick = () => {
       const r = slot.getBoundingClientRect()
       // floor top/left + ceil right/bottom: overlay always covers the slot's
       // full pixel footprint, so half-pixel rects can't leak page bg through.
@@ -120,64 +92,21 @@ export function PersistentTerminal({ cwd, onAddSelectionToChat }: PersistentTerm
       const left = Math.floor(r.left)
       const next: Rect = { top, left, width: Math.ceil(r.right) - left, height: Math.ceil(r.bottom) - top }
 
-      if (sameRect(prev, next)) {
-        return false
+      if (!sameRect(prev, next)) {
+        prev = next
+        setRect(next)
+
+        if (next.width > 0 && next.height > 0) {
+          setReady(true)
+        }
       }
 
-      prev = next
-      setRect(next)
-
-      if (next.width > 0 && next.height > 0) {
-        setReady(true)
-      }
-
-      return true
+      frame = requestAnimationFrame(tick)
     }
 
-    const tick = (now: number) => {
-      frame = 0
+    tick()
 
-      if (measure()) {
-        settleUntil = now + SETTLE_MS
-      }
-
-      if (now < settleUntil) {
-        frame = requestAnimationFrame(tick)
-      }
-    }
-
-    const kick = () => {
-      settleUntil = performance.now() + SETTLE_MS
-
-      if (!frame) {
-        frame = requestAnimationFrame(tick)
-      }
-    }
-
-    measure()
-
-    // Fires once on observe, so the post-mount layout settle is covered too.
-    const observer = new ResizeObserver(kick)
-    observer.observe(slot)
-    observer.observe(document.documentElement)
-
-    const onTransitionRun = (event: Event) => {
-      if (LAYOUT_TRANSITION_PROPS.has((event as TransitionEvent).propertyName)) {
-        kick()
-      }
-    }
-
-    window.addEventListener('resize', kick)
-    document.addEventListener('scroll', kick, { capture: true, passive: true })
-    document.addEventListener('transitionrun', onTransitionRun, true)
-
-    return () => {
-      cancelAnimationFrame(frame)
-      observer.disconnect()
-      window.removeEventListener('resize', kick)
-      document.removeEventListener('scroll', kick, { capture: true })
-      document.removeEventListener('transitionrun', onTransitionRun, true)
-    }
+    return () => cancelAnimationFrame(frame)
   }, [slot])
 
   const visible = Boolean(rect && rect.width > 0 && rect.height > 0)
@@ -199,12 +128,12 @@ export function PersistentTerminal({ cwd, onAddSelectionToChat }: PersistentTerm
     contain: 'layout size paint'
   }
 
-  // Defer mount until real dims — booting xterm at 0×0 starts the shell at
-  // 80×24, then the first ResizeObserver SIGWINCH redraws the prompt on a
-  // new line. After first measurement we keep it mounted forever.
+  // Defer the FIRST mount until the pane is open and the slot has real dims —
+  // booting xterm/node-pty at 0×0 starts the shell at 80×24 and spawns a visible
+  // conhost on Windows. After that `mounted` latches: shells persist while hidden.
   return (
     <div aria-hidden={!visible} style={style}>
-      {ready && <TerminalTab cwd={cwd} onAddSelectionToChat={onAddSelectionToChat} />}
+      {mounted && <TerminalWorkspace onAddSelectionToChat={onAddSelectionToChat} />}
     </div>
   )
 }

@@ -62,7 +62,7 @@ export function SessionSwitcher() {
           return (
             <div
               className={cn(
-                'flex cursor-pointer items-center rounded leading-tight',
+                'row-hover flex items-center rounded leading-tight',
                 HUD_ITEM,
                 HUD_TEXT,
                 selected
@@ -102,7 +102,7 @@ function SwitcherDot({ attention, working }: { attention: boolean; working: bool
     <span
       className={cn(
         'size-1 shrink-0 rounded-full',
-        attention ? 'bg-amber-400' : working ? 'bg-(--ui-accent)' : 'bg-(--ui-text-quaternary)/50'
+        attention ? 'bg-amber-400' : working ? 'animate-pulse bg-(--ui-accent)' : 'bg-(--ui-text-quaternary)/50'
       )}
     />
   )
