@@ -132,7 +132,25 @@ export function gaugePercent(value: number | null | undefined): number | null {
   return Math.max(0, Math.min(100, Math.round(value)))
 }
 
-/** "Jul 12, 2026" from an ISO timestamp, or em-dash when absent. */
+const HUD_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+
+/** Local "JUL 07" (uppercase month + zero-padded day) for a Date. */
+function hudDatePart(date: Date): string {
+  const month = HUD_MONTHS[date.getMonth()]
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${month} ${day}`
+}
+
+/** Zero-padded local 24-hour "HH:MM" for a Date. */
+function hudTimePart(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+
+  return `${hours}:${minutes}`
+}
+
+/** "JUL 16" from an ISO timestamp, or em-dash when absent. */
 export function formatHudDate(iso: string | null | undefined): string {
   if (!iso) {
     return '—'
@@ -144,13 +162,10 @@ export function formatHudDate(iso: string | null | undefined): string {
     return '—'
   }
 
-  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+  return hudDatePart(date)
 }
 
-/**
- * Reset stamp in local time: same-day resets show just the clock
- * ("5:00 PM"), everything else adds the date ("Jul 18, 9:07 AM").
- */
+/** Reset stamp in local time as "JUL 16 16:33", or em-dash when absent. */
 export function formatHudReset(iso: string | null | undefined): string {
   if (!iso) {
     return '—'
@@ -162,51 +177,29 @@ export function formatHudReset(iso: string | null | undefined): string {
     return '—'
   }
 
-  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  const now = new Date()
-
-  const sameDay =
-    date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate()
-
-  if (sameDay) {
-    return time
-  }
-
-  return `${date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}, ${time}`
+  return `${hudDatePart(date)} ${hudTimePart(date)}`
 }
 
 export interface HudResetParts {
-  /** "Jul 16" for a future-day reset, or null when it resets today. */
-  date: string | null
-  /** "4:00 PM", or em-dash when the timestamp is absent/invalid. */
-  time: string
+  /** Full "JUL 16 16:33" stamp, or em-dash when the timestamp is absent. */
+  stamp: string
 }
 
 /**
- * Same reset stamp as {@link formatHudReset} but split into date + time so a
- * card can stack them on two lines (date above, clock below). Keeping the two
- * apart lets a three-gauge row hold one label width and keep the rings aligned,
- * instead of a wide "Jul 16, 4:00 PM" pushing one column taller than the rest.
+ * Reset stamp for the CLAUDE card as a single "JUL 16 16:33" line, shown on its
+ * own row below the "RESETS" label. Returned in a struct (rather than a bare
+ * string) so callers stay stable if the card wants more parts again later.
  */
 export function hudResetParts(iso: string | null | undefined): HudResetParts {
   if (!iso) {
-    return { date: null, time: '—' }
+    return { stamp: '—' }
   }
 
   const date = new Date(iso)
 
   if (Number.isNaN(date.getTime())) {
-    return { date: null, time: '—' }
+    return { stamp: '—' }
   }
 
-  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  const now = new Date()
-
-  const sameDay =
-    date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate()
-
-  return {
-    date: sameDay ? null : date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-    time
-  }
+  return { stamp: `${hudDatePart(date)} ${hudTimePart(date)}` }
 }

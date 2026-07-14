@@ -60,11 +60,12 @@ function ClaudeGaugeColumn({
       <LeraHudGauge gradientId={gradientId} pct={gaugePercent(limit?.usedPercent)} />
       <span className="hud-duo-label">{label}</span>
       {limit?.present ? (
-        // Date above, clock below (date omitted when it resets today) so every
-        // column keeps one label width and the three rings stay aligned.
+        // "RESETS" label on its own line, full "JUL 16 16:33" stamp on the line
+        // below it, so every column keeps one label width and the three rings
+        // stay aligned.
         <span className="hud-duo-reset hud-reset-stack">
-          <span>RESETS{reset.date ? ` ${reset.date}` : ''}</span>
-          <span>{reset.time}</span>
+          <span>RESETS</span>
+          <span>{reset.stamp}</span>
         </span>
       ) : (
         <span className="hud-duo-reset">NO DATA</span>
