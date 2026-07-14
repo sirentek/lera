@@ -1201,21 +1201,25 @@
   --holo-ex: 8px;
 }
 
-/* The model HUD sits below the framed sidebar-panel as its own panel-level
-   card — a sibling of the wrapper, exactly like the right sidebar's CONTEXT
-   LOAD gauge. The SidebarContent column pads by the frame insets, so the card
-   lines up edge-for-edge with the ring above (no side margin needed, same as
-   ContextHud). Its echo must project inward toward screen-center the same way
-   the panel above it does: the chat Sidebar carries border-r when it sits on
-   the left (echo projects right → +x) and border-l when the panes are flipped
-   to the right (echo projects left → −x). The card-specific chamfer override
-   below handles its mirrored corner direction; this block only steers the echo
-   sign. */
-:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='model-hud'] {
+/* The model HUD (and the FIRECRAWL / CONTEXT LOAD cards docked with it) sit
+   below the framed sidebar-panel as their own panel-level cards — siblings of
+   the wrapper, exactly like the right sidebar's CONTEXT LOAD gauge. The
+   SidebarContent column pads by the frame insets, so the cards line up
+   edge-for-edge with the ring above (no side margin needed, same as ContextHud).
+   Their echo must project inward toward screen-center the same way the panel
+   above them does: the chat Sidebar carries border-r when it sits on the left
+   (echo projects right → +x) and border-l when the panes are flipped to the
+   right (echo projects left → −x). The card-specific chamfer override below
+   handles their mirrored corner direction; this block only steers the echo
+   sign. FIRECRAWL is a Lera-only [data-slot='lera-hud'] card whose base echo is
+   set in lera-hud.css; the chat-sidebar side rules for it live there too. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='model-hud'],
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='context-hud'] {
   --holo-ex: 8px;
 }
 
-:root[data-hermes-theme='holo'] [data-slot='sidebar'].border-l [data-slot='model-hud'] {
+:root[data-hermes-theme='holo'] [data-slot='sidebar'].border-l [data-slot='model-hud'],
+:root[data-hermes-theme='holo'] [data-slot='sidebar'].border-l [data-slot='context-hud'] {
   --holo-ex: -8px;
 }
 
@@ -1427,6 +1431,70 @@
     right bottom;
 }
 
+/* CONTEXT LOAD now docks in the left chat sidebar too (with FIRECRAWL + MODEL).
+   There it must mirror the model card's frame direction — cuts to top-left +
+   bottom-right, NE-SW chamfer lines — instead of the right-sidebar default
+   (top-right + bottom-left). Scoped to [data-slot='sidebar'] so the card keeps
+   the default cut anywhere it isn't in the chat sidebar. Mirrors the three
+   model-hud overrides above: ring clip, header-fill clip, header line-bloom. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='context-hud']::before,
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='context-hud']::after {
+  clip-path: polygon(
+    evenodd,
+    var(--holo-chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    0 100%,
+    0 var(--holo-chamfer),
+    var(--holo-chamfer) 0,
+    calc(var(--holo-chamfer) - 1px) 2px,
+    2px calc(var(--holo-chamfer) - 1px),
+    2px calc(100% - 2px),
+    calc(100% - (var(--holo-chamfer) - 1px)) calc(100% - 2px),
+    calc(100% - 2px) calc(100% - (var(--holo-chamfer) - 1px)),
+    calc(100% - 2px) 2px,
+    calc(var(--holo-chamfer) - 1px) 2px
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='context-hud'] > header::before {
+  clip-path: polygon(
+    var(--holo-chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    0 100%,
+    0 var(--holo-chamfer)
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='context-hud'] > header::after {
+  background-image:
+    var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    ),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    );
+  background-position:
+    top right,
+    right top,
+    bottom left,
+    left bottom,
+    left top,
+    right bottom;
+}
+
 :root[data-hermes-theme='holo'] [data-slot='context-hud'] > header,
 :root[data-hermes-theme='holo'] [data-slot='model-hud'] > header {
   display: flex;
@@ -1435,7 +1503,7 @@
   gap: 0.5rem;
   margin-bottom: 0.5rem;
   font-family: var(--font-holo-display);
-  font-size: 0.5625rem;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.28em;
   color: var(--holo-bright);
@@ -1477,14 +1545,14 @@
   display: grid;
   place-items: center;
   font-family: var(--font-holo-display);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 700;
   color: var(--holo-core);
   text-shadow: 0 0 12px rgba(255, 160, 140, 0.9);
 }
 
 :root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-pct small {
-  font-size: 0.5rem;
+  font-size: 0.5625rem;
 }
 
 :root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-kvs {
@@ -1497,7 +1565,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.125rem 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   letter-spacing: 0.08em;
 }
 
@@ -1528,7 +1596,7 @@
   gap: 0.4rem;
   margin-bottom: 0.5rem;
   font-family: var(--font-holo-display);
-  font-size: 1.0625rem;
+  font-size: 1.1875rem;
   font-weight: 700;
   line-height: 1.1;
   color: var(--holo-core);
@@ -1537,7 +1605,7 @@
 
 :root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-name em {
   font-family: var(--dt-font-mono);
-  font-size: 0.5625rem;
+  font-size: 0.625rem;
   font-weight: 700;
   font-style: normal;
   letter-spacing: 0.16em;
@@ -1551,7 +1619,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.125rem 0;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   letter-spacing: 0.08em;
 }
 

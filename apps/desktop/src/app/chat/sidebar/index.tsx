@@ -95,6 +95,8 @@ import {
   setCurrentCwd
 } from '@/store/session'
 
+import { ContextHud } from '../../right-sidebar/context-hud'
+import { FirecrawlHud } from '../../right-sidebar/firecrawl-hud'
 import { type AppView, ARTIFACTS_ROUTE, MESSAGING_ROUTE, SKILLS_ROUTE } from '../../routes'
 import type { SidebarNavItem } from '../../types'
 
@@ -1404,6 +1406,8 @@ export function ChatSidebar({
             </div>
           )}
         </div>
+        {contentVisible && <FirecrawlHud />}
+        {contentVisible && <ContextHud />}
         {contentVisible && <ModelHud />}
       </SidebarContent>
       <ProjectDialog />

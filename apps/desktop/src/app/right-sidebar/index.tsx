@@ -11,13 +11,14 @@ import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
 import { cn } from '@/lib/utils'
 import { $panesFlipped } from '@/store/layout'
 import { notifyError } from '@/store/notifications'
-import { openProjectCreate } from '@/store/projects'
 import { setCurrentSessionPreviewTarget } from '@/store/preview'
+import { openProjectCreate } from '@/store/projects'
 import { $currentCwd } from '@/store/session'
 
 import { SidebarPanelLabel } from '../shell/sidebar-label'
 
-import { ContextHud } from './context-hud'
+import { ClaudeHud } from './claude-hud'
+import { CodexHud } from './codex-hud'
 import { ProjectTree } from './files/tree'
 import { useProjectTree } from './files/use-project-tree'
 
@@ -104,7 +105,8 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSide
           openState={openState}
         />
       </div>
-      <ContextHud />
+      <CodexHud />
+      <ClaudeHud />
     </aside>
   )
 }

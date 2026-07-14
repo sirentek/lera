@@ -1,0 +1,394 @@
+/* ── Lera HUD cards (FIRECRAWL / CODEX ANALYTICS) — Lera-only ─────────────
+ *
+ * This file intentionally lives OUTSIDE the upstream styles/holo.css surface
+ * (same keep-out-of-upstream pattern as styles/holo-room-background.css) so
+ * Hermes updates never conflict with it. Imported by firecrawl-hud.tsx and
+ * codex-hud.tsx; Vite dedupes the double import.
+ *
+ * Everything below is the CONTEXT LOAD card's frame grammar from holo.css
+ * (see "context + model HUD cards: chamfered mini-cards" there), re-scoped to
+ * [data-slot='lera-hud'] so both cards render identically above the context
+ * gauge: crisp 2px evenodd ring (::after), offset echo ring (::before),
+ * glass fill + line bloom on the header's pseudos, chamfer cut top-right +
+ * bottom-left. The echo offset sign and the halo/glow custom properties are
+ * inherited from the aside, so depth and spill track the sibling cards in
+ * lock-step. If the upstream card grammar changes shape, re-sync this copy
+ * by hand. */
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] {
+  --holo-chamfer: 12px;
+  --holo-hud-glow-stroke: 3px;
+  --holo-hud-glow-half: 2px;
+  /* Card-scale echo offset (half the panel scale) — see the context-hud
+     rationale in holo.css. The x sign flips with the panel's side below. */
+  --holo-ex: -8px;
+  --holo-ey: 8px;
+  position: relative;
+  flex: none;
+  margin-top: 0.75rem;
+  padding: 0.625rem 0.875rem 0.75rem;
+  font-family: var(--dt-font-mono);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar'].border-r [data-slot='lera-hud'] {
+  --holo-ex: 8px;
+}
+
+/* FIRECRAWL now also docks in the left chat sidebar (above CONTEXT LOAD +
+   MODEL). Same echo-sign rule the model/context cards use there: border-r on
+   the left (echo → +x), border-l when panes are flipped right (echo → −x). */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud'] {
+  --holo-ex: 8px;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar'].border-l [data-slot='lera-hud'] {
+  --holo-ex: -8px;
+}
+
+/* Both rings share the hollow 2px line — same cut as the sessions panel
+   (top-right + bottom-left), at the card's 12px chamfer. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud']::before,
+:root[data-hermes-theme='holo'] [data-slot='lera-hud']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer)),
+    0 0,
+    2px 2px,
+    2px calc(100% - (var(--holo-chamfer) - 1px)),
+    calc(var(--holo-chamfer) - 1px) calc(100% - 2px),
+    calc(100% - 2px) calc(100% - 2px),
+    calc(100% - 2px) calc(var(--holo-chamfer) - 1px),
+    calc(100% - (var(--holo-chamfer) - 1px)) 2px,
+    2px 2px
+  );
+}
+
+/* Main ring — same gradient as the panel frames (static, no shimmer). */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud']::after {
+  z-index: 30;
+  background: linear-gradient(
+    160deg,
+    #ff9a84 0%,
+    #ff6558 28%,
+    var(--holo-mid) 55%,
+    #ff6558 82%,
+    #ff9a84 100%
+  );
+}
+
+/* Echo ring — the dim offset duplicate that sells the depth. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud']::before {
+  z-index: -1;
+  transform: translate(var(--holo-ex), var(--holo-ey));
+  background: linear-gradient(
+    160deg,
+    rgba(255, 170, 160, 0.9) 0%,
+    rgba(240, 90, 80, 0.7) 45%,
+    rgba(200, 45, 40, 0.8) 100%
+  );
+  opacity: 0.42;
+  filter: none;
+}
+
+/* Glass fill behind the numbers — rides the header (static, so inset
+   resolves against the card); negative z drops it beneath the echo ring
+   and all content. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] > header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    linear-gradient(180deg, rgba(255, 200, 180, 0.05) 0%, transparent 18%, rgba(0, 0, 0, 0.1) 100%),
+    linear-gradient(rgba(22, 16, 15, 0.16), rgba(22, 16, 15, 0.16));
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer))
+  );
+}
+
+/* Line bloom — the panels' blurred frame-line copy at card scale:
+   top-right + bottom-left cut, NW–SE diagonals. Halo vars inherit from the
+   sidebar root so the glow tracks the panels' in lock-step. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] > header::after {
+  --holo-line: linear-gradient(var(--holo-frame-glow-line), var(--holo-frame-glow-line));
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 29;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-image:
+    var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
+    linear-gradient(
+      45deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    ),
+    linear-gradient(
+      45deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    );
+  background-size:
+    calc(100% - var(--holo-chamfer)) var(--holo-hud-glow-stroke),
+    var(--holo-hud-glow-stroke) calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) var(--holo-hud-glow-stroke),
+    var(--holo-hud-glow-stroke) calc(100% - var(--holo-chamfer)),
+    var(--holo-chamfer) var(--holo-chamfer),
+    var(--holo-chamfer) var(--holo-chamfer);
+  background-position:
+    top left,
+    right bottom,
+    bottom right,
+    left top,
+    right top,
+    left bottom;
+  filter:
+    drop-shadow(0 0 var(--holo-frame-halo-1))
+    drop-shadow(0 0 var(--holo-frame-halo-2))
+    drop-shadow(0 0 var(--holo-frame-halo-3))
+    drop-shadow(0 0 var(--holo-frame-halo-4))
+    drop-shadow(0 0 var(--holo-frame-halo-5));
+  opacity: 1;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-family: var(--font-holo-display);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  color: var(--holo-bright);
+  text-shadow: 0 0 10px rgba(255, 123, 111, 0.7);
+}
+
+/* Dim right-side header tag (Codex plan name, etc.). */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] > header small {
+  font-size: 0.625rem;
+  letter-spacing: 0.2em;
+  color: #c9705d;
+  text-shadow: none;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-gauge {
+  position: relative;
+  width: 4rem;
+  height: 4rem;
+  flex: none;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-gauge svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 6px rgba(255, 123, 111, 0.6));
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-track {
+  stroke: rgba(190, 67, 47, 0.3);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-val {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-pct {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-holo-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--holo-core);
+  text-shadow: 0 0 12px rgba(255, 160, 140, 0.9);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-pct small {
+  font-size: 0.625rem;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-kvs {
+  flex: 1;
+  min-width: 0;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-kvs > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.1875rem 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-kvs span {
+  color: #c9705d;
+  white-space: nowrap;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-kvs b {
+  color: #ffb29f;
+  font-weight: 400;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* ── dual-gauge body (CODEX ANALYTICS): two side-by-side gauge columns ── */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-duo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-evenly;
+  gap: 0.75rem;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-duo-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/* Gauge-column labels (WEEKLY / SECONDARY / SESSION / FABLE) read as LABELS,
+   so they use the same dim label red as the FIRECRAWL kv labels (.hud-kvs
+   span, #c9705d) rather than the bright value color. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-duo-label {
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  color: #c9705d;
+  white-space: nowrap;
+}
+
+/* Reset stamps read as VALUES, not labels — match the bright value color the
+   FIRECRAWL kv dates use (.hud-kvs b, #ffb29f) so the dates are as legible
+   here as they are in the Firecrawl panel, instead of the dim label red. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-duo-reset {
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  color: #ffb29f;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* ── chat-sidebar mirror: FIRECRAWL docks in the left sidebar with MODEL, so
+   there it must mirror the model card's frame direction — cuts to top-left +
+   bottom-right, NE-SW chamfer lines — instead of the right-sidebar default
+   (top-right + bottom-left). Scoped to [data-slot='sidebar'] so CODEX / CLAUDE
+   / FIRECRAWL keep the default cut in the right sidebar. Mirrors the three base
+   pseudos above: ring clip, header glass-fill clip, header line-bloom. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud']::before,
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud']::after {
+  clip-path: polygon(
+    evenodd,
+    var(--holo-chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    0 100%,
+    0 var(--holo-chamfer),
+    var(--holo-chamfer) 0,
+    calc(var(--holo-chamfer) - 1px) 2px,
+    2px calc(var(--holo-chamfer) - 1px),
+    2px calc(100% - 2px),
+    calc(100% - (var(--holo-chamfer) - 1px)) calc(100% - 2px),
+    calc(100% - 2px) calc(100% - (var(--holo-chamfer) - 1px)),
+    calc(100% - 2px) 2px,
+    calc(var(--holo-chamfer) - 1px) 2px
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud'] > header::before {
+  clip-path: polygon(
+    var(--holo-chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--holo-chamfer)),
+    calc(100% - var(--holo-chamfer)) 100%,
+    0 100%,
+    0 var(--holo-chamfer)
+  );
+}
+
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud'] > header::after {
+  background-image:
+    var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    ),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half))
+        calc(50% + var(--holo-hud-glow-half)),
+      transparent calc(50% + var(--holo-hud-glow-half))
+    );
+  background-position:
+    top right,
+    right top,
+    bottom left,
+    left bottom,
+    left top,
+    right bottom;
+}
+
+/* ── triple-gauge body (CLAUDE PLAN USAGE): three gauge columns, one row ──
+   Same column grammar as .hud-duo. The reset stamp is split onto two lines
+   (see .hud-reset-stack) so each column stays narrow enough that all three
+   4rem rings fit one sidebar row without wrapping. The columns reuse
+   .hud-duo-col / -label / -reset unchanged. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-trio {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.375rem;
+}
+
+/* Rings must line up, so every column's chrome below the ring is fixed-shape:
+   the gauge, then a one-line label, then a two-line reset block (date row +
+   clock row). The date row is always rendered (empty when it resets today) so
+   the clock sits at the same y across all three columns. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-trio .hud-duo-col {
+  flex: 1;
+  min-width: 0;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-reset-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.35;
+  text-align: center;
+}
