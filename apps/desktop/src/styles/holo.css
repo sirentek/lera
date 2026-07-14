@@ -1503,7 +1503,7 @@
   gap: 0.5rem;
   margin-bottom: 0.5rem;
   font-family: var(--font-holo-display);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.28em;
   color: var(--holo-bright);
@@ -1545,14 +1545,14 @@
   display: grid;
   place-items: center;
   font-family: var(--font-holo-display);
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--holo-core);
   text-shadow: 0 0 12px rgba(255, 160, 140, 0.9);
 }
 
 :root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-pct small {
-  font-size: 0.5625rem;
+  font-size: 0.625rem;
 }
 
 :root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-kvs {
@@ -1565,7 +1565,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.125rem 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
 }
 
@@ -1619,7 +1619,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.125rem 0;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
 }
 

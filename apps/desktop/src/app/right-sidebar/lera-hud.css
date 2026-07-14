@@ -283,7 +283,7 @@
    so they use the same dim label red as the FIRECRAWL kv labels (.hud-kvs
    span, #c9705d) rather than the bright value color. */
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-duo-label {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   letter-spacing: 0.14em;
   color: #c9705d;
   white-space: nowrap;
@@ -293,7 +293,7 @@
    FIRECRAWL kv dates use (.hud-kvs b, #ffb29f) so the dates are as legible
    here as they are in the Firecrawl panel, instead of the dim label red. */
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-duo-reset {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   color: #ffb29f;
   white-space: nowrap;
