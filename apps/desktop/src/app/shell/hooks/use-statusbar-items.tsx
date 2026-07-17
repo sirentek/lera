@@ -1,3 +1,5 @@
+import '@/styles/lera-base-version.css'
+
 import { useStore } from '@nanostores/react'
 import { useCallback, useMemo } from 'react'
 
@@ -13,6 +15,7 @@ import type { RuntimeReadinessResult } from '@/lib/runtime-readiness'
 import { contextBarLabel, LiveDuration, usageContextLabel } from '@/lib/statusbar'
 import { cn } from '@/lib/utils'
 import { setGlobalYolo, setSessionYolo } from '@/lib/yolo-session'
+import { $leraBaseVersionStatus } from '@/store/lera-base-version'
 import {
   $activeSessionId,
   $busy,
@@ -85,6 +88,7 @@ export function useStatusbarItems({
   const backendUpdateStatus = useStore($backendUpdateStatus)
   const backendUpdateApply = useStore($backendUpdateApply)
   const desktopVersion = useStore($desktopVersion)
+  const leraBaseVersionStatus = useStore($leraBaseVersionStatus)
   const connection = useStore($connection)
 
   const contextUsage = useMemo(() => usageContextLabel(currentUsage), [currentUsage])
@@ -176,10 +180,11 @@ export function useStatusbarItems({
       : 'text-destructive hover:text-destructive'
 
   const clientVersionItem = useMemo<StatusbarItem>(() => {
-    const appVersion = desktopVersion?.appVersion
+    const appVersion = desktopVersion?.appVersion ?? leraBaseVersionStatus?.currentVersion
     const sha = updateStatus?.currentSha?.slice(0, 7) ?? null
     const behind = updateStatus?.behind ?? 0
     const applying = updateApply.applying || updateApply.stage === 'restart'
+    const baseUpdateAvailable = leraBaseVersionStatus?.updateAvailable === true
     const remote = connection?.mode === 'remote'
 
     const version = appVersion ? `v${appVersion}` : (sha ?? copy.unknown)
@@ -192,6 +197,7 @@ export function useStatusbarItems({
 
     const tooltip = [
       applying ? updateApply.message || copy.updateInProgress : null,
+      !applying && baseUpdateAvailable && `Base version is at ${leraBaseVersionStatus?.baseVersion}.`,
       !applying && behind > 0 && copy.commitsBehind(behind, updateStatus?.branch ?? '...'),
       appVersion && copy.desktopVersion(appVersion),
       sha && copy.commit(sha),
@@ -201,9 +207,12 @@ export function useStatusbarItems({
       .join(' · ')
 
     return {
-      className: !applying && behind > 0 ? 'text-primary hover:text-primary' : undefined,
+      className: cn(
+        !applying && behind > 0 && 'text-primary hover:text-primary',
+        !applying && baseUpdateAvailable && 'lera-base-version-alert'
+      ),
       detail: appVersion && sha && !applying && !remote ? sha : undefined,
-      hidden: !appVersion && !sha,
+      hidden: false,
       icon: applying ? <Loader2 className="size-3 animate-spin" /> : <Hash className="size-3" />,
       id: 'version-client',
       label,
@@ -218,6 +227,9 @@ export function useStatusbarItems({
     updateApply.applying,
     updateApply.message,
     updateApply.stage,
+    leraBaseVersionStatus?.updateAvailable,
+    leraBaseVersionStatus?.baseVersion,
+    leraBaseVersionStatus?.currentVersion,
     updateStatus?.behind,
     updateStatus?.branch,
     updateStatus?.currentSha

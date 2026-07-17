@@ -223,6 +223,7 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
   },
   updates: {
     check: () => ipcRenderer.invoke('hermes:updates:check'),
+    checkBaseVersion: () => ipcRenderer.invoke('lera:updates:check-base-version'),
     apply: opts => ipcRenderer.invoke('hermes:updates:apply', opts),
     getBranch: () => ipcRenderer.invoke('hermes:updates:branch:get'),
     setBranch: name => ipcRenderer.invoke('hermes:updates:branch:set', name),

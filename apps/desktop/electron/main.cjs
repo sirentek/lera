@@ -85,6 +85,7 @@ const {
 const { scanGitRepos } = require('./git-repo-scan.cjs')
 const { OFFICIAL_REPO_HTTPS_URL, isOfficialSshRemote } = require('./update-remote.cjs')
 const { resolveBehindCount, shouldCountCommits } = require('./update-count.cjs')
+const { checkLeraBaseVersion } = require('./lera-base-version.cjs')
 const { runRebuildWithRetry } = require('./update-rebuild.cjs')
 const {
   buildPosixCleanupScript,
@@ -7385,6 +7386,10 @@ ipcMain.handle('hermes:updates:check', async () =>
     message: error?.message || String(error),
     fetchedAt: Date.now()
   }))
+)
+
+ipcMain.handle('lera:updates:check-base-version', async () =>
+  checkLeraBaseVersion({ cwd: resolveUpdateRoot(), currentVersion: resolveHermesVersion(), runGit })
 )
 
 ipcMain.handle('hermes:updates:apply', async (_event, payload) =>

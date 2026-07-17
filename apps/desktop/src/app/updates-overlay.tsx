@@ -11,8 +11,10 @@ import type { DesktopUpdateCommit, DesktopUpdateStage, DesktopUpdateStatus } fro
 import { useI18n } from '@/i18n'
 import { buildCommitChangelog, type CommitGroup } from '@/lib/commit-changelog'
 import { AlertCircle, Check, Copy, Terminal } from '@/lib/icons'
+import { resolveLeraUpdateBody } from '@/lib/lera-update-copy'
 import { resolveUpdateCopy, type UpdateTarget } from '@/lib/update-copy'
 import { cn } from '@/lib/utils'
+import { $leraBaseVersionStatus } from '@/store/lera-base-version'
 import {
   $backendUpdateApply,
   $backendUpdateChecking,
@@ -45,6 +47,7 @@ export function UpdatesOverlay() {
   const backendStatus = useStore($backendUpdateStatus)
   const backendChecking = useStore($backendUpdateChecking)
   const backendApply = useStore($backendUpdateApply)
+  const leraBaseVersionStatus = useStore($leraBaseVersionStatus)
 
   const isBackend = target === 'backend'
   const status = isBackend ? backendStatus : clientStatus
@@ -60,7 +63,8 @@ export function UpdatesOverlay() {
   }, [check, checking, open, status])
 
   const behind = status?.behind ?? 0
-  const updateAvailable = status?.updateAvailable || behind > 0
+  const baseUpdateAvailable = !isBackend && leraBaseVersionStatus?.updateAvailable === true
+  const updateAvailable = status?.updateAvailable || behind > 0 || baseUpdateAvailable
 
   const phase: 'idle' | 'applying' | 'manual' | 'guiSkew' | 'error' =
     apply.stage === 'manual'
@@ -109,6 +113,8 @@ export function UpdatesOverlay() {
 
         {phase === 'idle' && (
           <IdleView
+            baseUpdateAvailable={baseUpdateAvailable}
+            baseVersion={leraBaseVersionStatus?.baseVersion}
             behind={behind}
             checking={checking}
             commits={status?.commits ?? []}
@@ -127,6 +133,8 @@ export function UpdatesOverlay() {
 
 function IdleView({
   behind,
+  baseUpdateAvailable,
+  baseVersion,
   checking,
   commits,
   onInstall,
@@ -137,6 +145,8 @@ function IdleView({
   updateAvailable
 }: {
   behind: number
+  baseUpdateAvailable: boolean
+  baseVersion?: string
   checking: boolean
   commits: readonly DesktopUpdateCommit[]
   onInstall: () => void
@@ -215,7 +225,8 @@ function IdleView({
   // backend, not the local client — say so. When there are no commit rows to
   // show (e.g. pip/non-git backend), degrade to honest "no release notes" copy
   // instead of generic filler.
-  const { title, body } = resolveUpdateCopy({ target, shownItems, copy: u })
+  const { title, body: upstreamBody } = resolveUpdateCopy({ target, shownItems, copy: u })
+  const body = resolveLeraUpdateBody({ baseUpdateAvailable, baseVersion, body: upstreamBody, target })
 
   return (
     <div className="grid gap-5 px-6 pb-6 pt-7 pr-8">

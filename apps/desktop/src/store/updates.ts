@@ -16,6 +16,7 @@ import type {
 import { checkHermesUpdate, getActionStatus, updateHermes } from '@/hermes'
 import { translateNow } from '@/i18n'
 import { persistString, storedString } from '@/lib/storage'
+import { startLeraBaseVersionPoller, stopLeraBaseVersionPoller } from '@/store/lera-base-version'
 import { dismissNotification, notify } from '@/store/notifications'
 import { $connection } from '@/store/session'
 import type { BackendUpdateCheckResponse } from '@/types/hermes'
@@ -616,6 +617,7 @@ export function startUpdatePoller(): void {
   }
 
   pollerStarted = true
+  startLeraBaseVersionPoller()
   void checkUpdates()
   void checkBackendUpdates()
   void refreshDesktopVersion()
@@ -647,6 +649,8 @@ export function startUpdatePoller(): void {
 }
 
 export function stopUpdatePoller(): void {
+  stopLeraBaseVersionPoller()
+
   if (backgroundTimer !== null) {
     clearInterval(backgroundTimer)
     backgroundTimer = null

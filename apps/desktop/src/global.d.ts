@@ -196,6 +196,7 @@ declare global {
       getRemoteDisplayReason?: () => Promise<string | null>
       updates: {
         check: () => Promise<DesktopUpdateStatus>
+        checkBaseVersion: () => Promise<DesktopBaseVersionStatus>
         apply: (opts?: DesktopUpdateApplyOptions) => Promise<DesktopUpdateApplyResult>
         getBranch: () => Promise<{ branch: string }>
         setBranch: (name: string) => Promise<{ branch: string }>
@@ -303,6 +304,14 @@ export interface DesktopUpdateStatus {
   commits?: DesktopUpdateCommit[]
   dirty?: boolean
   fetchedAt?: number
+}
+
+export interface DesktopBaseVersionStatus {
+  baseVersion: string
+  checkedAt: number
+  currentVersion: string
+  remote: string
+  updateAvailable: boolean
 }
 
 export type DesktopUpdateDirtyStrategy = 'abort' | 'stash' | 'force'

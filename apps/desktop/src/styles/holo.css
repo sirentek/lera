@@ -1988,6 +1988,14 @@
   background: radial-gradient(120% 120% at 50% 0%, rgba(60, 16, 10, 0.34), rgba(6, 3, 2, 0.58));
 }
 
+/* The base overlay uses a small backdrop blur. On Holo the painted warm scrim
+   already supplies the depth, so avoid re-blurring the full window whenever
+   content behind Settings changes. */
+:root[data-hermes-theme='holo'] [data-slot='overlay-backdrop'] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Window frame halo — the SAME stacked stepped-radii bloom the sidebar frames
    use (--holo-frame-halo-*), so the big windows glow on their edges exactly
    like the side panels rather than wearing the old weak two-step aura.

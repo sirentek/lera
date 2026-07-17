@@ -58,6 +58,7 @@ export function OverlayView({
         'p-[calc(var(--titlebar-height)+0.625rem)]',
         'sm:p-[calc(var(--titlebar-height)+0.875rem)]'
       )}
+      data-slot="overlay-backdrop"
       onClick={event => {
         if (event.target === event.currentTarget) {
           closeOverlay()
@@ -70,6 +71,7 @@ export function OverlayView({
           'relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-chat-surface-background) shadow-md',
           rootClassName
         )}
+        data-slot="overlay-view"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-[calc(var(--titlebar-height)+0.1875rem)] [-webkit-app-region:drag]">
           {headerContent && (
