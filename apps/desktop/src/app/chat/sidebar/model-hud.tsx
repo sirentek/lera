@@ -6,8 +6,8 @@ import { $currentFastMode, $currentModel, $currentReasoningEffort } from '@/stor
 import { useTheme } from '@/themes/context'
 
 /**
- * Holo-skin model readout docked at the foot of the left chat sidebar (above
- * the profile rail): the live model name plus the session's reasoning effort
+ * Holo-skin model readout docked at the foot of the project sidebar: the live
+ * model name plus the session's reasoning effort
  * and fast/thinking state — the same trio the status-bar chip carries as plain
  * text (formatModelStatusLabel), surfaced here as its own HUD card. Holo-only;
  * the statusbar already shows these numbers for every other skin (styles live

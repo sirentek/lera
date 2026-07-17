@@ -15,12 +15,13 @@ import { setCurrentSessionPreviewTarget } from '@/store/preview'
 import { openProjectCreate } from '@/store/projects'
 import { $currentCwd } from '@/store/session'
 
+import { ModelHud } from '../chat/sidebar/model-hud'
 import { SidebarPanelLabel } from '../shell/sidebar-label'
 
-import { ClaudeHud } from './claude-hud'
-import { CodexHud } from './codex-hud'
+import { ContextHud } from './context-hud'
 import { ProjectTree } from './files/tree'
 import { useProjectTree } from './files/use-project-tree'
+import { FirecrawlHud } from './firecrawl-hud'
 
 interface RightSidebarPaneProps {
   onActivateFile: (path: string) => void
@@ -105,8 +106,9 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSide
           openState={openState}
         />
       </div>
-      <CodexHud />
-      <ClaudeHud />
+      <FirecrawlHud />
+      <ContextHud />
+      <ModelHud />
     </aside>
   )
 }

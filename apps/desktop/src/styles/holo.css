@@ -1373,8 +1373,8 @@
 
 /* The left-sidebar MODEL card mirrors the context card's frame direction:
    cuts move to top-left + bottom-right, with NE-SW chamfer lines. */
-:root[data-hermes-theme='holo'] [data-slot='model-hud']::before,
-:root[data-hermes-theme='holo'] [data-slot='model-hud']::after {
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='model-hud']::before,
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='model-hud']::after {
   clip-path: polygon(
     evenodd,
     var(--holo-chamfer) 0,
@@ -1394,7 +1394,7 @@
   );
 }
 
-:root[data-hermes-theme='holo'] [data-slot='model-hud'] > header::before {
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='model-hud'] > header::before {
   clip-path: polygon(
     var(--holo-chamfer) 0,
     100% 0,
@@ -1405,7 +1405,7 @@
   );
 }
 
-:root[data-hermes-theme='holo'] [data-slot='model-hud'] > header::after {
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='model-hud'] > header::after {
   background-image:
     var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
     linear-gradient(

@@ -95,15 +95,14 @@ import {
   setCurrentCwd
 } from '@/store/session'
 
-import { ContextHud } from '../../right-sidebar/context-hud'
-import { FirecrawlHud } from '../../right-sidebar/firecrawl-hud'
+import { ClaudeHud } from '../../right-sidebar/claude-hud'
+import { CodexHud } from '../../right-sidebar/codex-hud'
 import { type AppView, ARTIFACTS_ROUTE, MESSAGING_ROUTE, SKILLS_ROUTE } from '../../routes'
 import type { SidebarNavItem } from '../../types'
 
 import { countLabel } from './chrome'
 import { SidebarCronJobsSection } from './cron-jobs-section'
 import { SidebarLoadMoreRow } from './load-more-row'
-import { ModelHud } from './model-hud'
 import { orderByIds, reconcileOrderIds, resolveManualSessionOrderIds, sameIds } from './order'
 import { ProfileRail } from './profile-switcher'
 import { ProjectDialog } from './project-dialog'
@@ -1406,9 +1405,8 @@ export function ChatSidebar({
             </div>
           )}
         </div>
-        {contentVisible && <FirecrawlHud />}
-        {contentVisible && <ContextHud />}
-        {contentVisible && <ModelHud />}
+        {contentVisible && <CodexHud />}
+        {contentVisible && <ClaudeHud />}
       </SidebarContent>
       <ProjectDialog />
     </Sidebar>
