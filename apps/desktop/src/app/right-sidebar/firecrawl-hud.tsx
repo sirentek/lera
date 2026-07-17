@@ -6,7 +6,7 @@ import './lera-hud.css'
 
 import { useTheme } from '@/themes/context'
 
-import { type FirecrawlUsage, formatHudDate, gaugePercent, useLeraHudPoll } from './lera-hud-data'
+import { type FirecrawlUsage, elapsedPeriodPercent, formatHudDate, gaugePercent, useLeraHudPoll } from './lera-hud-data'
 import { LeraHudGauge } from './lera-hud-gauge'
 
 // Credits only move when a scrape actually runs, so a 10-minute poll is
@@ -39,6 +39,12 @@ export function FirecrawlHud() {
       ? gaugePercent(((plan - remaining) / plan) * 100)
       : null
 
+  // Elapsed share of the billing period, from its real start/end stamps (not a
+  // fixed 30-day assumption — months vary, and Firecrawl gives us both edges),
+  // shown as the second figure and the ring's triangle marker. Null until both
+  // stamps exist.
+  const remainingPct = elapsedPeriodPercent(usage?.billingPeriodStart, usage?.billingPeriodEnd)
+
   return (
     <section aria-label="Firecrawl credits" data-hud="firecrawl" data-slot="lera-hud">
       <header>
@@ -46,7 +52,7 @@ export function FirecrawlHud() {
         <small>USED</small>
       </header>
       <div className="hud-row">
-        <LeraHudGauge gradientId="holoFirecrawlGaugeGrad" pct={pct} />
+        <LeraHudGauge gradientId="holoFirecrawlGaugeGrad" pct={pct} remainingPct={remainingPct} />
         <div className="hud-kvs">
           <div>
             <span>REMAINING</span>

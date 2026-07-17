@@ -6,7 +6,15 @@ import './lera-hud.css'
 
 import { useTheme } from '@/themes/context'
 
-import { type CodexUsage, codexWindowLabel, formatHudReset, gaugePercent, useLeraHudPoll } from './lera-hud-data'
+import {
+  type CodexUsage,
+  codexWindowLabel,
+  gaugePercent,
+  HUD_WEEKLY_WINDOW_SECONDS,
+  hudResetParts,
+  remainingWindowPercent,
+  useLeraHudPoll
+} from './lera-hud-data'
 import { LeraHudGauge } from './lera-hud-gauge'
 
 // The 5-hour window moves while a session is active, so poll every 5
@@ -14,11 +22,11 @@ import { LeraHudGauge } from './lera-hud-gauge'
 const POLL_INTERVAL_MS = 5 * 60 * 1000
 
 /**
- * Holo-skin Codex (ChatGPT) rate-limit card: two gauges showing the share of
- * the primary/secondary usage windows that has been CONSUMED (not remaining),
- * each with its reset stamp. Each ring is labeled by its real window duration
- * (5H vs WEEKLY) since ChatGPT reports a single 7-day window as the primary on
- * some plans. Live data from ChatGPT's usage API via the lera-hud backend
+ * Holo-skin Codex (ChatGPT) rate-limit card: a single gauge showing the share
+ * of the primary usage window that has been CONSUMED, stacked over the share
+ * of the window's time already elapsed (REMAINING-time %), with a glowing
+ * triangle marking that elapsed share on the ring — same grammar as the CLAUDE
+ * PLAN USAGE card. Live data from ChatGPT's usage API via the lera-hud backend
  * plugin (which reuses hermes' own Codex credential/refresh path).
  */
 export function CodexHud() {
@@ -31,7 +39,11 @@ export function CodexHud() {
   }
 
   const primary = usage?.primary ?? null
-  const secondary = usage?.secondary ?? null
+  // Elapsed share of the 7-day window (window start = resetAt − 7d), shown as
+  // the second figure and the ring's triangle marker. Null until a reset stamp
+  // exists.
+  const remainingPct = primary?.present ? remainingWindowPercent(primary.resetAt, HUD_WEEKLY_WINDOW_SECONDS) : null
+  const reset = hudResetParts(primary?.resetAt)
 
   return (
     <section aria-label="Codex usage limits" data-hud="codex" data-slot="lera-hud">
@@ -41,19 +53,22 @@ export function CodexHud() {
       </header>
       <div className="hud-duo">
         <div className="hud-duo-col">
-          <LeraHudGauge gradientId="holoCodexGaugeGrad5h" pct={gaugePercent(primary?.usedPercent)} />
-          <span className="hud-duo-label">{codexWindowLabel(primary?.windowSeconds, '5H LIMIT')}</span>
-          <span className="hud-duo-reset">RESETS {formatHudReset(primary?.resetAt)}</span>
-        </div>
-        <div className="hud-duo-col">
-          <LeraHudGauge gradientId="holoCodexGaugeGradWeek" pct={gaugePercent(secondary?.usedPercent)} />
-          {/* Empty slot: ChatGPT returns no secondary window on some plans
-              (Plus today). Label it "SECONDARY" so it doesn't duplicate the
-              primary ring's WEEKLY tag, and mark it NO DATA. */}
-          <span className="hud-duo-label">{codexWindowLabel(secondary?.windowSeconds, 'SECONDARY')}</span>
-          <span className="hud-duo-reset">
-            {secondary?.present ? `RESETS ${formatHudReset(secondary.resetAt)}` : 'NO DATA'}
-          </span>
+          <LeraHudGauge
+            gradientId="holoCodexGaugeGradWeek"
+            pct={gaugePercent(primary?.usedPercent)}
+            remainingPct={remainingPct}
+          />
+          <span className="hud-duo-label">{codexWindowLabel(primary?.windowSeconds, 'WEEKLY')}</span>
+          {primary?.present ? (
+            // Match the CLAUDE PLAN USAGE card: "RESETS" label on its own line
+            // with the full "JUL 16 16:33" stamp stacked below it, same font.
+            <span className="hud-duo-reset hud-reset-stack">
+              <span>RESETS</span>
+              <span>{reset.stamp}</span>
+            </span>
+          ) : (
+            <span className="hud-duo-reset">NO DATA</span>
+          )}
         </div>
       </div>
     </section>

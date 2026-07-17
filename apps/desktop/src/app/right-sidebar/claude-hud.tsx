@@ -6,7 +6,16 @@ import './lera-hud.css'
 
 import { useTheme } from '@/themes/context'
 
-import { type ClaudeUsage, type ClaudeUsageLimit, gaugePercent, hudResetParts, useLeraHudPoll } from './lera-hud-data'
+import {
+  type ClaudeUsage,
+  type ClaudeUsageLimit,
+  gaugePercent,
+  HUD_SESSION_WINDOW_SECONDS,
+  HUD_WEEKLY_WINDOW_SECONDS,
+  hudResetParts,
+  remainingWindowPercent,
+  useLeraHudPoll
+} from './lera-hud-data'
 import { LeraHudGauge } from './lera-hud-gauge'
 
 // The session (5-hour) window moves while a session is active, so poll every
@@ -36,9 +45,24 @@ export function ClaudeHud() {
         <small>{usage?.plan ? usage.plan.toUpperCase() : 'USED'}</small>
       </header>
       <div className="hud-trio">
-        <ClaudeGaugeColumn gradientId="holoClaudeGaugeSession" label="SESSION" limit={usage?.session} />
-        <ClaudeGaugeColumn gradientId="holoClaudeGaugeWeeklyAll" label="WEEKLY" limit={usage?.weeklyAll} />
-        <ClaudeGaugeColumn gradientId="holoClaudeGaugeFable" label="FABLE" limit={usage?.weeklyFable} />
+        <ClaudeGaugeColumn
+          gradientId="holoClaudeGaugeSession"
+          label="SESSION"
+          limit={usage?.session}
+          windowSeconds={HUD_SESSION_WINDOW_SECONDS}
+        />
+        <ClaudeGaugeColumn
+          gradientId="holoClaudeGaugeWeeklyAll"
+          label="WEEKLY"
+          limit={usage?.weeklyAll}
+          windowSeconds={HUD_WEEKLY_WINDOW_SECONDS}
+        />
+        <ClaudeGaugeColumn
+          gradientId="holoClaudeGaugeFable"
+          label="FABLE"
+          limit={usage?.weeklyFable}
+          windowSeconds={HUD_WEEKLY_WINDOW_SECONDS}
+        />
       </div>
     </section>
   )
@@ -47,17 +71,23 @@ export function ClaudeHud() {
 function ClaudeGaugeColumn({
   gradientId,
   label,
-  limit
+  limit,
+  windowSeconds
 }: {
   gradientId: string
   label: string
   limit: ClaudeUsageLimit | undefined
+  windowSeconds: number
 }) {
   const reset = hudResetParts(limit?.resetAt)
+  // Share of this rolling window still ahead of now — shown as the second
+  // (REMAINING-time) figure in the gauge center and as the glowing triangle
+  // marker on the ring. Null (em-dash, no marker) until a reset stamp exists.
+  const remainingPct = limit?.present ? remainingWindowPercent(limit.resetAt, windowSeconds) : null
 
   return (
     <div className="hud-duo-col">
-      <LeraHudGauge gradientId={gradientId} pct={gaugePercent(limit?.usedPercent)} />
+      <LeraHudGauge gradientId={gradientId} pct={gaugePercent(limit?.usedPercent)} remainingPct={remainingPct} />
       <span className="hud-duo-label">{label}</span>
       {limit?.present ? (
         // "RESETS" label on its own line, full "JUL 16 16:33" stamp on the line

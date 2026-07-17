@@ -123,6 +123,63 @@ export function useLeraHudPoll<T extends { ok: boolean }>(path: string, interval
   return data
 }
 
+/** Rolling-window lengths shared by the HUD cards' elapsed-time gauges. */
+export const HUD_SESSION_WINDOW_SECONDS = 5 * 60 * 60
+export const HUD_WEEKLY_WINDOW_SECONDS = 7 * 24 * 60 * 60
+
+/**
+ * Share of a rolling rate-limit window already BEHIND now, as a 0–100
+ * integer: (now − windowStart) / windowLength, where windowStart is
+ * resetAt − windowLength. 0 right after a reset, 100 right at the next one —
+ * e.g. weekly reset on the 16th, today the 14th → ~70. Read next to the
+ * usage %, it shows pacing: time-share ahead of usage-share means headroom.
+ * Null when the reset stamp is absent/invalid (renders as an em-dash).
+ */
+export function remainingWindowPercent(resetAt: string | null | undefined, windowSeconds: number): number | null {
+  if (!resetAt || windowSeconds <= 0) {
+    return null
+  }
+
+  const reset = new Date(resetAt).getTime()
+
+  if (Number.isNaN(reset)) {
+    return null
+  }
+
+  const fraction = 1 - (reset - Date.now()) / (windowSeconds * 1000)
+
+  return Math.max(0, Math.min(100, Math.round(fraction * 100)))
+}
+
+/**
+ * Elapsed share of a billing period with EXPLICIT start and end stamps, as a
+ * 0–100 integer: (now − start) / (end − start). Preferred over
+ * remainingWindowPercent when both edges are known (Firecrawl reports both),
+ * since it uses the real period length instead of assuming a fixed window —
+ * e.g. a 12 Jul → 12 Aug period on 15 Jul → ~10, not the ~5 a fixed 30-day
+ * window rounded to. Null when either stamp is absent/invalid or the period
+ * has zero/negative length.
+ */
+export function elapsedPeriodPercent(
+  start: string | null | undefined,
+  end: string | null | undefined
+): number | null {
+  if (!start || !end) {
+    return null
+  }
+
+  const startMs = new Date(start).getTime()
+  const endMs = new Date(end).getTime()
+
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs) {
+    return null
+  }
+
+  const fraction = (Date.now() - startMs) / (endMs - startMs)
+
+  return Math.max(0, Math.min(100, Math.round(fraction * 100)))
+}
+
 /** 0–100 integer for the gauge ring, or null when the value is unknown. */
 export function gaugePercent(value: number | null | undefined): number | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -163,21 +220,6 @@ export function formatHudDate(iso: string | null | undefined): string {
   }
 
   return hudDatePart(date)
-}
-
-/** Reset stamp in local time as "JUL 16 16:33", or em-dash when absent. */
-export function formatHudReset(iso: string | null | undefined): string {
-  if (!iso) {
-    return '—'
-  }
-
-  const date = new Date(iso)
-
-  if (Number.isNaN(date.getTime())) {
-    return '—'
-  }
-
-  return `${hudDatePart(date)} ${hudTimePart(date)}`
 }
 
 export interface HudResetParts {

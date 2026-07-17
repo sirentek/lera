@@ -209,8 +209,18 @@
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-gauge svg {
   width: 100%;
   height: 100%;
+  /* Visible overflow so the remaining-time marker's base (flush with the
+     viewBox edge) and its glow aren't clipped on the CLAUDE gauges. */
+  overflow: visible;
   transform: rotate(-90deg);
   filter: drop-shadow(0 0 6px rgba(255, 123, 111, 0.6));
+}
+
+/* Remaining-time triangle (CLAUDE PLAN USAGE): small hot pointer riding the
+   ring at the window's remaining share, glowing like the center numbers. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-remaining-marker {
+  fill: #ffd9cf;
+  filter: drop-shadow(0 0 3px rgba(255, 160, 140, 0.95)) drop-shadow(0 0 6px rgba(232, 71, 47, 0.7));
 }
 
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-track {
@@ -235,6 +245,41 @@
 
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-pct small {
   font-size: 0.625rem;
+}
+
+/* ── stacked gauge center (CLAUDE PLAN USAGE): usage % over remaining % ──
+   Two figures must fit the ~3.2rem ring hole, so the usage line drops a step
+   from the single-value 1rem and the remaining line goes smaller + in the
+   dim value color (matches .hud-duo-reset) so the pair reads as
+   primary/secondary, not two competing numbers. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-pct-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-pct-stack .hud-pct-used {
+  font-size: 0.875rem;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-pct-stack .hud-pct-remaining {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #ffb29f;
+  text-shadow: 0 0 8px rgba(255, 160, 140, 0.55);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-pct-stack .hud-pct-remaining small {
+  font-size: 0.5625rem;
+}
+
+/* Burn-rate alarm: usage % has overtaken the window's elapsed time-share —
+   the usage figure drops the cream core color for a hot alarm red. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-pct-stack .hud-pct-over {
+  color: #ff3b2e;
+  text-shadow: 0 0 12px rgba(255, 59, 46, 0.9);
 }
 
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-kvs {
