@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Polling glue for the Lera-only sidebar HUD cards (Firecrawl / Codex).
+ * Polling glue for the Lera-only sidebar HUD cards (Firecrawl / Codex / Claude).
  *
  * Data comes from the lera-hud backend plugin (a user plugin in
  * HERMES_HOME/plugins/lera-hud, mounted by hermes' web server at
@@ -83,6 +83,7 @@ export function codexWindowLabel(seconds: number | null | undefined, fallback: s
 }
 
 const REQUEST_TIMEOUT_MS = 30_000
+const INITIAL_RETRY_MS = 5_000
 
 /**
  * Poll a lera-hud plugin endpoint; keeps the last good payload across
@@ -98,25 +99,39 @@ export function useLeraHudPoll<T extends { ok: boolean }>(path: string, interval
     }
 
     let disposed = false
+    let hasSuccessfulPayload = false
+    let timer: number | undefined
 
     const poll = async () => {
       try {
         const result = await window.hermesDesktop.api<T>({ path, timeoutMs: REQUEST_TIMEOUT_MS })
 
         if (!disposed && result?.ok) {
+          hasSuccessfulPayload = true
           setData(result)
         }
       } catch {
         // Keep showing the last snapshot; the next tick retries.
       }
+
+      if (!disposed) {
+        // The local backend and its user plugins can still be warming up when
+        // the holo sidebar first mounts. Retry an initial failure promptly
+        // instead of leaving all gauges at NO DATA for a full poll interval.
+        // Once a payload has arrived, retain it and return to the normal,
+        // upstream-friendly cadence across transient failures.
+        timer = window.setTimeout(() => void poll(), hasSuccessfulPayload ? intervalMs : INITIAL_RETRY_MS)
+      }
     }
 
     void poll()
-    const timer = window.setInterval(() => void poll(), intervalMs)
 
     return () => {
       disposed = true
-      window.clearInterval(timer)
+
+      if (timer !== undefined) {
+        window.clearTimeout(timer)
+      }
     }
   }, [path, intervalMs, enabled])
 
