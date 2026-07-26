@@ -1002,7 +1002,8 @@
 :root[data-hermes-theme='holo'] [data-slot='sidebar'],
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar'],
 :root[data-hermes-theme='holo'] [data-slot='sidebar'] > [data-slot='sidebar-content'],
-:root[data-hermes-theme='holo'] [data-pane-open='true'].holo-sidebar-pane,
+:root[data-hermes-theme='holo'] [data-pane-id='sessions'],
+:root[data-hermes-theme='holo'] [data-pane-id='files'],
 :root[data-hermes-theme='holo'] [data-slot='sidebar-wrapper'] > main {
   overflow: visible;
 }
@@ -1030,7 +1031,8 @@
    stacking context, flattening its internal z-20 resize handle down to the
    pane's own level — anything lower than 5 would let the terminal overlay
    cover that handle. */
-:root[data-hermes-theme='holo'] [data-pane-open='true'].holo-sidebar-pane {
+:root[data-hermes-theme='holo'] [data-pane-id='sessions'],
+:root[data-hermes-theme='holo'] [data-pane-id='files'] {
   z-index: 5;
 }
 

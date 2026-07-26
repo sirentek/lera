@@ -1,7 +1,8 @@
 import { useStore } from '@nanostores/react'
 
 import { useI18n } from '@/i18n'
-import { modelBaseId, modelDisplayParts, reasoningEffortLabel } from '@/lib/model-status-label'
+import { modelBaseId, modelDisplayParts } from '@/lib/model-status-label'
+import { DEFAULT_REASONING_EFFORT, reasoningEffortLabel } from '@/lib/reasoning-effort'
 import { $currentFastMode, $currentModel, $currentReasoningEffort } from '@/store/session'
 import { useTheme } from '@/themes/context'
 
@@ -32,7 +33,7 @@ export function ModelHud() {
   // default (medium) = on.
   const effortKey = (reasoningEffort || 'medium').trim().toLowerCase()
   const thinkingOn = effortKey !== 'none'
-  const effortLabel = reasoningEffortLabel(reasoningEffort) || t.shell.modelMenu.medium
+  const effortLabel = reasoningEffortLabel(reasoningEffort || DEFAULT_REASONING_EFFORT)
 
   return (
     <section aria-label={t.shell.modelMenu.search} data-slot="model-hud">
