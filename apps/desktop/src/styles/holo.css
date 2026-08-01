@@ -640,18 +640,18 @@
   --holo-frame-chamfer-inset: 1.25px;
   --holo-frame-glow-stroke: 2.5px;
   --holo-frame-glow-half: 1.25px;
-  --holo-frame-glow-line: rgba(255, 105, 85, 1);
-  --holo-frame-glow-hot: rgba(255, 165, 140, 1);
+  --holo-frame-glow-line: rgba(255, 92, 74, 1);
+  --holo-frame-glow-hot: rgba(255, 150, 125, 1);
   /* Use the outer window frame's restrained bloom: one tight highlight keeps
      the filament equally luminous, then three progressively softer radii carry
      the halo without increasing the source-line width. The source is
      only the six thin edge strips (including the diagonal chamfers), so the
      wide, low-density falloff follows the cut silhouette without revealing a
      second rectangular box around the panel. */
-  --holo-frame-halo-hot: 1px rgba(255, 225, 212, 1);
-  --holo-frame-halo-1: 3px rgba(255, 165, 140, 0.9);
-  --holo-frame-halo-2: 8px rgba(255, 105, 85, 0.7);
-  --holo-frame-halo-3: 18px rgba(255, 80, 62, 0.45);
+  --holo-frame-halo-hot: 1px rgba(255, 170, 145, 1);
+  --holo-frame-halo-1: 3px rgba(255, 122, 100, 1);
+  --holo-frame-halo-2: 8px rgba(255, 88, 70, 0.92);
+  --holo-frame-halo-3: 18px rgba(255, 68, 54, 0.68);
   /* Chamfer cut size for the panel's angled corners. */
   --holo-chamfer: 16px;
   /* echo projection offset — x flips with the panel's side, see below */
@@ -798,17 +798,21 @@
    Negative z paints it over the glass fill but under all panel content. */
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::before,
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::before {
+  /* The dim projection needs a slightly wider physical stroke than the hot
+     primary ring to retain equal apparent weight at its lower luminance. */
+  --holo-frame-stroke: 3px;
+  --holo-frame-chamfer-inset: 1.5px;
   z-index: -1;
   transform: translate(var(--holo-ex), var(--holo-ey));
   background: linear-gradient(
     160deg,
-    rgba(255, 170, 160, 0.9) 0%,
-    rgba(240, 90, 80, 0.7) 45%,
-    rgba(200, 45, 40, 0.8) 100%
+    rgba(255, 170, 148, 0.98) 0%,
+    rgba(255, 96, 78, 0.9) 45%,
+    rgba(225, 55, 45, 0.95) 100%
   );
-  /* Keep the echo dimmer than the primary ring, but opaque enough that its
-     anti-aliased edges retain the ring's full apparent stroke width. */
-  opacity: 0.68;
+  /* Deliberately half-strength echo; its separate 3px geometry preserves the
+     requested physical weight without competing with the primary ring. */
+  opacity: 0.34;
   filter: none;
 }
 
@@ -1265,17 +1269,20 @@
 /* Echo ring — the dim offset duplicate that sells the depth. */
 :root[data-hermes-theme='holo'] [data-slot='context-hud']::before,
 :root[data-hermes-theme='holo'] [data-slot='model-hud']::before {
+  /* Compensate for the echo's lower luminance with a real half-pixel increase,
+     rather than trying to fake thickness through opacity alone. */
+  --holo-hud-stroke: 2px;
+  --holo-hud-chamfer-inset: 1px;
   z-index: -1;
   transform: translate(var(--holo-ex), var(--holo-ey));
   background: linear-gradient(
     160deg,
-    rgba(255, 170, 160, 0.9) 0%,
-    rgba(240, 90, 80, 0.7) 45%,
-    rgba(200, 45, 40, 0.8) 100%
+    rgba(255, 170, 148, 0.98) 0%,
+    rgba(255, 96, 78, 0.9) 45%,
+    rgba(225, 55, 45, 0.95) 100%
   );
-  /* At card scale 0.42 made the 1.5px ring read like a hairline. This keeps
-     the secondary ring visibly equal in width while preserving depth. */
-  opacity: 0.68;
+  /* Half-strength echo; the separate 2px echo stroke carries its geometry. */
+  opacity: 0.34;
   filter: none;
 }
 

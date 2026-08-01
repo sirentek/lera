@@ -93,16 +93,20 @@
 
 /* Echo ring — the dim offset duplicate that sells the depth. */
 :root[data-hermes-theme='holo'] [data-slot='lera-hud']::before {
+  /* The secondary projection is physically wider so it does not collapse to
+     a hairline at its deliberately lower brightness. */
+  --holo-hud-stroke: 2px;
+  --holo-hud-chamfer-inset: 1px;
   z-index: -1;
   transform: translate(var(--holo-ex), var(--holo-ey));
   background: linear-gradient(
     160deg,
-    rgba(255, 170, 160, 0.9) 0%,
-    rgba(240, 90, 80, 0.7) 45%,
-    rgba(200, 45, 40, 0.8) 100%
+    rgba(255, 170, 148, 0.98) 0%,
+    rgba(255, 96, 78, 0.9) 45%,
+    rgba(225, 55, 45, 0.95) 100%
   );
-  /* Preserve the full apparent 1.5px width of the secondary ring. */
-  opacity: 0.68;
+  /* Half-strength echo; its separate 2px stroke preserves the geometry. */
+  opacity: 0.34;
   filter: none;
 }
 
