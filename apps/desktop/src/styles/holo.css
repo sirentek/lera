@@ -634,32 +634,24 @@
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar'] {
   --holo-frame-top: calc(var(--titlebar-height, 0px) + 0.375rem);
   --holo-frame-inset: 9px;
-  --holo-frame-stroke: 3px;
-  --holo-frame-chamfer-inset: 1.5px;
-  --holo-frame-glow-stroke: 3px;
-  --holo-frame-glow-half: 2px;
-  --holo-frame-glow-line: rgba(255, 68, 54, 0.34);
-  --holo-frame-glow-hot: rgba(255, 92, 74, 0.42);
-  /* Outward halo — the soft neon bleed that spills off the frame line into the
-     surrounding column (the 2nd-reference "light shaft" look). Drawn as a STATIC
-     drop-shadow stack on the line-bloom layer (whose alpha is just the thin
-     frame strips, so the shadows hug the lines — not the panel silhouette).
-     Static = the GPU composites it once and leaves it; no per-frame cost, unlike
-     the old animated/44px-over-the-whole-panel stack.
-
-     Why a STACK and not one wide shadow: a single drop-shadow re-samples the
-     source's thin, semi-transparent alpha across its whole radius, so a 16px
-     blur diluted the glow to a ~5px aura that read as "no glow at all" (measured
-     over CDP: only 2-3px of >35 red around the line). Layering several shadows
-     at stepped radii compounds the alpha — near radii stay bright, far radii add
-     reach — so the halo measures ~25-56px of real falloff and actually reads as
-     neon. Each radius is small individually, so the per-shadow blur stays cheap;
-     it's still one-time and unanimated. */
-  --holo-frame-halo-1: 2px rgba(255, 120, 100, 1);
-  --holo-frame-halo-2: 4px rgba(255, 90, 72, 0.95);
-  --holo-frame-halo-3: 8px rgba(255, 80, 62, 0.85);
-  --holo-frame-halo-4: 14px rgba(255, 70, 55, 0.7);
-  --holo-frame-halo-5: 22px rgba(255, 60, 48, 0.5);
+  /* Match the application's outer frame: a 2px filament, never a thick neon
+     band. The projected echo below remains a separate 2px ring. */
+  --holo-frame-stroke: 2.5px;
+  --holo-frame-chamfer-inset: 1.25px;
+  --holo-frame-glow-stroke: 2.5px;
+  --holo-frame-glow-half: 1.25px;
+  --holo-frame-glow-line: rgba(255, 105, 85, 1);
+  --holo-frame-glow-hot: rgba(255, 165, 140, 1);
+  /* Use the outer window frame's restrained bloom: one tight highlight keeps
+     the filament equally luminous, then three progressively softer radii carry
+     the halo without increasing the source-line width. The source is
+     only the six thin edge strips (including the diagonal chamfers), so the
+     wide, low-density falloff follows the cut silhouette without revealing a
+     second rectangular box around the panel. */
+  --holo-frame-halo-hot: 1px rgba(255, 225, 212, 1);
+  --holo-frame-halo-1: 3px rgba(255, 165, 140, 0.9);
+  --holo-frame-halo-2: 8px rgba(255, 105, 85, 0.7);
+  --holo-frame-halo-3: 18px rgba(255, 80, 62, 0.45);
   /* Chamfer cut size for the panel's angled corners. */
   --holo-chamfer: 16px;
   /* echo projection offset — x flips with the panel's side, see below */
@@ -814,7 +806,9 @@
     rgba(240, 90, 80, 0.7) 45%,
     rgba(200, 45, 40, 0.8) 100%
   );
-  opacity: 0.42;
+  /* Keep the echo dimmer than the primary ring, but opaque enough that its
+     anti-aliased edges retain the ring's full apparent stroke width. */
+  opacity: 0.68;
   filter: none;
 }
 
@@ -889,24 +883,14 @@
   z-index: 29;
   pointer-events: none;
   background-repeat: no-repeat;
-  /* Bloom that hugs the frame line, then spills a soft halo OUTWARD (the
-     2nd-reference "light shaft"). The old stack ended in a 44px drop-shadow
-     over a full-panel box — that wide blur flooded the glow across the whole
-     sidebar interior, and it was animated. The cost there was the radius +
-     animation, not the shadow itself: this layer's painted alpha is only the
-     thin frame strips (no clip-path here — real alpha), so the shadows bloom
-     around the LINES, not the panel silhouette or its glass fill. The STACKED
-     stepped radii (see the --holo-frame-halo-* vars) compound the alpha into a
-     real ~25-56px neon falloff with a one-time GPU composite and no per-frame
-     work — the glow lands on the frame and the column beside it, never the
-     interior content. opacity:1 so the source alpha that feeds the shadows stays
-     at full strength (any reduction here dilutes every shadow in the stack). */
+  /* The 2px source stays hidden under the crisp ring while its shadows
+     create the broad, light halo. Because only edge strips have alpha, the
+     filter follows both chamfer diagonals instead of sampling the panel box. */
   filter:
+    drop-shadow(0 0 var(--holo-frame-halo-hot))
     drop-shadow(0 0 var(--holo-frame-halo-1))
     drop-shadow(0 0 var(--holo-frame-halo-2))
-    drop-shadow(0 0 var(--holo-frame-halo-3))
-    drop-shadow(0 0 var(--holo-frame-halo-4))
-    drop-shadow(0 0 var(--holo-frame-halo-5));
+    drop-shadow(0 0 var(--holo-frame-halo-3));
   opacity: 1;
 }
 
@@ -1183,8 +1167,10 @@
 :root[data-hermes-theme='holo'] [data-slot='context-hud'],
 :root[data-hermes-theme='holo'] [data-slot='model-hud'] {
   --holo-chamfer: 12px;
-  --holo-hud-glow-stroke: 3px;
-  --holo-hud-glow-half: 2px;
+  --holo-hud-stroke: 1.5px;
+  --holo-hud-chamfer-inset: 0.75px;
+  --holo-hud-glow-stroke: 1.5px;
+  --holo-hud-glow-half: 0.75px;
   /* The card is much smaller than the sidebar panels, so the inherited
      panel-scale echo offset reads as a blurry double edge along the ring
      rather than a subtle depth cue — halve it to suit the card. The x sign
@@ -1225,7 +1211,8 @@
   --holo-ex: -8px;
 }
 
-/* Both rings share the hollow 2px line — same cut as the sessions panel
+/* Both rings share a fine hollow line — visually balanced against the larger,
+   slightly heavier sessions-panel frame. Same cut as the sessions panel
    (top-right + bottom-left), at the card's 12px chamfer. */
 :root[data-hermes-theme='holo'] [data-slot='context-hud']::before,
 :root[data-hermes-theme='holo'] [data-slot='context-hud']::after,
@@ -1244,13 +1231,17 @@
     var(--holo-chamfer) 100%,
     0 calc(100% - var(--holo-chamfer)),
     0 0,
-    2px 2px,
-    2px calc(100% - (var(--holo-chamfer) - 1px)),
-    calc(var(--holo-chamfer) - 1px) calc(100% - 2px),
-    calc(100% - 2px) calc(100% - 2px),
-    calc(100% - 2px) calc(var(--holo-chamfer) - 1px),
-    calc(100% - (var(--holo-chamfer) - 1px)) 2px,
-    2px 2px
+    var(--holo-hud-stroke) var(--holo-hud-stroke),
+    var(--holo-hud-stroke)
+      calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
+    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset))
+      calc(100% - var(--holo-hud-stroke)),
+    calc(100% - var(--holo-hud-stroke)) calc(100% - var(--holo-hud-stroke)),
+    calc(100% - var(--holo-hud-stroke))
+      calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)),
+    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset)))
+      var(--holo-hud-stroke),
+    var(--holo-hud-stroke) var(--holo-hud-stroke)
   );
 }
 
@@ -1282,7 +1273,9 @@
     rgba(240, 90, 80, 0.7) 45%,
     rgba(200, 45, 40, 0.8) 100%
   );
-  opacity: 0.42;
+  /* At card scale 0.42 made the 1.5px ring read like a hairline. This keeps
+     the secondary ring visibly equal in width while preserving depth. */
+  opacity: 0.68;
   filter: none;
 }
 
@@ -1357,19 +1350,13 @@
     left top,
     right top,
     left bottom;
-  /* Outward neon halo — the same STACKED stepped drop-shadows as the panel
-     line-bloom (see --holo-frame-halo-* and the rationale there). These vars
-     inherit from the sidebar root onto the cards, so the cards' glow tracks the
-     panels' in lock-step. opacity:1 keeps the source alpha that feeds the
-     shadows at full strength. A single wide shadow diluted to a ~5px nothing
-     here too; stacking compounds it into a real ~25-30px falloff at card scale.
-     Static + line-only = cheap and no interior wash, same as the panels. */
+  /* Reuse the panel's line bloom so card chamfers keep the same thin
+     filament and soft silhouette-following halo. */
   filter:
+    drop-shadow(0 0 var(--holo-frame-halo-hot))
     drop-shadow(0 0 var(--holo-frame-halo-1))
     drop-shadow(0 0 var(--holo-frame-halo-2))
-    drop-shadow(0 0 var(--holo-frame-halo-3))
-    drop-shadow(0 0 var(--holo-frame-halo-4))
-    drop-shadow(0 0 var(--holo-frame-halo-5));
+    drop-shadow(0 0 var(--holo-frame-halo-3));
   opacity: 1;
 }
 
@@ -1386,13 +1373,15 @@
     0 100%,
     0 var(--holo-chamfer),
     var(--holo-chamfer) 0,
-    calc(var(--holo-chamfer) - 1px) 2px,
-    2px calc(var(--holo-chamfer) - 1px),
-    2px calc(100% - 2px),
-    calc(100% - (var(--holo-chamfer) - 1px)) calc(100% - 2px),
-    calc(100% - 2px) calc(100% - (var(--holo-chamfer) - 1px)),
-    calc(100% - 2px) 2px,
-    calc(var(--holo-chamfer) - 1px) 2px
+    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke),
+    var(--holo-hud-stroke) calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)),
+    var(--holo-hud-stroke) calc(100% - var(--holo-hud-stroke)),
+    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset)))
+      calc(100% - var(--holo-hud-stroke)),
+    calc(100% - var(--holo-hud-stroke))
+      calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
+    calc(100% - var(--holo-hud-stroke)) var(--holo-hud-stroke),
+    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke)
   );
 }
 
@@ -1450,13 +1439,15 @@
     0 100%,
     0 var(--holo-chamfer),
     var(--holo-chamfer) 0,
-    calc(var(--holo-chamfer) - 1px) 2px,
-    2px calc(var(--holo-chamfer) - 1px),
-    2px calc(100% - 2px),
-    calc(100% - (var(--holo-chamfer) - 1px)) calc(100% - 2px),
-    calc(100% - 2px) calc(100% - (var(--holo-chamfer) - 1px)),
-    calc(100% - 2px) 2px,
-    calc(var(--holo-chamfer) - 1px) 2px
+    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke),
+    var(--holo-hud-stroke) calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)),
+    var(--holo-hud-stroke) calc(100% - var(--holo-hud-stroke)),
+    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset)))
+      calc(100% - var(--holo-hud-stroke)),
+    calc(100% - var(--holo-hud-stroke))
+      calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
+    calc(100% - var(--holo-hud-stroke)) var(--holo-hud-stroke),
+    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke)
   );
 }
 

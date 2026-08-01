@@ -17,8 +17,10 @@
 
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] {
   --holo-chamfer: 12px;
-  --holo-hud-glow-stroke: 3px;
-  --holo-hud-glow-half: 2px;
+  --holo-hud-stroke: 1.5px;
+  --holo-hud-chamfer-inset: 0.75px;
+  --holo-hud-glow-stroke: 1.5px;
+  --holo-hud-glow-half: 0.75px;
   /* Card-scale echo offset (half the panel scale) — see the context-hud
      rationale in holo.css. The x sign flips with the panel's side below. */
   --holo-ex: -8px;
@@ -45,7 +47,7 @@
   --holo-ex: -8px;
 }
 
-/* Both rings share the hollow 2px line — same cut as the sessions panel
+/* Both rings share the finer HUD-card line — same cut as the sessions panel
    (top-right + bottom-left), at the card's 12px chamfer. */
 :root[data-hermes-theme='holo'] [data-slot='lera-hud']::before,
 :root[data-hermes-theme='holo'] [data-slot='lera-hud']::after {
@@ -62,13 +64,17 @@
     var(--holo-chamfer) 100%,
     0 calc(100% - var(--holo-chamfer)),
     0 0,
-    2px 2px,
-    2px calc(100% - (var(--holo-chamfer) - 1px)),
-    calc(var(--holo-chamfer) - 1px) calc(100% - 2px),
-    calc(100% - 2px) calc(100% - 2px),
-    calc(100% - 2px) calc(var(--holo-chamfer) - 1px),
-    calc(100% - (var(--holo-chamfer) - 1px)) 2px,
-    2px 2px
+    var(--holo-hud-stroke) var(--holo-hud-stroke),
+    var(--holo-hud-stroke)
+      calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
+    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset))
+      calc(100% - var(--holo-hud-stroke)),
+    calc(100% - var(--holo-hud-stroke)) calc(100% - var(--holo-hud-stroke)),
+    calc(100% - var(--holo-hud-stroke))
+      calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)),
+    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset)))
+      var(--holo-hud-stroke),
+    var(--holo-hud-stroke) var(--holo-hud-stroke)
   );
 }
 
@@ -95,7 +101,8 @@
     rgba(240, 90, 80, 0.7) 45%,
     rgba(200, 45, 40, 0.8) 100%
   );
-  opacity: 0.42;
+  /* Preserve the full apparent 1.5px width of the secondary ring. */
+  opacity: 0.68;
   filter: none;
 }
 
@@ -163,11 +170,10 @@
     right top,
     left bottom;
   filter:
+    drop-shadow(0 0 var(--holo-frame-halo-hot))
     drop-shadow(0 0 var(--holo-frame-halo-1))
     drop-shadow(0 0 var(--holo-frame-halo-2))
-    drop-shadow(0 0 var(--holo-frame-halo-3))
-    drop-shadow(0 0 var(--holo-frame-halo-4))
-    drop-shadow(0 0 var(--holo-frame-halo-5));
+    drop-shadow(0 0 var(--holo-frame-halo-3));
   opacity: 1;
 }
 
@@ -362,13 +368,15 @@
     0 100%,
     0 var(--holo-chamfer),
     var(--holo-chamfer) 0,
-    calc(var(--holo-chamfer) - 1px) 2px,
-    2px calc(var(--holo-chamfer) - 1px),
-    2px calc(100% - 2px),
-    calc(100% - (var(--holo-chamfer) - 1px)) calc(100% - 2px),
-    calc(100% - 2px) calc(100% - (var(--holo-chamfer) - 1px)),
-    calc(100% - 2px) 2px,
-    calc(var(--holo-chamfer) - 1px) 2px
+    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke),
+    var(--holo-hud-stroke) calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)),
+    var(--holo-hud-stroke) calc(100% - var(--holo-hud-stroke)),
+    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset)))
+      calc(100% - var(--holo-hud-stroke)),
+    calc(100% - var(--holo-hud-stroke))
+      calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
+    calc(100% - var(--holo-hud-stroke)) var(--holo-hud-stroke),
+    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke)
   );
 }
 
