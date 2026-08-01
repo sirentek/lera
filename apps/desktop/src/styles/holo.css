@@ -1957,6 +1957,28 @@
 }
 
 /* ── titlebar / headers: mono HUD lettering ─────────────────────────────── */
+/* The 0.19 contribution shell and LayoutTree add painted chrome behind the
+   titlebar, an editor-colored rectangle over every zone, and straight borders
+   around/between those rectangles. They sit above Holo's shared room/hex
+   backdrop as translucent slabs. Keep all content and resize hit targets
+   intact; only make those newly painted layers fully clear. */
+:root[data-hermes-theme='holo'] [data-slot='contrib-shell'] {
+  background-color: transparent !important;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='contrib-titlebar'] {
+  border-bottom-color: transparent !important;
+}
+
+:root[data-hermes-theme='holo'] [data-tree-group] {
+  background-color: transparent !important;
+}
+
+:root[data-hermes-theme='holo'] [data-tree-split] [role='separator'] > span {
+  background: transparent !important;
+  opacity: 0 !important;
+}
+
 :root[data-hermes-theme='holo'] header h2 {
   font-family: var(--dt-font-mono);
   letter-spacing: 0.14em;
@@ -2606,6 +2628,20 @@
      to open the outer-glow gutter — both move inward together. */
   padding: calc(var(--holo-win-glow-room) + 11px);
   box-sizing: border-box;
+}
+
+/* contrib-shell (the app stage inside the wrapper — app/contrib/controller.tsx)
+   ships Tailwind `w-screen` = 100vw. That is the FULL viewport width and
+   ignores the wrapper's padding above, so the stage starts at the padded left
+   edge but still runs a full 100vw wide — overflowing the right window edge by
+   the wrapper's inset (the right-edge sidebar + its HUD cards spilled past the
+   glowing frame). Under the holo frameless shell the stage must fill the PADDED
+   content box, not the raw viewport: pin it to width:100% so its right edge
+   lands on the same inset as its left. Only the horizontal 100vw is wrong; the
+   grid's own min-h-0 pins already handle the vertical. Scoped to the holo
+   window shell so the normal (unpadded) wrapper keeps w-screen untouched. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='contrib-shell'] {
+  width: 100%;
 }
 
 /* ── HOLOGRAPHIC ROOM — empty-cube interior, depth cue ───────────────────────

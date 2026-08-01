@@ -392,6 +392,19 @@ app.commandLine.appendSwitch('disable-renderer-backgrounding')
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
 app.commandLine.appendSwitch('disable-background-timer-throttling')
 
+// Dev-only renderer CDP endpoint (Lera fork). Run.bat sets
+// HERMES_DESKTOP_REMOTE_DEBUG_PORT so the running app can be inspected /
+// verified over Chrome DevTools Protocol (Playwright, chrome://inspect). The
+// switch must be appended before app `ready`. Bound to localhost by Chromium;
+// only enabled when the env var is present, so packaged builds never open it.
+{
+  const remoteDebugPort = process.env.HERMES_DESKTOP_REMOTE_DEBUG_PORT?.trim()
+  if (remoteDebugPort) {
+    app.commandLine.appendSwitch('remote-debugging-port', remoteDebugPort)
+    app.commandLine.appendSwitch('remote-allow-origins', '*')
+  }
+}
+
 const SOURCE_REPO_ROOT = path.resolve(APP_ROOT, '../..')
 
 // Build-time install stamp -- the git ref this .exe was built against.

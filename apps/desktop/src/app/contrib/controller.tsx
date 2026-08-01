@@ -639,6 +639,7 @@ export function ContribController() {
       <ContribWiring>
         <div
           className="flex h-screen min-h-0 w-screen flex-col bg-(--ui-bg-chrome) text-(--ui-text-primary)"
+          data-slot="contrib-shell"
           style={{ '--titlebar-height': '0px' } as CSSProperties}
         >
           {/* Title bar: fixed chrome outside the grid, composable via slots.
@@ -652,7 +653,10 @@ export function ContribController() {
                   tree-published --workspace-left/right vars (pure CSS, no rect
                   threading), clamped to clear the REAL TitlebarControls
                   clusters (fixed, z-70); center is truly window-centered. */}
-          <div className="relative flex h-[34px] shrink-0 items-center border-b border-(--ui-stroke-tertiary) text-xs">
+          <div
+            className="relative flex h-[34px] shrink-0 items-center border-b border-(--ui-stroke-tertiary) text-xs"
+            data-slot="contrib-titlebar"
+          >
             {/* Drag strips, AppShell-style: cut to AVOID the fixed control
                 clusters instead of overlapping them — Electron's no-drag
                 carve-out of fixed/transformed elements is unreliable, so a
