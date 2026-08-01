@@ -13,6 +13,24 @@
   --holo-core: #ffd9cf;
   --holo-bright: #ff7a6f;
   --holo-mid: #e8472f;
+  /* One shared border palette for the outer window, side panels and HUD cards.
+     Keeping the gradient here prevents the inner frames from drifting toward a
+     darker red while the application frame reads as light coral. */
+  --holo-frame-coral: #ff9a84;
+  --holo-frame-coral-accent: #ff6558;
+  --holo-frame-border-gradient: linear-gradient(
+    160deg,
+    var(--holo-frame-coral) 0%,
+    var(--holo-frame-coral-accent) 30%,
+    var(--holo-mid) 55%,
+    var(--holo-frame-coral-accent) 80%,
+    var(--holo-frame-coral) 100%
+  );
+  /* Barely-there light for the small cells inside the sidebar frames. These
+     stay intentionally far below the outer-frame bloom so they are perceived
+     as reflected light, not as another set of borders. */
+  --holo-inner-cell-line: rgba(255, 154, 132, 0.11);
+  --holo-inner-cell-glow: rgba(255, 122, 100, 0.07);
   --holo-glow-1: rgba(255, 110, 100, 0.85);
   --holo-glow-2: rgba(255, 70, 58, 0.45);
   --holo-glow-3: rgba(225, 45, 40, 0.28);
@@ -640,8 +658,10 @@
   --holo-frame-chamfer-inset: 1.25px;
   --holo-frame-glow-stroke: 2.5px;
   --holo-frame-glow-half: 1.25px;
-  --holo-frame-glow-line: rgba(255, 92, 74, 1);
-  --holo-frame-glow-hot: rgba(255, 150, 125, 1);
+  /* The bloom source is the same light coral as the outer window filament;
+     otherwise this overlay visually darkens the shared border gradient. */
+  --holo-frame-glow-line: var(--holo-frame-coral);
+  --holo-frame-glow-hot: var(--holo-core);
   /* Use the outer window frame's restrained bloom: one tight highlight keeps
      the filament equally luminous, then three progressively softer radii carry
      the halo without increasing the source-line width. The source is
@@ -781,14 +801,7 @@
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::after,
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::after {
   z-index: 30;
-  background: linear-gradient(
-    160deg,
-    #ff9a84 0%,
-    #ff6558 28%,
-    var(--holo-mid) 55%,
-    #ff6558 82%,
-    #ff9a84 100%
-  );
+  background: var(--holo-frame-border-gradient);
   /* Shimmer removed — the ring sits at steady full brightness. It was the
      last looping animation; four animated clipped gradient rings recomposited
      continuously for a subtle pulse. */
@@ -1097,6 +1110,22 @@
   font-size: 0.8125rem;
 }
 
+/* Subtle reflected glow on the inner file-panel cells marked in the HUD
+   layout. Static inset shadows avoid filters and remain almost imperceptible
+   until the eye settles on the panel. */
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] > :first-child,
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] > :first-child > :last-child {
+  box-shadow: inset 0 0 18px var(--holo-inner-cell-glow);
+}
+
+:root[data-hermes-theme='holo']
+  [data-slot='right-sidebar-panel']
+  [class~='group/project-header'] {
+  box-shadow:
+    inset 0 -1px 0 var(--holo-inner-cell-line),
+    inset 0 -10px 16px -16px rgba(255, 154, 132, 0.22);
+}
+
 :root[data-hermes-theme='holo']
   [data-slot='sidebar-panel']
   [data-slot='sidebar-menu-button'] {
@@ -1252,14 +1281,7 @@
 :root[data-hermes-theme='holo'] [data-slot='context-hud']::after,
 :root[data-hermes-theme='holo'] [data-slot='model-hud']::after {
   z-index: 30;
-  background: linear-gradient(
-    160deg,
-    #ff9a84 0%,
-    #ff6558 28%,
-    var(--holo-mid) 55%,
-    #ff6558 82%,
-    #ff9a84 100%
-  );
+  background: var(--holo-frame-border-gradient);
   /* Shimmer removed — the ring sits at steady full brightness. It was the
      last looping animation; four animated clipped gradient rings recomposited
      continuously for a subtle pulse. */
@@ -1507,6 +1529,42 @@
   letter-spacing: 0.28em;
   color: var(--holo-bright);
   text-shadow: 0 0 10px rgba(255, 123, 111, 0.7);
+}
+
+/* Faint inner-cell illumination for the marked header/body/value regions of
+   every docked HUD card, including the Lera-only FIRECRAWL card. Adjacent
+   cells share a low-alpha seam; no shadow is strong enough to compete with
+   the card's main coral ring. */
+:root[data-hermes-theme='holo']
+  :is([data-slot='context-hud'], [data-slot='model-hud'], [data-slot='lera-hud'])
+  > header {
+  box-shadow:
+    inset 0 -1px 0 var(--holo-inner-cell-line),
+    inset 0 -9px 14px -15px rgba(255, 154, 132, 0.21);
+}
+
+:root[data-hermes-theme='holo']
+  :is([data-slot='context-hud'], [data-slot='lera-hud'])
+  .hud-row,
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] :is(.mhud-name, .mhud-kvs) {
+  box-shadow: inset 0 0 14px var(--holo-inner-cell-glow);
+}
+
+:root[data-hermes-theme='holo']
+  :is([data-slot='context-hud'], [data-slot='lera-hud'])
+  .hud-gauge {
+  box-shadow:
+    inset -1px 0 0 var(--holo-inner-cell-line),
+    inset -9px 0 14px -15px rgba(255, 154, 132, 0.2);
+}
+
+:root[data-hermes-theme='holo']
+  :is([data-slot='context-hud'], [data-slot='lera-hud'])
+  .hud-kvs,
+:root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-kvs {
+  box-shadow:
+    inset 1px 0 0 var(--holo-inner-cell-line),
+    inset 9px 0 14px -15px rgba(255, 154, 132, 0.2);
 }
 
 :root[data-hermes-theme='holo'] [data-slot='context-hud'] .hud-row {
@@ -2841,14 +2899,7 @@
   position: absolute;
   inset: 0;
   clip-path: var(--holo-win-shape);
-  background: linear-gradient(
-    160deg,
-    #ff9a84 0%,
-    #ff6558 30%,
-    var(--holo-mid) 55%,
-    #ff6558 80%,
-    #ff9a84 100%
-  );
+  background: var(--holo-frame-border-gradient);
   /* Static neon bloom — the OUTER glow, as bright and dense as the ~7px gutter
      allows. The border stays hugging the window edge (--holo-win-inset: 7px) by
      the user's choice, so the OS window bounds clip anything past ~7-20px — a
@@ -2928,14 +2979,7 @@
   position: absolute;
   inset: 0;
   clip-path: var(--holo-win-shape);
-  background: linear-gradient(
-    160deg,
-    #ff9a84 0%,
-    #ff6558 30%,
-    var(--holo-mid) 55%,
-    #ff6558 80%,
-    #ff9a84 100%
-  );
+  background: var(--holo-frame-border-gradient);
   /* Ring mask: full box MINUS an inset box = a border-width ring of real alpha
      (interior genuinely transparent — no black slab over content, unlike a blend
      or an opaque hole). The outer edge stays chamfered via clip-path above; the
