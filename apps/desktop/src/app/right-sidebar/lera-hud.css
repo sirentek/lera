@@ -137,6 +137,8 @@
   background-image:
     linear-gradient(180deg, rgba(255, 200, 180, 0.05) 0%, transparent 18%, rgba(0, 0, 0, 0.1) 100%),
     linear-gradient(rgba(22, 16, 15, 0.16), rgba(22, 16, 15, 0.16));
+  /* Inward wash from the frame — shared definition in holo.css. */
+  box-shadow: var(--holo-inner-glow);
   clip-path: polygon(
     0 0,
     calc(100% - var(--holo-chamfer)) 0,

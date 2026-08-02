@@ -805,6 +805,20 @@
     drop-shadow(0 0 var(--holo-frame-halo-1))
     drop-shadow(0 0 var(--holo-frame-halo-2))
     drop-shadow(0 0 var(--holo-frame-halo-3));
+  /* INWARD WASH — the halo above is a drop-shadow chain, so it only ever grows
+     OUTWARD from the frame lines. This is the other half: a ~20px falloff that
+     bleeds from the edge into the panel/card interior, so the frame looks like
+     it lights the slab it sits on instead of floating on it.
+     It rides the chamfer-clipped glass fills (panels + all five cards), so it
+     follows the cut instead of the box, and sits at their z:-2 — under every
+     row of content, never fogging text.
+     ON THE ALPHA: 0.35 looks high for something meant to be barely-there, and
+     it is not a mistake. The fill is the bottom layer of the card; the sidebar
+     surface tint and the content backgrounds above absorb ~2/3 of it, so the
+     measured lift at the edge is ~+15/255 falling to ~+4 at 15px in. Judge
+     this by rendered pixels, not by the declaration. Raising it much further
+     starts to wash the hex wall showing through the fill. */
+  --holo-inner-glow: inset 0 0 20px rgba(255, 96, 75, 0.35);
   /* Chamfer cut size for the panel's angled corners. */
   --holo-chamfer: 16px;
   /* echo projection offset — x flips with the panel's side, see below */
@@ -899,6 +913,10 @@
        panel; this low so the hexagons clearly show through. The bottom black
        depth-pool above was also cut 0.22 -> 0.10 for the same reason. */
     linear-gradient(rgba(22, 16, 15, 0.16), rgba(22, 16, 15, 0.16));
+  /* The frame's light spilling INTO the slab — see --holo-inner-glow. Rides
+     this pseudo because it is the one layer that is both chamfer-clipped and
+     under all content. */
+  box-shadow: var(--holo-inner-glow);
 }
 
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::before {
@@ -1495,6 +1513,8 @@
        sidebar glass; the card body matches the panel fill in lock-step
        (pulled down to 0.16 so the hex wall reads through). */
     linear-gradient(rgba(22, 16, 15, 0.16), rgba(22, 16, 15, 0.16));
+  /* Same inward wash as the panels — see --holo-inner-glow. */
+  box-shadow: var(--holo-inner-glow);
   clip-path: polygon(
     0 0,
     calc(100% - var(--holo-chamfer)) 0,
