@@ -652,26 +652,141 @@
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar'] {
   --holo-frame-top: calc(var(--titlebar-height, 0px) + 0.375rem);
   --holo-frame-inset: 9px;
-  /* Match the application's outer frame: a 2px filament, never a thick neon
-     band. The projected echo below remains a separate 2px ring. */
-  --holo-frame-stroke: 2.5px;
-  --holo-frame-chamfer-inset: 1.25px;
-  --holo-frame-glow-stroke: 2.5px;
-  --holo-frame-glow-half: 1.25px;
+  /* Match the application's outer frame: a thin filament, never a thick neon
+     band. 2.5px -> 1.5px so the panel ring is the SAME weight as the five HUD
+     cards' --holo-hud-stroke: side by side in one column, a 2.5px panel edge
+     next to a 1.5px card edge read as two different frame systems. Panel and
+     card now share stroke, halo chain and glow-source width; only the chamfer
+     still scales with the box (16px vs 12px). Move this and --holo-hud-stroke
+     together or the column splits again. */
+  --holo-frame-stroke: 1.5px;
+  /* CHAMFER WIDTH COMPENSATION — the reason the cuts kept reading as broken.
+     The hollow evenodd ring is an outer polygon minus an inner one offset by
+     the stroke. On the STRAIGHT edges that offset is perpendicular, so the band
+     is exactly --holo-frame-stroke wide. On a 45° chamfer it is NOT: the inner
+     chamfer corner sits at (chamfer - inset), and the perpendicular distance
+     between the two parallel diagonals works out to |inset - stroke| / √2.
+     Every one of these vars used to be stroke/2, which yields a diagonal band
+     of only stroke / (2√2) = 0.354 x stroke — the cut was barely a THIRD the
+     weight of the edges it joins, and on the 1.5px cards that is sub-pixel, so
+     it antialiased into a faint line that the theme's horizontal scanline
+     overlay chopped into dots. That is the "chamfer bozuk / rectangular
+     corners" report: not the glow washing the cut out, but the cut never
+     having been drawn at full weight in the first place. More glow only made
+     the mismatch more obvious.
+     Solve |inset - stroke| / √2 = stroke for inset:
+       inset = stroke x (1 - √2) = -0.4142 x stroke   (negative is correct —
+     it pushes the inner chamfer corner outward past the outer one along the
+     edges, which is what widens the diagonal band). Keep every
+     *-chamfer-inset in this file on this formula; if a chamfer ever looks thin
+     or dotted again, check THIS before touching the glow. */
+  --holo-frame-chamfer-inset: calc(var(--holo-frame-stroke) * -0.4142);
+  /* Width of the SOURCE strips the bloom is blurred from — not the visible line
+     (that's the crisp --holo-frame-stroke ring at z:30, now 1.5px, sitting
+     flush over this). Total glow scales with source area, so this is the master
+     "how much glow" knob for the panels. Held at 1.5px to match the HUD cards'
+     --holo-hud-glow-stroke: at 2.5px the panel frames carried ~1.7x the cards'
+     glow, and that surplus is what smeared the chamfer cuts into rounded
+     corners and made the frames read as rectangles. Cards and panels now bloom
+     at the same rate, so the whole sidebar reads as one system. Raise this ONLY
+     together with the card value, and expect the chamfers to soften first.
+     DO NOT lower this one to "reduce the glow" either: thinning the source
+     dims the whole filament evenly (it was tried at 1.2px — the frame just went
+     weaker, the halo still reached as far past the chamfer as before). Less
+     SPILL is a radius job — see --holo-frame-halo-* below. */
+  --holo-frame-glow-stroke: 1.5px;
+  --holo-frame-glow-half: 0.75px;
   /* The bloom source is the same light coral as the outer window filament;
      otherwise this overlay visually darkens the shared border gradient. */
   --holo-frame-glow-line: var(--holo-frame-coral);
-  --holo-frame-glow-hot: var(--holo-core);
-  /* Use the outer window frame's restrained bloom: one tight highlight keeps
-     the filament equally luminous, then three progressively softer radii carry
-     the halo without increasing the source-line width. The source is
-     only the six thin edge strips (including the diagonal chamfers), so the
-     wide, low-density falloff follows the cut silhouette without revealing a
-     second rectangular box around the panel. */
-  --holo-frame-halo-hot: 1px rgba(255, 170, 145, 1);
-  --holo-frame-halo-1: 3px rgba(255, 122, 100, 1);
-  --holo-frame-halo-2: 8px rgba(255, 88, 70, 0.92);
-  --holo-frame-halo-3: 18px rgba(255, 68, 54, 0.68);
+  /* The two CHAMFER DIAGONAL source strips (the only thing this var feeds —
+     panels + all three HUD card rules). It used to be --holo-core (#ffd9cf),
+     i.e. near-white, so every frame painted one of its two chamfer cuts in a
+     colour nothing else on the frame uses. At the old, weak glow that passed
+     as a highlight; under the current stack it blooms into a white blob that
+     swallows the cut, which is precisely how the corners "went rectangular" —
+     and it's another source of the pale/white look the frame must never have.
+     It also aliased badly: a 45° band inside a 12px background tile renders as
+     a dotted line, and the white made the dotting obvious.
+     Keep it equal to --holo-frame-glow-line so the diagonals are the same
+     coral as the four straight edges and the cut reads as one continuous
+     filament turning a corner. */
+  --holo-frame-glow-hot: var(--holo-frame-glow-line);
+  /* Panel bloom — tuned to match what the MAIN WINDOW FRAME actually RENDERS.
+
+     Measured off the running app (screenshot pixels, one scanline crossing both
+     the window edge and this panel edge), the window frame's line region reads
+     ~rgb(255,110,76): red pinned at 255, green/blue ~0.30 of it. That saturated
+     coral is the target. These radii/alphas were fitted until the panel edge
+     measured ~rgb(240,103,81)-(232,109,84) at the same 0.31-0.36 ratio.
+
+     Do NOT copy `[data-slot='window-frame']::before`'s shadow COLORS verbatim.
+     That was tried and it turns the panel border white. The window's first two
+     steps are near-white (255,225,212 / 255,190,170) but they bloom off a SOLID
+     filled silhouette, so they only tint a hairline rim at its edge while the
+     wide coral rings dominate everything beyond. This panel bloom's source is
+     six 2.5px STRIPS — a near-white 1-2px shadow covers the entire strip and
+     swamps it, so the same colors that read coral on the window read as a pale
+     pink-white hairline here. Same declaration, opposite result, because the
+     source geometry is different. Match the OUTPUT, not the source values.
+
+     Things NOT to do when this looks dim again:
+       • Do not whiten the ring, and do not add near-white shadow steps. The
+         window filament is not white — it is this coral gradient.
+       • Do not hang a drop-shadow on the aside or panel root: it blooms the
+         whole rectangle, and the halo swallows the chamfer cuts. The glow
+         belongs on the six edge strips (4 edges + both chamfer diagonals),
+         which is why it follows the cut silhouette.
+       • Do not push the radii past the chamfer cap below (~5px now, hard cap
+         ~11px at the current 16px cut). The bloom sits ABOVE panel content, so wide rings stop
+         adding reach and just wash the panel interior in red haze, burying the
+         session list and the hex wall — and they fill the chamfer notch.
+
+     Chained drop-shadows re-blur the PREVIOUS filter output, so these compound
+     into a real neon falloff — a single wide shadow re-samples the thin strip
+     across its whole radius and dilutes to nothing. Static: composited once,
+     no animation, zero per-frame cost.
+
+     THE FAR STEPS ARE CAPPED BY THE CHAMFER, NOT BY TASTE. A chamfer cut of
+     --holo-chamfer only carves a notch --holo-chamfer / √2 deep (16px -> 11.3px).
+     Any glow that still has alpha past that distance is painted into the notch
+     from BOTH adjoining edges at once, so the cut fills in and the corner reads
+     as a rounded rectangle — the "sidebars went rectangular" report. The chain
+     used to end at 14px/0.8 and 20px/0.55: a ~35px fog, three times the notch
+     depth, which is exactly what buried the cut.
+     Rule for later: keep the last radius <= ~0.75 x --holo-chamfer. Raising
+     these again re-fills the chamfers, and no amount of ring/inset tuning can
+     compensate. If more reach is genuinely wanted, raise --holo-chamfer first.
+
+     THE RADII ARE THE "HOW MUCH GLOW" KNOB, not the source width. Walked in
+     over three passes on request — 14/20 fog first, then 4/8/10/12, now the
+     chain ends at 3px — because what had to shrink was the lit AREA around the
+     frame, not the filament. Measured perpendicular to the panel's left
+     filament, original vs now: the ring pixel is untouched (248) and the first
+     3px are unchanged to marginally hotter (the same alpha over a smaller
+     radius concentrates), while the spill falls off a cliff past ~5px (131 ->
+     66 at +8px). Cutting alpha or --holo-frame-glow-stroke instead dims the
+     line itself and leaves the reach untouched — the wrong axis, twice proven.
+     Floor warning: the last radius is now well inside the chamfer notch, so
+     going further stops buying chamfer definition and just starves the neon. */
+  --holo-frame-halo-hot: 1px rgba(255, 142, 112, 1);
+  --holo-frame-halo-1: 2px rgba(255, 122, 96, 1);
+  --holo-frame-halo-2: 2px rgba(255, 108, 85, 1);
+  --holo-frame-halo-3: 3px rgba(255, 96, 75, 0.95);
+  /* ONE chain for every holo frame in the sidebars — both panel rings and all
+     five HUD cards (FIRECRAWL / CONTEXT LOAD / MODEL / CODEX ANALYTICS /
+     CLAUDE PLAN USAGE, across this file and lera-hud.css). It has drifted twice
+     and both times the column stopped reading as one system: first the two
+     upstream cards ran this chain while the three lera-hud cards hand-wrote a
+     shorter one, then the panels carried two extra steps the cards did not.
+     There is deliberately NO second, panel-scale variant — if a frame needs a
+     different bloom, that is a design decision to argue for, not a local
+     override to add here. */
+  --holo-frame-halo-stack:
+    drop-shadow(0 0 var(--holo-frame-halo-hot))
+    drop-shadow(0 0 var(--holo-frame-halo-1))
+    drop-shadow(0 0 var(--holo-frame-halo-2))
+    drop-shadow(0 0 var(--holo-frame-halo-3));
   /* Chamfer cut size for the panel's angled corners. */
   --holo-chamfer: 16px;
   /* echo projection offset — x flips with the panel's side, see below */
@@ -681,6 +796,33 @@
      Sign + origin flip with the panel's side, see below. */
   --holo-tilt: 4deg;
   position: relative;
+  /* CRITICAL, and the real reason this frame looked "dimmed down" for so long:
+     the room backdrop is not behind the app, it is painted ON TOP of it.
+     holo-room-background.css swaps the CSS-built cube room for a baked image
+     and pins it at `z-index: 2; opacity: 0.32` over #0c0504 (that override wins
+     over the z:38 in this file — check the CASCADE, not just this file, when
+     the room's stacking looks wrong). Every fixed/positioned thing under z:2 is
+     therefore composited through a 32% near-black veil.
+
+     The asides sat at z:auto — no ancestor between them and <body> creates a
+     stacking context, so they were direct participants in the root context and
+     landed UNDER that veil. The main window frame is at z:60, above it. That
+     asymmetry is measurable, not a matter of taste: the ring's true #e8472f
+     (232,71,47) was landing on screen as (162,52,35) — exactly
+     0.68*color + 0.32*#0c0504 — while the window frame rendered at full 255.
+
+     The veil hard-caps anything beneath it at red 177 (= 0.68*255 + 0.32*12),
+     so NO amount of glow tuning could ever reach the window frame's 255. Every
+     previous attempt to brighten this frame was fighting an unwinnable fight;
+     the halo values below were only fixable once this line existed.
+
+     3 is the minimum that clears the room: still below the panes (z:5), the
+     composer ring (z:6), the overlay/dialog layers (z:40) and the window frame
+     (z:60), so nothing that used to paint over a sidebar stops doing so. Near-
+     black panel interiors and body text are visually unchanged by this (a 32%
+     veil over near-black is still near-black — verified by A/B screenshot);
+     only the bright frame pixels were being clamped. */
+  z-index: 3;
   /* The panel rect itself no longer paints — the glass fill lives inside the
      ring (see below), so the strip between the frame and the panel edge shows
      the bare environment, and the bloom silhouette hugs the frame instead of
@@ -812,9 +954,12 @@
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::before,
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::before {
   /* The dim projection needs a slightly wider physical stroke than the hot
-     primary ring to retain equal apparent weight at its lower luminance. */
-  --holo-frame-stroke: 3px;
-  --holo-frame-chamfer-inset: 1.5px;
+     primary ring to retain equal apparent weight at its lower luminance —
+     +0.5px over the ring, the same ratio the cards' echo uses (2px over their
+     1.5px ring), so panel and card echoes read alike too. */
+  --holo-frame-stroke: 2px;
+  /* Same 45° compensation as the main ring — see the note at its definition. */
+  --holo-frame-chamfer-inset: calc(var(--holo-frame-stroke) * -0.4142);
   z-index: -1;
   transform: translate(var(--holo-ex), var(--holo-ey));
   background: linear-gradient(
@@ -901,12 +1046,11 @@
   pointer-events: none;
   background-repeat: no-repeat;
   /* The 2px source stays hidden under the crisp ring while its shadows
-     create the broad, light halo. Because only edge strips have alpha, the
-     filter follows both chamfer diagonals instead of sampling the panel box. */
-  filter:
-    drop-shadow(0 0 var(--holo-frame-halo-hot))
-    drop-shadow(0 0 var(--holo-frame-halo-1))
-    drop-shadow(0 0 var(--holo-frame-halo-2));
+     create the broad, light halo. Because only edge strips have alpha (six of
+     them — four edges plus the two chamfer diagonals), the filter follows the
+     cut silhouette instead of sampling the panel box, so the full window-frame
+     stack can run here WITHOUT rounding the chamfers back into a rectangle. */
+  filter: var(--holo-frame-halo-stack);
   opacity: 1;
 }
 
@@ -1200,7 +1344,13 @@
 :root[data-hermes-theme='holo'] [data-slot='model-hud'] {
   --holo-chamfer: 12px;
   --holo-hud-stroke: 1.5px;
-  --holo-hud-chamfer-inset: 0.75px;
+  /* Same 45° compensation as the panel ring — see the note at
+     --holo-frame-chamfer-inset. The cards are where the old stroke/2 value hurt
+     most: 1.5/(2√2) = 0.53px is sub-pixel, so their cuts rendered as dots. */
+  --holo-hud-chamfer-inset: calc(var(--holo-hud-stroke) * -0.4142);
+  /* In lock-step with the panels' --holo-frame-glow-stroke and the lera-hud
+     copy — the three must stay equal or the sidebar stops reading as one
+     system. Not the knob for "less glow" (see that note); halo radii are. */
   --holo-hud-glow-stroke: 1.5px;
   --holo-hud-glow-half: 0.75px;
   /* The card is much smaller than the sidebar panels, so the inherited
@@ -1293,7 +1443,8 @@
   /* Compensate for the echo's lower luminance with a real half-pixel increase,
      rather than trying to fake thickness through opacity alone. */
   --holo-hud-stroke: 2px;
-  --holo-hud-chamfer-inset: 1px;
+  /* Same 45° compensation — see the note at --holo-frame-chamfer-inset. */
+  --holo-hud-chamfer-inset: calc(var(--holo-hud-stroke) * -0.4142);
   z-index: -1;
   transform: translate(var(--holo-ex), var(--holo-ey));
   background: linear-gradient(
@@ -1378,13 +1529,9 @@
     left top,
     right top,
     left bottom;
-  /* Reuse the panel's line bloom so card chamfers keep the same thin
-     filament and soft silhouette-following halo. */
-  filter:
-    drop-shadow(0 0 var(--holo-frame-halo-hot))
-    drop-shadow(0 0 var(--holo-frame-halo-1))
-    drop-shadow(0 0 var(--holo-frame-halo-2))
-    drop-shadow(0 0 var(--holo-frame-halo-3));
+  /* The one shared bloom chain — same as the lera-hud cards and the panel
+     frames above, so the whole sidebar column carries one identical edge. */
+  filter: var(--holo-frame-halo-stack);
   opacity: 1;
 }
 

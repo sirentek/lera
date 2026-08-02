@@ -18,7 +18,18 @@
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] {
   --holo-chamfer: 12px;
   --holo-hud-stroke: 1.5px;
-  --holo-hud-chamfer-inset: 0.75px;
+  /* 45° chamfer width compensation — MUST stay in sync with holo.css, where the
+     full derivation lives at --holo-frame-chamfer-inset. Short version: the
+     hollow ring's inner polygon is offset perpendicular on the straight edges
+     (band = stroke) but not on the diagonals, where the band works out to
+     |inset - stroke| / √2. The old stroke/2 value gave 0.53px here — sub-pixel,
+     so these cards' chamfers rendered as a dotted line and the corners read as
+     square. inset = stroke x (1 - √2) makes the diagonal exactly stroke-wide. */
+  --holo-hud-chamfer-inset: calc(var(--holo-hud-stroke) * -0.4142);
+  /* In lock-step with holo.css's --holo-frame-glow-stroke (panels) and
+     --holo-hud-glow-stroke (context/model cards). All three must stay equal —
+     this hand-synced copy is the one that gets forgotten. Do not trim these to
+     cut the glow; that only thins the filament. Halo radii control the spill. */
   --holo-hud-glow-stroke: 1.5px;
   --holo-hud-glow-half: 0.75px;
   /* Card-scale echo offset (half the panel scale) — see the context-hud
@@ -96,7 +107,8 @@
   /* The secondary projection is physically wider so it does not collapse to
      a hairline at its deliberately lower brightness. */
   --holo-hud-stroke: 2px;
-  --holo-hud-chamfer-inset: 1px;
+  /* Same 45° compensation as the main ring above. */
+  --holo-hud-chamfer-inset: calc(var(--holo-hud-stroke) * -0.4142);
   z-index: -1;
   transform: translate(var(--holo-ex), var(--holo-ey));
   background: linear-gradient(
@@ -173,11 +185,11 @@
     left top,
     right top,
     left bottom;
-  filter:
-    drop-shadow(0 0 var(--holo-frame-halo-hot))
-    drop-shadow(0 0 var(--holo-frame-halo-1))
-    drop-shadow(0 0 var(--holo-frame-halo-2))
-    drop-shadow(0 0 var(--holo-frame-halo-3));
+  /* Was this same chain written out by hand; now the shared definition from
+     holo.css, which the panel frames and CONTEXT LOAD / MODEL also use — one
+     edge for the whole sidebar column. Do not inline the steps again; that is
+     how these three cards drifted apart from the other two. */
+  filter: var(--holo-frame-halo-stack);
   opacity: 1;
 }
 
