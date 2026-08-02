@@ -17,8 +17,8 @@
 
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] {
   --holo-chamfer: 12px;
-  /* Equal to the panels' --holo-frame-stroke (-20% together, 1.5px -> 1.2px). */
-  --holo-hud-stroke: 1.2px;
+  /* Equal to the panels' --holo-frame-stroke — 1.5 -> 1.2 -> 1px together. */
+  --holo-hud-stroke: 1px;
   /* 45° chamfer width compensation — MUST stay in sync with holo.css, where the
      full derivation lives at --holo-frame-chamfer-inset. Short version: the
      hollow ring's inner polygon is offset perpendicular on the straight edges
@@ -32,8 +32,8 @@
      this hand-synced copy is the one that gets forgotten. Do not trim these to
      cut the glow; that only thins the filament. Halo radii control the spill.
      They do track --holo-hud-stroke, so the source stays under the ring. */
-  --holo-hud-glow-stroke: 1.2px;
-  --holo-hud-glow-half: 0.6px;
+  --holo-hud-glow-stroke: 1px;
+  --holo-hud-glow-half: 0.5px;
   /* Card-scale echo offset (half the panel scale) — see the context-hud
      rationale in holo.css. The x sign flips with the panel's side below. */
   --holo-ex: -8px;
@@ -109,7 +109,7 @@
   /* The secondary projection is physically wider so it does not collapse to
      a hairline at its deliberately lower brightness — same +0.4px over the
      ring as the panel and context/model echoes. */
-  --holo-hud-stroke: 1.6px;
+  --holo-hud-stroke: 1.4px;
   /* Same 45° compensation as the main ring above. */
   --holo-hud-chamfer-inset: calc(var(--holo-hud-stroke) * -0.4142);
   z-index: -1;

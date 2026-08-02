@@ -664,10 +664,13 @@
      stay wider than the ring or its lit edge shows past the filament and the
      line reads thick again. Halo radii were deliberately NOT touched, so the
      glow reaches exactly as far as before; only the drawn line got thinner.
-     Floor: at 1x DPI a 1.2px band is already sub-pixel and antialiases; below
-     ~1px the ring starts to break up and the chamfer diagonals dot (see the
-     chamfer-inset note below for how that failure looks). */
-  --holo-frame-stroke: 1.2px;
+     Then 1.2px -> 1px, again on request. THIS IS THE FLOOR at 1x DPI: one
+     device pixel. Below it the ring stops covering a whole pixel row, the
+     filament breaks up under the scanline overlay and the chamfer diagonals
+     dot (see the chamfer-inset note below for exactly how that failure looks).
+     If a thinner edge is ever wanted, it has to come from the ring COLOUR, not
+     from this width. */
+  --holo-frame-stroke: 1px;
   /* CHAMFER WIDTH COMPENSATION — the reason the cuts kept reading as broken.
      The hollow evenodd ring is an outer polygon minus an inner one offset by
      the stroke. On the STRAIGHT edges that offset is perpendicular, so the band
@@ -704,9 +707,9 @@
      SPILL is a radius job — see --holo-frame-halo-* below.
      It DOES have to follow --holo-frame-stroke down, though: the ring covers
      this strip, so a source wider than the ring paints a lit fringe outside the
-     filament. Kept flush at 1.2px. */
-  --holo-frame-glow-stroke: 1.2px;
-  --holo-frame-glow-half: 0.6px;
+     filament. Kept flush at 1px. */
+  --holo-frame-glow-stroke: 1px;
+  --holo-frame-glow-half: 0.5px;
   /* The bloom source is the same light coral as the outer window filament;
      otherwise this overlay visually darkens the shared border gradient. */
   --holo-frame-glow-line: var(--holo-frame-coral);
@@ -779,11 +782,15 @@
      66 at +8px). Cutting alpha or --holo-frame-glow-stroke instead dims the
      line itself and leaves the reach untouched — the wrong axis, twice proven.
      Floor warning: the last radius is now well inside the chamfer notch, so
-     going further stops buying chamfer definition and just starves the neon. */
-  --holo-frame-halo-hot: 1px rgba(255, 142, 112, 1);
-  --holo-frame-halo-1: 2px rgba(255, 122, 96, 1);
-  --holo-frame-halo-2: 2px rgba(255, 108, 85, 1);
-  --holo-frame-halo-3: 3px rgba(255, 96, 75, 0.95);
+     going further stops buying chamfer definition and just starves the neon.
+     Last move was the other way: every radius x1.25 (1/2/2/3 -> 1.25/2.5/2.5/
+     3.75) to widen the lit band back out after the ring was thinned to 1px.
+     Alphas untouched — this buys reach, not brightness. Still under the ~11px
+     notch depth, so the chamfers keep reading. */
+  --holo-frame-halo-hot: 1.25px rgba(255, 142, 112, 1);
+  --holo-frame-halo-1: 2.5px rgba(255, 122, 96, 1);
+  --holo-frame-halo-2: 2.5px rgba(255, 108, 85, 1);
+  --holo-frame-halo-3: 3.75px rgba(255, 96, 75, 0.95);
   /* ONE chain for every holo frame in the sidebars — both panel rings and all
      five HUD cards (FIRECRAWL / CONTEXT LOAD / MODEL / CODEX ANALYTICS /
      CLAUDE PLAN USAGE, across this file and lera-hud.css). It has drifted twice
@@ -966,9 +973,9 @@
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::before {
   /* The dim projection needs a slightly wider physical stroke than the hot
      primary ring to retain equal apparent weight at its lower luminance —
-     +0.4px over the ring, the same ratio the cards' echo uses (1.6px over their
-     1.2px ring), so panel and card echoes read alike too. */
-  --holo-frame-stroke: 1.6px;
+     +0.4px over the ring, the same ratio the cards' echo uses (1.4px over their
+     1px ring), so panel and card echoes read alike too. */
+  --holo-frame-stroke: 1.4px;
   /* Same 45° compensation as the main ring — see the note at its definition. */
   --holo-frame-chamfer-inset: calc(var(--holo-frame-stroke) * -0.4142);
   z-index: -1;
@@ -1354,8 +1361,8 @@
 :root[data-hermes-theme='holo'] [data-slot='context-hud'],
 :root[data-hermes-theme='holo'] [data-slot='model-hud'] {
   --holo-chamfer: 12px;
-  /* Equal to the panels' --holo-frame-stroke (-20% together, 1.5px -> 1.2px). */
-  --holo-hud-stroke: 1.2px;
+  /* Equal to the panels' --holo-frame-stroke — 1.5 -> 1.2 -> 1px together. */
+  --holo-hud-stroke: 1px;
   /* Same 45° compensation as the panel ring — see the note at
      --holo-frame-chamfer-inset. The cards are where the old stroke/2 value hurt
      most: 1.5/(2√2) = 0.53px is sub-pixel, so their cuts rendered as dots. */
@@ -1364,8 +1371,8 @@
      copy — the three must stay equal or the sidebar stops reading as one
      system. Not the knob for "less glow" (see that note); halo radii are. It
      tracks the ring width so the source stays hidden under the filament. */
-  --holo-hud-glow-stroke: 1.2px;
-  --holo-hud-glow-half: 0.6px;
+  --holo-hud-glow-stroke: 1px;
+  --holo-hud-glow-half: 0.5px;
   /* The card is much smaller than the sidebar panels, so the inherited
      panel-scale echo offset reads as a blurry double edge along the ring
      rather than a subtle depth cue — halve it to suit the card. The x sign
@@ -1456,7 +1463,7 @@
   /* Compensate for the echo's lower luminance with a real sub-pixel increase,
      rather than trying to fake thickness through opacity alone. Same +0.4px
      over the ring as the panel echo. */
-  --holo-hud-stroke: 1.6px;
+  --holo-hud-stroke: 1.4px;
   /* Same 45° compensation — see the note at --holo-frame-chamfer-inset. */
   --holo-hud-chamfer-inset: calc(var(--holo-hud-stroke) * -0.4142);
   z-index: -1;
