@@ -3,11 +3,12 @@ import { Codecs, persistentAtom } from '@/lib/persisted'
 const STATUSBAR_HIDDEN_STORAGE_KEY = 'hermes.desktop.statusbarHidden'
 const STATUSBAR_VISIBLE_STORAGE_KEY = 'hermes.desktop.statusbarVisible'
 
-// Whole-bar visibility, VS Code's `workbench.statusBar.visible`. Off by default
-// — the bar is opt-in. Hiding it unmounts the bar (its 15s status poll goes with
-// it), so the way back is the `view.toggleStatusbar` keybind or the ⌘K row,
-// never the bar itself.
-export const $statusbarVisible = persistentAtom(STATUSBAR_VISIBLE_STORAGE_KEY, false, Codecs.bool)
+// Whole-bar visibility, VS Code's `workbench.statusBar.visible`. LERA FORK: on
+// by default — upstream 0.20.0 flipped this to opt-in, which silently removed
+// the bottom bar for everyone upgrading from 0.19. Hiding it unmounts the bar
+// (its 15s status poll goes with it), so the way back is the
+// `view.toggleStatusbar` keybind or the ⌘K row, never the bar itself.
+export const $statusbarVisible = persistentAtom(STATUSBAR_VISIBLE_STORAGE_KEY, true, Codecs.bool)
 
 export function toggleStatusbarVisible() {
   $statusbarVisible.set(!$statusbarVisible.get())
