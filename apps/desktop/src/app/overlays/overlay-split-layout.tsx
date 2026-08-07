@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, memo, type ReactNode } from 'react'
 
 import { TabDropdown } from '@/components/ui/tab-dropdown'
 import type { IconComponent } from '@/lib/icons'
@@ -101,7 +101,14 @@ export function OverlayMain({ children, className }: OverlayMainProps) {
   )
 }
 
-export function OverlayNavItem({ active, icon: Icon, label, nested, onClick, trailing }: OverlayNavItemProps) {
+export const OverlayNavItem = memo(function OverlayNavItem({
+  active,
+  icon: Icon,
+  label,
+  nested,
+  onClick,
+  trailing
+}: OverlayNavItemProps) {
   return (
     <button
       className={cn(
@@ -128,7 +135,7 @@ export function OverlayNavItem({ active, icon: Icon, label, nested, onClick, tra
       {trailing}
     </button>
   )
-}
+})
 
 export interface OverlayNavLink {
   active: boolean

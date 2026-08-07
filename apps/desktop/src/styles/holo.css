@@ -2211,6 +2211,9 @@
 
 :root[data-hermes-theme='holo'] [data-slot='contrib-titlebar'] {
   border-bottom-color: transparent !important;
+  /* 0.20.0 gave the contrib titlebar the sidebar surface fill; opaque here it
+     would sit on top of the room backdrop, so clear it like contrib-shell. */
+  background-color: transparent !important;
 }
 
 :root[data-hermes-theme='holo'] [data-tree-group] {

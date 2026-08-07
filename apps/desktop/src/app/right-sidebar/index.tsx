@@ -12,7 +12,7 @@ import { normalizeOrLocalPreviewTarget } from '@/lib/local-preview'
 import { cn } from '@/lib/utils'
 import { $panesFlipped } from '@/store/layout'
 import { notifyError } from '@/store/notifications'
-import { setCurrentSessionPreviewTarget } from '@/store/preview'
+import { openPreview } from '@/store/preview'
 import { openProjectCreate } from '@/store/projects'
 import { $currentCwd } from '@/store/session'
 
@@ -70,7 +70,7 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSide
         throw new Error(r.couldNotPreview(path))
       }
 
-      setCurrentSessionPreviewTarget(preview, 'file-browser', path)
+      openPreview(preview, 'file-browser')
     } catch (error) {
       notifyError(error, r.previewUnavailable)
     }
