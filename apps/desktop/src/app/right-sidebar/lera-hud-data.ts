@@ -89,8 +89,19 @@ const INITIAL_RETRY_MS = 5_000
  * Poll a lera-hud plugin endpoint; keeps the last good payload across
  * transient failures (a HUD flashing to zero on one bad poll reads as an
  * outage). `enabled` gates the whole loop so non-holo skins never poll.
+ *
+ * `reloadToken` is a manual-refresh counter: bump it (CLAUDE card, on click)
+ * to tear the timer down and poll immediately with `?force=1` — which makes
+ * the plugin bypass its own TTL cache, so the numbers really move instead of
+ * replaying the cached payload — then resume the normal cached cadence from
+ * that moment. Omit it for cards that only ever poll on their interval.
  */
-export function useLeraHudPoll<T extends { ok: boolean }>(path: string, intervalMs: number, enabled: boolean) {
+export function useLeraHudPoll<T extends { ok: boolean }>(
+  path: string,
+  intervalMs: number,
+  enabled: boolean,
+  reloadToken = 0
+) {
   const [data, setData] = useState<T | null>(null)
 
   useEffect(() => {
@@ -101,10 +112,19 @@ export function useLeraHudPoll<T extends { ok: boolean }>(path: string, interval
     let disposed = false
     let hasSuccessfulPayload = false
     let timer: number | undefined
+    // Only the first request of a manually-triggered run carries ?force=1,
+    // which makes the plugin skip its TTL cache and actually re-fetch upstream.
+    // Every scheduled poll after it goes back through the cache, so several
+    // open windows still can't hammer the API.
+    let force = reloadToken > 0
 
     const poll = async () => {
+      const requestPath = force ? `${path}${path.includes('?') ? '&' : '?'}force=1` : path
+
+      force = false
+
       try {
-        const result = await window.hermesDesktop.api<T>({ path, timeoutMs: REQUEST_TIMEOUT_MS })
+        const result = await window.hermesDesktop.api<T>({ path: requestPath, timeoutMs: REQUEST_TIMEOUT_MS })
 
         if (!disposed && result?.ok) {
           hasSuccessfulPayload = true
@@ -133,7 +153,7 @@ export function useLeraHudPoll<T extends { ok: boolean }>(path: string, interval
         window.clearTimeout(timer)
       }
     }
-  }, [path, intervalMs, enabled])
+  }, [path, intervalMs, enabled, reloadToken])
 
   return data
 }
@@ -175,10 +195,7 @@ export function remainingWindowPercent(resetAt: string | null | undefined, windo
  * window rounded to. Null when either stamp is absent/invalid or the period
  * has zero/negative length.
  */
-export function elapsedPeriodPercent(
-  start: string | null | undefined,
-  end: string | null | undefined
-): number | null {
+export function elapsedPeriodPercent(start: string | null | undefined, end: string | null | undefined): number | null {
   if (!start || !end) {
     return null
   }

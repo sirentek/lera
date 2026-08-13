@@ -466,3 +466,315 @@
   line-height: 1.35;
   text-align: center;
 }
+
+/* ══ click-to-refresh sweep (all three Lera HUD cards) ═════════════════════
+ *
+ * These cards are buttons: clicking one forces an immediate, cache-bypassing
+ * re-poll (useHudManualRefresh bumps the poll hook's reloadToken) and sets
+ * data-refreshing='true' for a fixed ~1.6s beat. EVERYTHING below hangs off that
+ * one attribute — no JS animation, no per-frame React state — so the whole
+ * effect is inert when the cards are idle. The gauge-row selectors carry all
+ * three body shapes: .hud-trio (CLAUDE), .hud-duo (CODEX), .hud-row
+ * (FIRECRAWL's gauge + credit rows).
+ *
+ * Three layers, all in the holo palette (cream core -> hot red):
+ *   1. the .hud-scan group inside each gauge ring (markup in lera-hud-gauge.tsx)
+ *   2. a scan-line sweeping down the gauge row
+ *   3. glitch-flicker on the labels/stamps, which React is scrambling through
+ *      random glyphs at the same time (useScrambledText)
+ */
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] {
+  cursor: pointer;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud']:focus-visible {
+  outline: 1px solid rgba(255, 217, 207, 0.8);
+  outline-offset: 2px;
+}
+
+/* Idle: the scan group ships in every gauge's SVG but is invisible and
+   un-animated until the card asks for it. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-scan {
+  opacity: 0;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-scan > * {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-scan {
+  opacity: 1;
+}
+
+/* Pull the settled usage arc back so the spinning arcs read as the live layer
+   — the ring looks like it is re-acquiring its value, not stacking two arcs. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-val {
+  opacity: 0.4;
+  transition: opacity 0.25s linear;
+}
+
+/* Outer arc: long segment riding the ring itself, clockwise. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-scan-arc {
+  stroke: #ffd9cf;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-scan-arc {
+  animation: lera-hud-scan-spin 1.05s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(255, 190, 170, 0.95)) drop-shadow(0 0 9px rgba(232, 71, 47, 0.8));
+}
+
+/* Inner arc: shorter, dimmer, counter-rotating — the contra-spin is what sells
+   "instrument working" rather than "spinner". */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-scan-arc-inner {
+  stroke: #ff7b6f;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-scan-arc-inner {
+  animation: lera-hud-scan-spin-reverse 1.5s linear infinite;
+  filter: drop-shadow(0 0 5px rgba(255, 123, 111, 0.85));
+}
+
+/* Dashed tick ring hugging the center numbers, slow clockwise crawl. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-scan-ticks {
+  stroke: rgba(255, 178, 159, 0.75);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-scan-ticks {
+  animation:
+    lera-hud-scan-spin 3.2s linear infinite,
+    lera-hud-scan-fade 0.8s ease-in-out infinite;
+}
+
+/* Radar ping: expands from the middle out to the ring, once per beat. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-scan-ping {
+  stroke: rgba(255, 217, 207, 0.9);
+  opacity: 0;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-scan-ping {
+  animation: lera-hud-scan-ping 1.1s cubic-bezier(0.15, 0.6, 0.3, 1) infinite;
+}
+
+@keyframes lera-hud-scan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lera-hud-scan-spin-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes lera-hud-scan-fade {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes lera-hud-scan-ping {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.25);
+  }
+
+  70% {
+    opacity: 0.12;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+/* Scan-line running down the gauge row — .hud-trio on CLAUDE, .hud-duo on
+   CODEX, .hud-row on FIRECRAWL. The row is the only free positioned box on
+   these cards (both card pseudos are the rings, both header pseudos are the
+   glass fill + line bloom), so the sweep lives there. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] :is(.hud-trio, .hud-duo, .hud-row) {
+  position: relative;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] :is(.hud-trio, .hud-duo, .hud-row)::after {
+  content: '';
+  position: absolute;
+  inset: -0.25rem;
+  z-index: 31;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: 100% 34%;
+  background-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 160, 140, 0.14) 42%,
+    rgba(255, 217, 207, 0.42) 50%,
+    rgba(255, 160, 140, 0.14) 58%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  animation: lera-hud-sweep 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes lera-hud-sweep {
+  from {
+    background-position: 50% -60%;
+  }
+
+  to {
+    background-position: 50% 160%;
+  }
+}
+
+/* Readouts re-acquiring their signal: hard-cut flicker in the bright core
+   color, staggered a beat per column so the three gauges resolve left to
+   right instead of blinking in unison. React scrambles the glyphs underneath. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-duo-label,
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-duo-reset,
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-pct-stack {
+  color: #ffd9cf;
+  text-shadow: 0 0 9px rgba(255, 160, 140, 0.95);
+  animation: lera-hud-text-glitch 0.44s steps(1, end) infinite;
+}
+
+:root[data-hermes-theme='holo']
+  [data-slot='lera-hud'][data-refreshing='true']
+  .hud-trio
+  .hud-duo-col:nth-child(2)
+  :is(.hud-duo-label, .hud-duo-reset, .hud-pct-stack) {
+  animation-delay: 0.14s;
+}
+
+:root[data-hermes-theme='holo']
+  [data-slot='lera-hud'][data-refreshing='true']
+  .hud-trio
+  .hud-duo-col:nth-child(3)
+  :is(.hud-duo-label, .hud-duo-reset, .hud-pct-stack) {
+  animation-delay: 0.28s;
+}
+
+/* FIRECRAWL's body is a kv list, not gauge columns: the whole row flickers as
+   one unit (label + value together, so a row stays readable as a row) and the
+   four rows resolve top to bottom. The values are what React is scrambling. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-kvs > div {
+  animation: lera-hud-text-glitch 0.44s steps(1, end) infinite;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-kvs :is(span, b) {
+  color: #ffd9cf;
+  text-shadow: 0 0 9px rgba(255, 160, 140, 0.95);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-kvs > div:nth-child(2) {
+  animation-delay: 0.09s;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-kvs > div:nth-child(3) {
+  animation-delay: 0.18s;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-kvs > div:nth-child(4) {
+  animation-delay: 0.27s;
+}
+
+@keyframes lera-hud-text-glitch {
+  0% {
+    opacity: 0.3;
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  44% {
+    opacity: 0.55;
+  }
+
+  62% {
+    opacity: 1;
+  }
+
+  81% {
+    opacity: 0.38;
+  }
+
+  100% {
+    opacity: 0.95;
+  }
+}
+
+/* REFRESHING.. — takes the header's plan-tag slot for the duration, in the
+   bright core color (the idle tag is deliberately dim) with its three dots
+   arriving in sequence. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] > header small.hud-refresh-tag {
+  color: #ffd9cf;
+  text-shadow: 0 0 10px rgba(255, 123, 111, 0.9);
+  animation: lera-hud-tag-pulse 1.1s ease-in-out infinite;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-refresh-dot {
+  animation: lera-hud-dot-blink 0.9s steps(1, end) infinite;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-refresh-dot:nth-of-type(2) {
+  animation-delay: 0.3s;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-refresh-dot:nth-of-type(3) {
+  animation-delay: 0.6s;
+}
+
+@keyframes lera-hud-tag-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes lera-hud-dot-blink {
+  0% {
+    opacity: 0.15;
+  }
+
+  40%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Motion-sensitive users still get the state change (bright scan ring, bright
+   readouts, REFRESHING tag) — just none of the spinning or flickering. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-hermes-theme='holo'] [data-slot='lera-hud'] :is(.hud-scan > *, .hud-refresh-dot),
+  :root[data-hermes-theme='holo']
+    [data-slot='lera-hud'][data-refreshing='true']
+    :is(.hud-duo-label, .hud-duo-reset, .hud-pct-stack, .hud-kvs > div, header small.hud-refresh-tag) {
+    animation: none;
+  }
+
+  /* The sweep needs its own rule: :is() is a FORGIVING list, so a
+     ::after argument is silently dropped and would leave the scan-line
+     animating here. Hidden outright — a static band reads as a rendering bug. */
+  :root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-trio::after,
+  :root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-duo::after,
+  :root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-row::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  :root[data-hermes-theme='holo'] [data-slot='lera-hud'][data-refreshing='true'] .hud-scan-ping {
+    opacity: 0;
+  }
+}
