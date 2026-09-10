@@ -351,6 +351,13 @@
   min-width: 0;
 }
 
+/* Two columns, so give each half the row and let the ring center itself in
+   its half — the CODEX pair then sits at the same even rhythm the CLAUDE card's
+   three columns do, instead of hugging the middle. */
+:root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-duo .hud-duo-col {
+  flex: 1;
+}
+
 /* Gauge-column labels (WEEKLY / SECONDARY / SESSION / FABLE) read as LABELS,
    so they use the same dim label red as the FIRECRAWL kv labels (.hud-kvs
    span, #c9705d) rather than the bright value color. */
