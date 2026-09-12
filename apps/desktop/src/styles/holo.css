@@ -971,6 +971,36 @@
   transform-origin: left center;
 }
 
+/* CODEX / CLAUDE live outside the Sessions aside so they remain visible on the
+   BOTS tab. Rotate their common body stack once, as the pre-zone layout did,
+   rather than giving the tall panel and short card dock separate perspective
+   origins. One plane keeps every horizontal frame edge at the same projection
+   and makes the two sides read as a matched pair. The right-hand magnitude is
+   5deg to mirror the left sidebar's -5deg instead of the old 4deg drift. */
+:root[data-hermes-theme='holo'] [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud']) {
+  --holo-tilt: 5deg;
+  /* transform creates a new stacking context. Keep that entire context above
+     the room veil, just like the left sidebar root; otherwise descendants'
+     own z-index values are trapped below the background overlay. */
+  z-index: 3;
+  transform: perspective(1600px) rotateY(var(--holo-tilt));
+  transform-origin: left center;
+}
+
+:root[data-hermes-theme='holo']
+  [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'][data-flipped]) {
+  --holo-tilt: -5deg;
+  transform-origin: right center;
+}
+
+/* The shared stack owns the transform; its two children only supply content
+   and frame variables. A nested rotation would reintroduce separate planes. */
+:root[data-hermes-theme='holo']
+  [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  :is([data-slot='sidebar'], [data-slot='bots-panel'], [data-slot='lera-zone-hud']) {
+  transform: none;
+}
+
 /* ── Bots pane: the same panel frame the Sessions pane wears ────────────────
    SESSIONS and BOTS are two tabs of one PaneShell zone, so the Bots pane is
    NOT inside [data-slot='sidebar'] — it is its own absolute layer and misses

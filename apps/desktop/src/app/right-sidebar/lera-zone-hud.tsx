@@ -7,10 +7,10 @@
 // scramble state) on screen under either tab.
 //
 // The cards used to live inside [data-slot='sidebar'], which paid for their
-// gutter (SidebarContent's px-2.5), their stacking order and their wall-mount
-// tilt. Out here nobody does, so the [data-slot='lera-zone-hud'] block in
-// lera-hud.css re-pays all three — the tilt sign follows the same side flip the
-// aside's .border-l/.border-r rules encode.
+// gutter and stacking order. The surrounding pane-body-stack now supplies one
+// shared wall-mount transform to both the pane and these cards; applying a
+// second local transform here would put the frames on different perspective
+// planes.
 import { useStore } from '@nanostores/react'
 
 import { $panesFlipped } from '@/store/layout'

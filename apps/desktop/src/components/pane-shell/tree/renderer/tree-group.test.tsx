@@ -80,6 +80,7 @@ describe('TreeGroup', () => {
     const header = zone.querySelector<HTMLElement>('[data-panel-header]')!
     expect(strip.closest('[data-tree-group]')).toBe(zone)
     expect(header.contains(strip)).toBe(true)
+    expect(zone.querySelector('[data-slot="pane-body-stack"] [data-pane-id="terminal"]')).not.toBeNull()
     expect(zone.querySelectorAll('[data-window-drag-handle]').length).toBeGreaterThan(0)
     act(() => $treeDragging.set('terminal'))
     expect(strip.style).toHaveProperty('WebkitAppRegion', 'no-drag')
