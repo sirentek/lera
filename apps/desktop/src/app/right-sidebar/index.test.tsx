@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { HermesReadDirResult } from '@/global'
 import { $projectDialog, closeProjectDialog } from '@/store/projects'
-import { $connection, setCurrentCwd } from '@/store/session'
+import { $connection, $selectedStoredSessionId, $workspaceCwdOwner, setCurrentCwd } from '@/store/session'
 
 import { resetProjectTreeState } from './files/use-project-tree'
 
@@ -18,6 +18,8 @@ function installBridge() {
 describe('RightSidebarPane', () => {
   beforeEach(() => {
     $connection.set(null)
+    $selectedStoredSessionId.set(null)
+    $workspaceCwdOwner.set(null)
     resetProjectTreeState()
     readDir.mockReset()
     readDir.mockResolvedValue({ entries: [{ isDirectory: false, name: 'README.md', path: '/repo/README.md' }] })
@@ -27,6 +29,8 @@ describe('RightSidebarPane', () => {
   afterEach(() => {
     cleanup()
     $connection.set(null)
+    $selectedStoredSessionId.set(null)
+    $workspaceCwdOwner.set(null)
     setCurrentCwd('')
     resetProjectTreeState()
     closeProjectDialog()
@@ -46,6 +50,17 @@ describe('RightSidebarPane', () => {
 
     // The freeform folder picker is retired.
     expect(screen.queryByRole('button', { name: 'Open folder' })).toBeNull()
+  })
+
+  it('does not read a retained cwd while it belongs to a previous session', async () => {
+    $selectedStoredSessionId.set('new-session')
+    $workspaceCwdOwner.set('previous-session')
+    setCurrentCwd('/home/doug/default-profile-workspace')
+
+    render(<RightSidebarPane onActivateFile={vi.fn()} onActivateFolder={vi.fn()} />)
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Refresh tree' })).toBeNull())
+    expect(readDir).not.toHaveBeenCalled()
   })
 
   it('shows no tree for a detached chat (no working dir)', async () => {
