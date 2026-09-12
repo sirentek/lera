@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { atom } from 'nanostores'
 import { createRef } from 'react'
 import { MemoryRouter } from 'react-router'
@@ -9,6 +9,7 @@ const getHermesConfigRecord = vi.fn()
 const getHermesConfigSchema = vi.fn()
 const saveHermesConfig = vi.fn()
 const getElevenLabsVoices = vi.fn()
+let onProfileSwitch: (() => void) | undefined
 
 vi.mock('@/hermes', () => ({
   getHermesConfigRecord: () => getHermesConfigRecord(),
@@ -19,7 +20,13 @@ vi.mock('@/hermes', () => ({
 }))
 
 vi.mock('../hooks/use-on-profile-switch', () => ({
-  useOnProfileSwitch: () => {}
+  useOnProfileSwitch: (callback: () => void) => {
+    onProfileSwitch = callback
+  }
+}))
+
+vi.mock('./model-settings', () => ({
+  ModelSettings: () => <div data-testid="model-settings">Model settings</div>
 }))
 
 // The real stores pull in the gateway/profile stack, which needs a live
@@ -37,6 +44,7 @@ vi.mock('@/store/projects', () => ({
 }))
 
 beforeEach(() => {
+  onProfileSwitch = undefined
   getElevenLabsVoices.mockResolvedValue({ available: false })
   getHermesConfigSchema.mockResolvedValue({ fields: {} })
   saveHermesConfig.mockResolvedValue({ ok: true })
@@ -47,20 +55,20 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-async function renderConfigSettings() {
+async function renderConfigSettings(activeSectionId = 'safety') {
   const { ConfigSettings } = await import('./config-settings')
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const importInputRef = createRef<HTMLInputElement>()
 
-  render(
+  const view = render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
-        <ConfigSettings activeSectionId="safety" importInputRef={importInputRef} />
+        <ConfigSettings activeSectionId={activeSectionId} importInputRef={importInputRef} />
       </QueryClientProvider>
     </MemoryRouter>
   )
 
-  return { importInputRef }
+  return { importInputRef, ...view }
 }
 
 describe('ConfigSettings autosave', () => {
@@ -94,5 +102,74 @@ describe('ConfigSettings autosave', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('ConfigSettings loading', () => {
+  it('renders the model panel without waiting for the generic config schema', async () => {
+    let resolveSchema!: (value: { fields: Record<string, never> }) => void
+
+    getHermesConfigRecord.mockResolvedValue({})
+    getHermesConfigSchema.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          resolveSchema = resolve
+        })
+    )
+
+    const { container } = await renderConfigSettings('model')
+
+    expect(await screen.findByTestId('model-settings')).toBeTruthy()
+    expect(container.querySelector('[data-slot="settings-skeleton"]')).toBeNull()
+
+    resolveSchema({ fields: {} })
+  })
+
+  it('renders Chat from config without waiting for the schema request', async () => {
+    let resolveSchema!: (value: { fields: Record<string, never> }) => void
+
+    getHermesConfigRecord.mockResolvedValue({
+      agent: { image_input_mode: 'auto' },
+      display: { personality: 'helpful', show_reasoning: true },
+      timezone: ''
+    })
+    getHermesConfigSchema.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          resolveSchema = resolve
+        })
+    )
+
+    const { container } = await renderConfigSettings('chat')
+
+    expect(await screen.findByText('Max preview / image load size')).toBeTruthy()
+    await vi.waitFor(() => expect(container.querySelector('[data-tour="field-display.personality"]')).toBeTruthy())
+    expect(container.querySelector('[data-tour="field-display.show_reasoning"]')).toBeTruthy()
+    expect(container.querySelector('[data-tour="field-agent.image_input_mode"]')).toBeTruthy()
+
+    resolveSchema({ fields: {} })
+  })
+
+  it('re-seeds the draft when a profile refetch returns a structurally identical config', async () => {
+    const record = { checkpoints: { enabled: false } }
+    let resolveRefetch!: (value: typeof record) => void
+
+    getHermesConfigRecord.mockResolvedValue(record)
+
+    await renderConfigSettings('safety')
+    expect(await screen.findByRole('switch')).toBeTruthy()
+
+    getHermesConfigRecord.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          resolveRefetch = resolve
+        })
+    )
+
+    act(() => onProfileSwitch?.())
+    expect(screen.queryByRole('switch')).toBeNull()
+
+    await act(async () => resolveRefetch(record))
+    expect(await screen.findByRole('switch')).toBeTruthy()
   })
 })

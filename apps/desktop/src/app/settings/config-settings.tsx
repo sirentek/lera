@@ -1,7 +1,7 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
 import type { ChangeEvent } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { getElevenLabsVoices, getHermesConfigSchema, saveHermesConfig } from '@/hermes'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
+import { BACKEND_BOOT_WAIT_TIMEOUT_MS, withTimeout } from '@/lib/with-timeout'
 import { confirm } from '@/store/confirm'
 import {
   $dataUrlReadMaxMb,
@@ -44,9 +45,9 @@ import {
 } from './helpers'
 import { MemoryConnect } from './memory/connect'
 import { ProviderConfigPanel } from './memory/provider-config-panel'
-import { ModelSettings, ModelSettingsSkeleton } from './model-settings'
+import { ModelSettings } from './model-settings'
 import { PoolLimitsSetting } from './pool-limits-setting'
-import { EmptyState, ListRow, SettingsContent, SettingsSkeleton, ToggleRow } from './primitives'
+import { EmptyState, ListRow, ListRowSkeleton, SettingsContent, SettingsSkeleton, ToggleRow } from './primitives'
 import { SettingsProfileScope } from './profile-scope'
 import { QuickEntrySettings } from './quick-entry-settings'
 
@@ -101,16 +102,18 @@ function ConfigSettingsInner({
   // following the active profile, suffixed when a scope override is set).
   const writeConfigCache = useMemo(() => hermesConfigCacheWriter(scopeProfile), [scopeProfile])
 
-  const {
-    data: schemaResponse,
-    isError: schemaFailed,
-    refetch: refetchSchema
-  } = useQuery({
+  const { data: schemaResponse, refetch: refetchSchema } = useQuery({
     // Base key when following the active profile (matches every pre-existing
     // consumer); suffixed only for an explicit scope override.
     queryKey:
       scopeProfile == null ? ['hermes-config-schema'] : ['hermes-config-schema', normalizeProfileKey(scopeProfile)],
-    queryFn: () => getHermesConfigSchema(scopeProfile),
+    queryFn: () =>
+      withTimeout(
+        getHermesConfigSchema(scopeProfile),
+        BACKEND_BOOT_WAIT_TIMEOUT_MS,
+        'Settings schema request timed out'
+      ),
+    retry: false,
     staleTime: 5 * 60 * 1000
   })
 
@@ -133,22 +136,29 @@ function ConfigSettingsInner({
   // resolve after a newer one and re-advance the baseline / cache with stale
   // data — each save's diff+request only starts once the previous one lands.
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const profileEpochRef = useRef(0)
 
-  // eslint-disable-next-line no-restricted-syntax -- legitimate non-atom ref write (see eslint rule comment)
+  const seedConfigRecord = useCallback((next: HermesConfigRecord) => {
+    configSeeded.current = true
+    configBaselineRef.current = next
+    savedDiscoverySignatureRef.current = repoDiscoveryPolicySignature(repoDiscoveryPolicyFromConfig(next))
+    setConfig(next)
+  }, [])
+
   useEffect(() => {
     if (loadedConfig && !configSeeded.current) {
-      configSeeded.current = true
-      configBaselineRef.current = loadedConfig
-      savedDiscoverySignatureRef.current = repoDiscoveryPolicySignature(repoDiscoveryPolicyFromConfig(loadedConfig))
-      setConfig(loadedConfig)
+      seedConfigRecord(loadedConfig)
     }
-  }, [loadedConfig])
+  }, [loadedConfig, seedConfigRecord])
 
   // A profile switch invalidates (but doesn't clear) the shared config query, so
   // the local draft would otherwise keep profile A's data and autosave it into
   // B. Drop the seed + draft (re-seeds from B's refetch) and zero saveVersion so
   // the pending debounced autosave is cancelled by its effect cleanup.
   useOnProfileSwitch(() => {
+    const epoch = profileEpochRef.current + 1
+
+    profileEpochRef.current = epoch
     configSeeded.current = false
     configBaselineRef.current = null
     savedDiscoverySignatureRef.current = undefined
@@ -156,6 +166,17 @@ function ConfigSettingsInner({
     saveVersionRef.current = 0
     setSaveVersion(0)
     saveQueueRef.current = Promise.resolve()
+
+    // Profile-scoped queries keep their last value while they refetch. When
+    // the next profile has an identical config, React Query structurally
+    // shares that value and `loadedConfig` never changes identity; the seed
+    // effect above therefore cannot run again. Seed explicitly from this
+    // refetch result so the settings page cannot remain an eternal skeleton.
+    void refetchConfig().then(result => {
+      if (profileEpochRef.current === epoch && result.isSuccess && result.data && !configSeeded.current) {
+        seedConfigRecord(result.data)
+      }
+    })
   })
 
   useEffect(() => {
@@ -266,11 +287,14 @@ function ConfigSettingsInner({
   }
 
   const sectionFields = useMemo(() => {
-    if (!schema || !config) {
+    if (!config) {
       return new Map<string, [string, ConfigFieldSchema][]>()
     }
 
-    return sectionFieldEntries(schema, config)
+    // ConfigField already infers schemas for backend-omitted keys. Apply the
+    // same safe fallback while the full schema request is still in flight so
+    // a healthy config response can paint Chat immediately.
+    return sectionFieldEntries(schema ?? {}, config)
   }, [schema, config])
 
   const fields = sectionFields.get(activeSectionId) ?? []
@@ -281,7 +305,7 @@ function ConfigSettingsInner({
   const targetField = searchParams.get('field')
 
   useEffect(() => {
-    if (!targetField || !config || !schema) {
+    if (!targetField || !config) {
       return
     }
 
@@ -313,7 +337,7 @@ function ConfigSettingsInner({
     )
 
     return () => window.clearTimeout(timeout)
-  }, [config, schema, setSearchParams, targetField])
+  }, [config, setSearchParams, targetField])
 
   function handleImport(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -337,9 +361,76 @@ function ConfigSettingsInner({
     e.target.value = ''
   }
 
-  if (!config || !schema) {
-    // A failed config/schema fetch must surface a retry, not spin forever.
-    if ((configLoadFailed && !config) || (schemaFailed && !schema)) {
+  if (!config && activeSectionId === 'model') {
+    const configFieldsFailed = configLoadFailed
+
+    // The model picker has its own endpoints and can render independently of
+    // the generic config schema. Keeping it behind this page-level gate meant
+    // one stuck config/schema IPC request left the entire tab as a skeleton.
+    return (
+      <SettingsContent>
+        <SettingsProfileScope className="mb-5" />
+        <div className="mb-6">
+          <ModelSettings onMainModelChanged={onMainModelChanged} scopeProfile={scopeProfile} />
+        </div>
+        {configFieldsFailed ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2">
+            <span className="text-sm text-muted-foreground">{c.failedLoad}</span>
+            <Button
+              onClick={() => {
+                void refetchConfig()
+                void refetchSchema()
+              }}
+              size="sm"
+            >
+              {t.skills.refresh}
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-1" data-slot="model-config-fields-skeleton">
+            <ListRowSkeleton />
+            <ListRowSkeleton />
+          </div>
+        )}
+      </SettingsContent>
+    )
+  }
+
+  if (!config && activeSectionId === 'chat') {
+    // Chat owns a device-local attachment limit that does not depend on the
+    // backend config. Paint it immediately, then fill the profile-backed rows
+    // when config arrives instead of hiding the whole page behind a skeleton.
+    return (
+      <SettingsContent>
+        <SettingsProfileScope className="mb-5" />
+        <AttachmentSizeSetting />
+        {configLoadFailed ? (
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2">
+            <span className="text-sm text-muted-foreground">{c.failedLoad}</span>
+            <Button
+              onClick={() => {
+                void refetchConfig()
+                void refetchSchema()
+              }}
+              size="sm"
+            >
+              {t.skills.refresh}
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-1" data-slot="chat-config-fields-skeleton">
+            {[0, 1, 2, 3].map(row => (
+              <ListRowSkeleton key={row} />
+            ))}
+          </div>
+        )}
+      </SettingsContent>
+    )
+  }
+
+  if (!config) {
+    // A failed config fetch must surface a retry, not spin forever.
+    if (configLoadFailed) {
       return (
         <div className="flex h-full min-h-0 flex-1">
           <PanelEmpty
@@ -358,19 +449,6 @@ function ConfigSettingsInner({
             title={c.failedLoad}
           />
         </div>
-      )
-    }
-
-    // Every section keeps its shape via a skeleton; model gets its bespoke one
-    // (its catalog fetch is the slow part), the rest the shared field rhythm.
-    if (activeSectionId === 'model') {
-      return (
-        <SettingsContent>
-          <SettingsProfileScope className="mb-5" />
-          <div className="mb-6">
-            <ModelSettingsSkeleton />
-          </div>
-        </SettingsContent>
       )
     }
 

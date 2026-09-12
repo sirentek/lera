@@ -29,6 +29,7 @@ import { isCodeSkewRestartRequired } from '@/lib/code-skew-error'
 import { AlertTriangle, Cpu, Loader2 } from '@/lib/icons'
 import { DEFAULT_REASONING_EFFORT, REASONING_EFFORT_VALUES } from '@/lib/reasoning-effort'
 import { cn } from '@/lib/utils'
+import { BACKEND_BOOT_WAIT_TIMEOUT_MS, withTimeout } from '@/lib/with-timeout'
 import { setMainModelAssignment } from '@/store/cron-model-impact'
 import { notifyError, readableError } from '@/store/notifications'
 import { startManualLocalEndpoint, startManualOnboarding, startManualProviderOAuth } from '@/store/onboarding'
@@ -274,12 +275,16 @@ export function ModelSettings({ onMainModelChanged, scopeProfile }: ModelSetting
       setSkewRestart(false)
 
       try {
-        const [modelInfo, modelOptions, auxiliaryModels, moaModels] = await Promise.all([
-          getGlobalModelInfo(scopeProfile),
-          getGlobalModelOptions(undefined, scopeProfile),
-          getAuxiliaryModels(scopeProfile),
-          getMoaModels(scopeProfile).catch(() => null)
-        ])
+        const [modelInfo, modelOptions, auxiliaryModels, moaModels] = await withTimeout(
+          Promise.all([
+            getGlobalModelInfo(scopeProfile),
+            getGlobalModelOptions(undefined, scopeProfile),
+            getAuxiliaryModels(scopeProfile),
+            getMoaModels(scopeProfile).catch(() => null)
+          ]),
+          BACKEND_BOOT_WAIT_TIMEOUT_MS,
+          m.loadFailed
+        )
 
         if (profileEpoch.current !== epoch) {
           return

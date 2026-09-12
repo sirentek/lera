@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { getHermesConfigRecord, type ProfileScope, profileScopeKey } from '@/hermes'
 import { queryClient, writeCache } from '@/lib/query-client'
+import { BACKEND_BOOT_WAIT_TIMEOUT_MS, withTimeout } from '@/lib/with-timeout'
 import type { HermesConfigRecord } from '@/types/hermes'
 
 // One shared cache for the whole profile config record (`GET /api/config`).
@@ -33,7 +34,13 @@ export const useHermesConfigRecord = (profile?: ProfileScope) =>
     // null/undefined both mean "no override" → fetch with undefined so
     // capabilityScoped falls back to the app-wide active profile (passing null
     // would wrongly target the primary backend).
-    queryFn: () => getHermesConfigRecord(profile ?? undefined),
+    queryFn: () =>
+      withTimeout(
+        getHermesConfigRecord(profile ?? undefined),
+        BACKEND_BOOT_WAIT_TIMEOUT_MS,
+        'Settings configuration request timed out'
+      ),
+    retry: false,
     staleTime: 0
   })
 
