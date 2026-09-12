@@ -542,6 +542,12 @@ if (DEV_CDP.port) {
   // Loopback only. Chromium already defaults to 127.0.0.1, but say it out loud
   // so a future edit can't widen it by omission.
   app.commandLine.appendSwitch('remote-debugging-address', '127.0.0.1')
+  // LERA FORK: accept WebSocket attaches that carry an Origin header —
+  // chrome://inspect and browser-based CDP clients send one and Chromium
+  // rejects them otherwise. Raw ws:// clients (Playwright, scripts/) send none
+  // and never needed this. Scoped to the branch above, so it inherits the
+  // packaged / no-dev-server gate rather than keying off its own env var.
+  app.commandLine.appendSwitch('remote-allow-origins', '*')
   console.log(
     `[hermes] renderer debugging on http://127.0.0.1:${DEV_CDP.port} — anything that can reach it ` +
       'can run code in the renderer. HERMES_DESKTOP_CDP_PORT=off to disable.'
@@ -701,19 +707,6 @@ ipcMain.handle('hermes:get-remote-display-reason', () => REMOTE_DISPLAY_REASON)
 // minimized, exactly as before) and return to Chromium's default throttling
 // once the work settles.
 app.commandLine.appendSwitch('disable-renderer-backgrounding')
-
-// Dev-only renderer CDP endpoint (Lera fork). Run.bat sets
-// HERMES_DESKTOP_REMOTE_DEBUG_PORT so the running app can be inspected /
-// verified over Chrome DevTools Protocol (Playwright, chrome://inspect). The
-// switch must be appended before app `ready`. Bound to localhost by Chromium;
-// only enabled when the env var is present, so packaged builds never open it.
-{
-  const remoteDebugPort = process.env.HERMES_DESKTOP_REMOTE_DEBUG_PORT?.trim()
-  if (remoteDebugPort) {
-    app.commandLine.appendSwitch('remote-debugging-port', remoteDebugPort)
-    app.commandLine.appendSwitch('remote-allow-origins', '*')
-  }
-}
 
 const SOURCE_REPO_ROOT = path.resolve(APP_ROOT, '../..')
 
