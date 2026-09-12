@@ -168,4 +168,55 @@ describe('sidebar collapse persistence', () => {
       }
     }
   })
+
+  // The reported repro, from a layout that dragged the file tree and the diff
+  // to the LEFT and the sessions rail to the RIGHT: outside a project both
+  // left-hand panes are hidden (workspace-gated), so ⌘B opened an empty column
+  // — label flipped, nothing moved, and the only sidebar on screen was out of
+  // reach. The toggle falls back to the side that actually holds sessions.
+  it('falls back to the sessions side when the left column has nothing to show', async () => {
+    const { layout, tree, bind } = await loadStores()
+    const { group, split } = await import('@/components/pane-shell/tree/model')
+    const { registry } = await import('@/contrib/registry')
+
+    const disposers = [
+      registry.register({ area: 'panes', id: 'files', data: { placement: 'right' } }),
+      registry.register({ area: 'panes', id: 'review', data: { placement: 'right' } }),
+      registry.register({ area: 'panes', id: 'workspace', data: { placement: 'main' } }),
+      registry.register({ area: 'panes', id: 'sessions', data: { placement: 'left' } })
+    ]
+
+    try {
+      tree.declareDefaultTree(
+        split('row', [group(['files']), group(['review']), group(['workspace']), group(['sessions'])])
+      )
+      bind()
+      tree.bindTreeSideVisibility('right', layout.$fileBrowserOpen, layout.setFileBrowserOpen)
+      layout.setFileBrowserOpen(true)
+
+      // A project is open: the left column has the file tree, so ⌘B is its own.
+      expect(layout.sidebarToggleFallsBackToSessions()).toBe(false)
+      layout.toggleSidebarOpen()
+      expect(tree.$collapsedTreeSides.get().has('left')).toBe(true)
+      expect(layout.$fileBrowserOpen.get()).toBe(true) // the sessions side stays put
+      layout.toggleSidebarOpen()
+      expect(tree.$collapsedTreeSides.get().has('left')).toBe(false)
+
+      // No project: both left-hand panes hide themselves and ⌘B goes dead.
+      tree.setTreePaneHidden('files', true)
+      tree.setTreePaneHidden('review', true)
+      expect(layout.sidebarToggleFallsBackToSessions()).toBe(true)
+
+      layout.toggleSidebarOpen()
+      expect(layout.$fileBrowserOpen.get()).toBe(false)
+      expect(tree.$collapsedTreeSides.get().has('right')).toBe(true)
+      expect(layout.$sidebarOpen.get()).toBe(true) // the empty side is left alone
+
+      layout.toggleSidebarOpen() // and the press that brings it back works
+      expect(layout.$fileBrowserOpen.get()).toBe(true)
+      expect(tree.$collapsedTreeSides.get().has('right')).toBe(false)
+    } finally {
+      disposers.forEach(dispose => dispose())
+    }
+  })
 })

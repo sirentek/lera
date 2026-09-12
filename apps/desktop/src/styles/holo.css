@@ -650,6 +650,14 @@
    spill") so the halo bleeds past the pane like the composer's. */
 :root[data-hermes-theme='holo'] [data-slot='sidebar'],
 :root[data-hermes-theme='holo'] [data-slot='bots-panel'],
+/* The Lera HUD cards that dock UNDER the sessions zone (lera-zone-hud.tsx) are
+   no longer inside the aside, so they stopped inheriting the frame vars this
+   block declares — --holo-frame-halo-stack, --holo-inner-glow and the two glow
+   colours above all resolve to nothing out there, and the cards' ring collapsed
+   to a dim hairline with no bloom. They want the whole block anyway (z:3 above
+   the room veil, transparent ground, the wall-mount tilt), so join it here
+   rather than hand-copying 150 lines of vars into lera-hud.css. */
+:root[data-hermes-theme='holo'] [data-slot='lera-zone-hud'],
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar'] {
   --holo-frame-top: calc(var(--titlebar-height, 0px) + 0.375rem);
   --holo-frame-inset: 9px;

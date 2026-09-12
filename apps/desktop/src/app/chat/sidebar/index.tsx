@@ -133,8 +133,6 @@ import { markSessionUnread } from '@/store/session-unread-remote'
 import { $archivedSessions, loadArchivedSessions } from '@/store/sidebar-archive'
 import { $sidebarSessionRankIds } from '@/store/sidebar-sort'
 
-import { ClaudeHud } from '../../right-sidebar/claude-hud'
-import { CodexHud } from '../../right-sidebar/codex-hud'
 import {
   type AppView,
   ARTIFACTS_ROUTE,
@@ -1942,8 +1940,6 @@ export function ChatSidebar({
             </div>
           )}
         </div>
-        {contentVisible && <CodexHud />}
-        {contentVisible && <ClaudeHud />}
       </SidebarContent>
       <ProjectDialog />
       {/* One mount for the whole app. The header of WorktreeDialog tells why. */}

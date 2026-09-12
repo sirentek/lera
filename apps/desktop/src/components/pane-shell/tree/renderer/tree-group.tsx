@@ -12,6 +12,7 @@
 import { useStore } from '@nanostores/react'
 import { type CSSProperties, Fragment, type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
 
+import { LeraZoneHud } from '@/app/right-sidebar/lera-zone-hud'
 import { TITLEBAR_HEIGHT } from '@/app/shell/titlebar'
 import { ActionsContextMenu, type MenuKit, renderActionItem } from '@/components/ui/actions-menu'
 import { Codicon } from '@/components/ui/codicon'
@@ -759,6 +760,11 @@ export function TreeGroup({
           )}
         </div>
       )}
+
+      {/* Lera-only: the CODEX / CLAUDE usage cards dock to the ZONE, under its
+          body, so the SESSIONS | BOTS tab strip can't take them off screen.
+          Renders null for every zone that doesn't own the sessions sidebar. */}
+      {!node.minimized && <LeraZoneHud panes={node.panes} />}
 
       {/* Edit-mode veil: the BODY is a drag handle for the active pane. It
           starts below the header so tabs/headers stay directly interactive

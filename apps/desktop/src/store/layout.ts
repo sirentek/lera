@@ -5,7 +5,9 @@ import { PANE_TOGGLE_REVEAL_EVENT } from '@/components/pane-shell'
 import {
   restoreHiddenTreeSideTabs,
   restoreMinimizedTreeSide,
-  setTreeSideCollapsed
+  setTreeSideCollapsed,
+  treeSideHasShowablePane,
+  treeSideOfPane
 } from '@/components/pane-shell/tree/store'
 import { matchesQuery } from '@/hooks/use-media-query'
 import { connectionScopedAtom } from '@/lib/connection-scoped'
@@ -543,7 +545,28 @@ export function setSidebarOpen(open: boolean) {
   revealNarrowPane(CHAT_SIDEBAR_PANE_ID, open ? 'open' : 'close')
 }
 
+/**
+ * Is ⌘B's own side a dead key right now? The side toggles are POSITIONAL, so a
+ * rearranged layout can hand the left column panes that answer to other
+ * toggles: with the file tree and the diff dragged over there, outside a
+ * project every pane on that side is hidden (both are workspace-gated) and the
+ * button opens an empty column — the label flips, nothing moves, and the one
+ * sidebar on screen is the sessions rail sitting on the RIGHT. When that
+ * happens ⌘B and its titlebar button speak for the sessions rail instead, so
+ * the gesture always shows the sidebar there is. (`layoutHasRootSide` is the
+ * same idea one step earlier, for a side that isn't in the layout at all.)
+ */
+export function sidebarToggleFallsBackToSessions(): boolean {
+  return !treeSideHasShowablePane('left') && treeSideOfPane('sessions') === 'right'
+}
+
 export function toggleSidebarOpen() {
+  if (sidebarToggleFallsBackToSessions()) {
+    toggleFileBrowserOpen()
+
+    return
+  }
+
   if (!revealNarrowPane(CHAT_SIDEBAR_PANE_ID, 'toggle')) {
     const open = restoreMinimizedTreeSide('left') || !$sidebarOpen.get()
     setPaneOpen(CHAT_SIDEBAR_PANE_ID, open)

@@ -1,10 +1,10 @@
 import { useStore } from '@nanostores/react'
-import { type ComponentProps, type MouseEvent, type ReactNode, useEffect, useState } from 'react'
+import { type ComponentProps, type MouseEvent, type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import { hudTargetSessionId } from '@/app/hud/handoff'
 import { toggleLayoutEditMode } from '@/components/pane-shell/edit-mode'
-import { resetLayoutTree } from '@/components/pane-shell/tree/store'
+import { $hiddenTreePanes, $layoutTree, resetLayoutTree } from '@/components/pane-shell/tree/store'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
@@ -20,6 +20,7 @@ import {
   $fileBrowserOpen,
   $panesFlipped,
   $sidebarOpen,
+  sidebarToggleFallsBackToSessions,
   toggleFileBrowserOpen,
   togglePanesFlipped,
   toggleSidebarOpen
@@ -139,6 +140,8 @@ export function TitlebarControls({ leftTools = [], tools = [], onOpenSettings }:
   const fileBrowserOpen = useStore($fileBrowserOpen)
   const panesFlipped = useStore($panesFlipped)
   const sidebarOpen = useStore($sidebarOpen)
+  const layoutTree = useStore($layoutTree)
+  const hiddenPanes = useStore($hiddenTreePanes)
   const unreadCount = useStore($unreadSessionCount)
   const appActionsSide = useStore($titlebarAppActionsSide)
   const unreadBadge = unreadCount > 0 ? unreadCount : undefined
@@ -157,8 +160,27 @@ export function TitlebarControls({ leftTools = [], tools = [], onOpenSettings }:
   // stay correct through flips and rearranges. $sidebarOpen ≙ left side,
   // $fileBrowserOpen ≙ right side. Never an active highlight — plain
   // show/hide affordances.
-  const leftEdge = { open: sidebarOpen, toggle: toggleSidebarOpen }
   const rightEdge = { open: fileBrowserOpen, toggle: toggleFileBrowserOpen }
+
+  // …except a positional toggle can end up owning a column with nothing to
+  // show. Drag the file tree and the diff to the left (both workspace-gated)
+  // and outside a project this button opens an empty side: the label flips,
+  // the window doesn't move, and the one sidebar on screen — sessions, over on
+  // the right — stays out of reach. Fall back to whichever side actually holds
+  // it, so the left button is never a dead key. `layoutHasRootSide`'s ⌘J
+  // fallback is the same idea one step earlier, for a side that isn't there at
+  // all.
+  const leftFallsBack = useMemo(
+    () => sidebarToggleFallsBackToSessions(),
+    // The predicate reads the tree and the chrome-hidden set; subscribing to
+    // both is what re-derives the label when a project opens or closes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layoutTree, hiddenPanes]
+  )
+
+  // The toggle itself carries the fallback (so ⌘B agrees) — here it only picks
+  // which boolean the label speaks for.
+  const leftEdge = { open: leftFallsBack ? fileBrowserOpen : sidebarOpen, toggle: toggleSidebarOpen }
   const leftLabel = leftEdge.open ? t.titlebar.hideSidebar : t.titlebar.showSidebar
   const rightLabel = rightEdge.open ? t.titlebar.hideRightSidebar : t.titlebar.showRightSidebar
 

@@ -1040,6 +1040,40 @@ export function restoreMinimizedTreeSide(side: TreeSide): boolean {
 }
 
 /**
+ * Does `side` hold a pane that would actually APPEAR if its column opened?
+ * `layoutHasRootSide` answers the STRUCTURAL question; this one answers the
+ * visible one. The side toggles are positional, so a rearranged layout can park
+ * a whole column behind toggles that aren't its own: with the file tree and the
+ * diff dragged to the left, outside a project every pane on that side is hidden
+ * (both are workspace-gated) and ⌘B opens an empty column — a press with no
+ * feedback in either direction. Callers fall back instead of pressing on
+ * nothing. Minimized zones still count: the side toggle restores them.
+ */
+export function treeSideHasShowablePane(side: TreeSide): boolean {
+  const row = rootRow()
+
+  if (!row) {
+    return false
+  }
+
+  const panes = registry.getArea('panes')
+  const dismissed = $dismissedPanes.get()
+  const hidden = $hiddenTreePanes.get()
+
+  return row.children.some(child => {
+    const ids = allPaneIds(child)
+
+    // An UNREGISTERED pane is gone too (a plugin pane before its plugin loads,
+    // `preview` before a rail tab exists) — mirroring the renderer's `paneGone`,
+    // which is what actually decides the column collapses.
+    return (
+      paneRootSide(ids[0]) === side &&
+      ids.some(id => panes.some(pane => pane.id === id) && !dismissed.has(id) && !hidden.has(id))
+    )
+  })
+}
+
+/**
  * Does the layout have a collapsible root side of `side`? ⌘J's normal target is
  * the right sidebar; a layout without one (e.g. a terminal-on-bottom preset)
  * lets callers fall back to the terminal so ⌘J is never a dead key. Tracks

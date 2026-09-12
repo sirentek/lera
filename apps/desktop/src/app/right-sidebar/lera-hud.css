@@ -785,3 +785,40 @@
     opacity: 0;
   }
 }
+
+/* ── Zone dock: the cards under SESSIONS | BOTS ────────────────────────────
+ *
+ * The cards no longer hang inside the sessions aside (they'd vanish with it on
+ * the BOTS tab) — they hang off the ZONE, below its body. See lera-zone-hud.tsx.
+ *
+ * [data-slot='lera-zone-hud'] is listed alongside the aside in holo.css's frame
+ * block, so the wrapper already carries what the aside used to lend the cards:
+ * the halo/glow custom properties they filter with (drop those and the ring
+ * collapses to a dim hairline — that IS the whole reason the wrapper joins that
+ * block), z-index 3 above the room veil, and the wall-mount tilt. Only three
+ * things are left to pay here.
+ *
+ * 1. The gutter — SidebarContent's px-2.5, so the cards keep the exact column
+ *    they had and don't move when the zone flips tabs. */
+:root[data-hermes-theme='holo'] [data-slot='lera-zone-hud'] {
+  padding: 0 0.625rem 0.625rem;
+}
+
+/* 2. The tilt sign. holo.css flips it per side off the aside's own
+ *    .border-l/.border-r utility, which this wrapper doesn't wear — panes
+ *    flipped puts the aside on the RIGHT edge, leaning about its right edge.
+ *    (Unflipped keeps the block's own 4deg about the left edge.) */
+:root[data-hermes-theme='holo'] [data-slot='lera-zone-hud'][data-flipped] {
+  --holo-tilt: -5deg;
+  transform-origin: right center;
+}
+
+/* 3. The echo offset, at card scale — the same flip the --holo-ex rules at the
+ *    top of this file apply inside the aside. */
+:root[data-hermes-theme='holo'] [data-slot='lera-zone-hud'] [data-slot='lera-hud'] {
+  --holo-ex: 8px;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='lera-zone-hud'][data-flipped] [data-slot='lera-hud'] {
+  --holo-ex: -8px;
+}
