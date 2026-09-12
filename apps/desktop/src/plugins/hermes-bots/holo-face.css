@@ -1,0 +1,268 @@
+/* ════════════════════════════════════════════════════════════════════════
+   LERA — holo bot faces (animation layer only).
+
+   This file intentionally lives OUTSIDE the upstream styles/holo.css surface
+   (same keep-out-of-upstream pattern as styles/holo-room-background.css and
+   right-sidebar/lera-hud.css) so Hermes updates never conflict with it.
+
+   Everything STRUCTURAL about a holo face — every stroke, fill and opacity —
+   is an inline SVG attribute in holo-face.tsx, never a rule here. That is a
+   hard requirement, not a style choice: profile-ops.ts rasterizes the live
+   `svg[data-bot-face=…]` node through XMLSerializer + a data: URL to push a
+   PNG avatar to the backend, and a standalone SVG document has no access to
+   this stylesheet. Anything declared here is therefore invisible in the PNG.
+   Keeping only `animation` here means the raster is exactly the resting pose.
+
+   CPU: the legacy math faces run a shared rAF clock that recomputes a
+   52-point body path and setAttribute()s it for every visible face at 15fps.
+   These faces run zero JS after mount — CSS keyframes on `transform` and
+   `opacity` (plus one `stroke-dashoffset` crawl per glyph), no filters, no
+   path morphing, no `will-change`, so no per-avatar compositor layer to pay
+   for, and they stop dead while the window is hidden.
+   ════════════════════════════════════════════════════════════════════════ */
+
+.lhf {
+  display: block;
+  overflow: visible;
+}
+
+/* Rotation must pivot on the face center (20,20), not on each group's own
+   bounding box — a dashed ring and a 3-spoke rosette have different bboxes
+   and `fill-box` would spin them around different points. `view-box` makes
+   20px 20px mean the same thing in every group. */
+.lhf-spin,
+.lhf-spin-rev {
+  transform-box: view-box;
+  transform-origin: 20px 20px;
+  /* --lhf-phase is a per-face time seeded from the bot name (holo-face.tsx).
+     A NEGATIVE delay starts each face mid-cycle, so a roster of twenty does
+     not pulse in lock-step. It costs nothing at runtime. */
+  animation-delay: calc(-1 * var(--lhf-phase, 0s));
+}
+
+/* Every loop declares its period as --lhf-dur and then USES that variable, so
+   the reduced-motion opt-out at the bottom can restore all six from one rule
+   instead of restating each number. The mood overrides below re-declare only
+   the variable; each animation-duration line picks up the new value. */
+.lhf-spin {
+  --lhf-dur: 9s;
+
+  animation-name: lhf-spin;
+  animation-duration: var(--lhf-dur);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.lhf-spin-rev {
+  --lhf-dur: 13s;
+
+  animation-name: lhf-spin-rev;
+  animation-duration: var(--lhf-dur);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* The sensor core: a breath, so an idle face still reads as powered. */
+.lhf-core {
+  --lhf-dur: 3.2s;
+
+  transform-box: view-box;
+  transform-origin: 20px 20px;
+  animation-name: lhf-core;
+  animation-duration: var(--lhf-dur);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-delay: calc(-1 * var(--lhf-phase, 0s));
+}
+
+/* Pivot on the element's OWN box instead of the face center. Required by every
+   part that does not sit on 20,20 — the beacon's orbit ring, the delta's apex
+   pip, the cores of the beacon/delta/mesh. Scaling those about the face center
+   makes them translate as they breathe (a 9-unit offset at scale 0.8→1.14
+   drifts ~3 units), which reads as a wobble rather than a pulse. Groups that
+   ARE centered on 20,20 must NOT use this: a group's bounding box includes its
+   spokes, so e.g. the hex cell's box center is 2.8 units off the face center
+   and fill-box would turn its spin into an orbit. */
+.lhf-pivot {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Elements that chase in sequence (capsule segments, broadcast arcs, antenna
+   stubs, the working ticks). The stagger is an inline animation-delay per
+   element, which is why this one does not take --lhf-phase. */
+.lhf-seq {
+  --lhf-dur: 1.5s;
+
+  animation-name: lhf-seq;
+  animation-duration: var(--lhf-dur);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* Marching ants along a dashed outline. The glyphs built from rectilinear
+   geometry (module, delta, the beacon's stem) cannot carry a rotating ring — a
+   spinning square reads as broken, not alive — so their inner dashed outline
+   crawls instead. Unlike transform/opacity this repaints the path each frame,
+   which is why it is capped at ONE element per glyph on a ~34px box; the JS
+   face clock this skin replaces repainted a 52-point body path per face at
+   15fps. Every ants path uses the same 2.6/2.6 dash so one keyframe fits all. */
+.lhf-ants {
+  --lhf-dur: 1.9s;
+
+  animation-name: lhf-ants;
+  animation-duration: var(--lhf-dur);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: calc(-1 * var(--lhf-phase, 0s));
+}
+
+/* Scan sweep. Bounded in geometry (holo-face.tsx picks a travel range that
+   stays inside the silhouette) so no clipPath is needed — a clip would force
+   a separate raster pass on every frame of the sweep. */
+.lhf-scan {
+  --lhf-dur: 3.8s;
+
+  transform-box: view-box;
+  transform-origin: 20px 20px;
+  animation-name: lhf-scan;
+  animation-duration: var(--lhf-dur);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-delay: calc(-1 * var(--lhf-phase, 0s));
+}
+
+/* Working moods lean on the same primitives, just faster — no extra nodes. */
+.lhf[data-mood='work'] .lhf-spin,
+.lhf[data-mood='think'] .lhf-spin {
+  --lhf-dur: 4s;
+}
+
+.lhf[data-mood='work'] .lhf-spin-rev,
+.lhf[data-mood='think'] .lhf-spin-rev {
+  --lhf-dur: 6s;
+}
+
+.lhf[data-mood='work'] .lhf-core,
+.lhf[data-mood='think'] .lhf-core {
+  --lhf-dur: 1.3s;
+}
+
+.lhf[data-mood='work'] .lhf-scan,
+.lhf[data-mood='think'] .lhf-scan {
+  --lhf-dur: 1.8s;
+}
+
+.lhf[data-mood='work'] .lhf-ants,
+.lhf[data-mood='think'] .lhf-ants {
+  --lhf-dur: 0.9s;
+}
+
+.lhf[data-mood='work'] .lhf-seq,
+.lhf[data-mood='think'] .lhf-seq {
+  --lhf-dur: 0.9s;
+}
+
+@keyframes lhf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lhf-spin-rev {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes lhf-core {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.14);
+  }
+}
+
+@keyframes lhf-ants {
+  to {
+    stroke-dashoffset: -5.2;
+  }
+}
+
+@keyframes lhf-seq {
+  0%,
+  100% {
+    opacity: 0.18;
+  }
+
+  30% {
+    opacity: 1;
+  }
+
+  60% {
+    opacity: 0.18;
+  }
+}
+
+/* The sweep is transparent for most of the cycle. A fully transparent layer
+   is skipped at paint time, so the bar only costs frames on the way down. */
+@keyframes lhf-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(-11px);
+  }
+
+  12% {
+    opacity: 0.85;
+  }
+
+  46% {
+    opacity: 0.85;
+  }
+
+  58% {
+    opacity: 0;
+    transform: translateY(11px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(11px);
+  }
+}
+
+/* Stop entirely while the window is hidden or minimized. main.tsx owns
+   `data-renderer-animations-paused`; styles.css pauses a curated allowlist of
+   continuous animations through it, and the faces belong on that list. Paused
+   beats idle-looping: it is the one state where these cost nothing at all.
+   Declared here rather than added to the upstream allowlist so a Hermes update
+   cannot conflict with it. */
+:root[data-renderer-animations-paused] .lhf :is(.lhf-spin, .lhf-spin-rev, .lhf-core, .lhf-seq, .lhf-ants, .lhf-scan) {
+  animation-play-state: paused !important;
+}
+
+/* DELIBERATE reduced-motion opt-out — the same one holo.css already makes for
+   `.lera-bot-sigil`, for the same reason. styles.css blanket-kills every
+   animation under `prefers-reduced-motion` (`animation-duration: 0.01ms
+   !important; animation-iteration-count: 1 !important`), and Windows reports
+   `reduce` for the whole session while this desktop is used over RDP — which
+   is how it runs. That froze every face solid (verified over CDP:
+   getAnimations() returned 0 and the computed duration read 1e-05s), and the
+   faces were asked for animated, so they re-assert their own beats here.
+   Neither of the two things this skin must agree with honors the query either:
+   the JS face clock it replaces never checks it, and the holo skin around it
+   animates its frame, orb and flare regardless. Nothing outside `.lhf` is
+   touched, and deleting this block hands the faces back to the system setting.
+   The hidden-window pause above still wins — play-state is a separate
+   property, so this rule does not resurrect a paused face. */
+@media (prefers-reduced-motion: reduce) {
+  .lhf :is(.lhf-spin, .lhf-spin-rev, .lhf-core, .lhf-seq, .lhf-ants, .lhf-scan) {
+    animation-duration: var(--lhf-dur) !important;
+    animation-iteration-count: infinite !important;
+  }
+}

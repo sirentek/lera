@@ -9,6 +9,7 @@
 import * as sdk from '@hermes/plugin-sdk'
 import { profileColor } from '@hermes/plugin-sdk'
 
+import { HoloFace, useHoloSkin } from './holo-face'
 import type { AvatarAppearance, AvatarShape, BotMeta, FaceMood } from './types'
 
 // Deterministic blob avatars (name → face). Feature-detected: older SDKs
@@ -994,6 +995,9 @@ interface BotFaceProps {
  * the clock can move them (a baked PNG cannot).
  */
 export function BotFace({ shape, color, image, size = 36, name = 'agent', mood = 'idle' }: BotFaceProps) {
+  // LERA: under the holo skin every vector face is drawn as a HUD instrument
+  // instead (holo-face.tsx) — a hook, so it runs before any early return.
+  const holoSkin = useHoloSkin()
   startFaceClock()
 
   if (image) {
@@ -1011,6 +1015,15 @@ export function BotFace({ shape, color, image, size = 36, name = 'agent', mood =
         }}
       />
     )
+  }
+
+  // LERA: holo instruments own every non-photo face while the holo skin is
+  // painted. Placed after the <img> branch so an uploaded/generated/pet photo
+  // still wins, and before the blobatar branch so the library never draws.
+  // The returned SVG keeps `data-bot-face` (PNG backfill) and omits
+  // `data-hb-math`, so the clock above parks instead of painting it.
+  if (holoSkin) {
+    return <HoloFace color={color} mood={mood} name={name} shape={shape} size={size} />
   }
 
   // Blobatar shapes: the library draws the whole face (body + eyes + its own
