@@ -284,6 +284,21 @@ export function fixedTrackSize(node: LayoutNode, axis: 'row' | 'column', ctx: Tr
     return sizes.length === 1 ? sizes[0] : `calc(${sizes.join(' + ')})`
   }
 
+  // MAIN IS THE FLOOR here too. `cssMax` skips the flex nulls, so without this
+  // a single fixed child decides the whole track: a chat column with the
+  // terminal minimized under it has exactly one fixed child — the 28px rail —
+  // and the column collapses to 28px, leaving the chat overflowing its own
+  // track while the sidebar beside it absorbs the window. The group branch
+  // above already refuses to size a mixed stack that hosts main; a split that
+  // hosts main through a FLEX child must refuse for the same reason.
+  const mainIsFlex = visible.some(
+    (child, i) => sizes[i] === null && allPaneIds(child).some(id => paneChrome(ctx.paneFor(id)).placement === 'main')
+  )
+
+  if (mainIsFlex) {
+    return null
+  }
+
   // Across the axis a flex child just stretches; the fixed ones set the size.
   return cssMax(sizes) ?? null
 }
