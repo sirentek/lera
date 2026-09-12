@@ -13,6 +13,7 @@ import { atom, host } from '@hermes/plugin-sdk'
 
 import { $botMeta, $lastRoster, botRosterKey } from './data'
 import { groupMemberReferencesConnection, markOrphanedGroupMemberDescriptor } from './hygiene'
+import { DEFAULT_AGENT_NAME } from './labels'
 import { getPluginCtx } from './shared'
 import type {
   Attachment,
@@ -1253,7 +1254,7 @@ export function groupSpeakerLabel(name?: null | string) {
     return renamed
   }
 
-  return trimmed.toLowerCase() === 'default' ? 'Hermes' : trimmed
+  return trimmed.toLowerCase() === 'default' ? DEFAULT_AGENT_NAME : trimmed
 }
 
 /** Trim a room log + its watermarks to the retained window, keeping

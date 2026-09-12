@@ -800,11 +800,8 @@
      There is deliberately NO second, panel-scale variant — if a frame needs a
      different bloom, that is a design decision to argue for, not a local
      override to add here. */
-  --holo-frame-halo-stack:
-    drop-shadow(0 0 var(--holo-frame-halo-hot))
-    drop-shadow(0 0 var(--holo-frame-halo-1))
-    drop-shadow(0 0 var(--holo-frame-halo-2))
-    drop-shadow(0 0 var(--holo-frame-halo-3));
+  --holo-frame-halo-stack: drop-shadow(0 0 var(--holo-frame-halo-hot)) drop-shadow(0 0 var(--holo-frame-halo-1))
+    drop-shadow(0 0 var(--holo-frame-halo-2)) drop-shadow(0 0 var(--holo-frame-halo-3));
   /* INWARD WASH — the halo above is a drop-shadow chain, so it only ever grows
      OUTWARD from the frame lines. This is the other half: a ~20px falloff that
      bleeds from the edge into the panel/card interior, so the frame looks like
@@ -1047,10 +1044,8 @@
     var(--holo-chamfer) 0,
     calc(var(--holo-chamfer) - var(--holo-frame-chamfer-inset)) var(--holo-frame-stroke),
     calc(100% - var(--holo-frame-stroke)) var(--holo-frame-stroke),
-    calc(100% - var(--holo-frame-stroke))
-      calc(100% - (var(--holo-chamfer) - var(--holo-frame-chamfer-inset))),
-    calc(100% - (var(--holo-chamfer) - var(--holo-frame-chamfer-inset)))
-      calc(100% - var(--holo-frame-stroke)),
+    calc(100% - var(--holo-frame-stroke)) calc(100% - (var(--holo-chamfer) - var(--holo-frame-chamfer-inset))),
+    calc(100% - (var(--holo-chamfer) - var(--holo-frame-chamfer-inset))) calc(100% - var(--holo-frame-stroke)),
     var(--holo-frame-stroke) calc(100% - var(--holo-frame-stroke)),
     var(--holo-frame-stroke) calc(var(--holo-chamfer) - var(--holo-frame-chamfer-inset)),
     calc(var(--holo-chamfer) - var(--holo-frame-chamfer-inset)) var(--holo-frame-stroke)
@@ -1099,15 +1094,13 @@
     linear-gradient(
       45deg,
       transparent calc(50% - var(--holo-frame-glow-half)),
-      var(--holo-frame-glow-hot) calc(50% - var(--holo-frame-glow-half))
-        calc(50% + var(--holo-frame-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-frame-glow-half)) calc(50% + var(--holo-frame-glow-half)),
       transparent calc(50% + var(--holo-frame-glow-half))
     ),
     linear-gradient(
       45deg,
       transparent calc(50% - var(--holo-frame-glow-half)),
-      var(--holo-frame-glow-line) calc(50% - var(--holo-frame-glow-half))
-        calc(50% + var(--holo-frame-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-frame-glow-half)) calc(50% + var(--holo-frame-glow-half)),
       transparent calc(50% + var(--holo-frame-glow-half))
     );
   background-size:
@@ -1134,15 +1127,13 @@
     linear-gradient(
       135deg,
       transparent calc(50% - var(--holo-frame-glow-half)),
-      var(--holo-frame-glow-hot) calc(50% - var(--holo-frame-glow-half))
-        calc(50% + var(--holo-frame-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-frame-glow-half)) calc(50% + var(--holo-frame-glow-half)),
       transparent calc(50% + var(--holo-frame-glow-half))
     ),
     linear-gradient(
       135deg,
       transparent calc(50% - var(--holo-frame-glow-half)),
-      var(--holo-frame-glow-line) calc(50% - var(--holo-frame-glow-half))
-        calc(50% + var(--holo-frame-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-frame-glow-half)) calc(50% + var(--holo-frame-glow-half)),
       transparent calc(50% + var(--holo-frame-glow-half))
     );
   background-size:
@@ -1298,17 +1289,13 @@
   box-shadow: inset 0 0 18px var(--holo-inner-cell-glow);
 }
 
-:root[data-hermes-theme='holo']
-  [data-slot='right-sidebar-panel']
-  [class~='group/project-header'] {
+:root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] [class~='group/project-header'] {
   box-shadow:
     inset 0 -1px 0 var(--holo-inner-cell-line),
     inset 0 -10px 16px -16px rgba(255, 154, 132, 0.22);
 }
 
-:root[data-hermes-theme='holo']
-  [data-slot='sidebar-panel']
-  [data-slot='sidebar-menu-button'] {
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] [data-slot='sidebar-menu-button'] {
   font-size: 0.875rem;
 }
 
@@ -1452,15 +1439,11 @@
     0 calc(100% - var(--holo-chamfer)),
     0 0,
     var(--holo-hud-stroke) var(--holo-hud-stroke),
-    var(--holo-hud-stroke)
-      calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
-    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset))
-      calc(100% - var(--holo-hud-stroke)),
+    var(--holo-hud-stroke) calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
+    calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) calc(100% - var(--holo-hud-stroke)),
     calc(100% - var(--holo-hud-stroke)) calc(100% - var(--holo-hud-stroke)),
-    calc(100% - var(--holo-hud-stroke))
-      calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)),
-    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset)))
-      var(--holo-hud-stroke),
+    calc(100% - var(--holo-hud-stroke)) calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)),
+    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))) var(--holo-hud-stroke),
     var(--holo-hud-stroke) var(--holo-hud-stroke)
   );
 }
@@ -1545,15 +1528,13 @@
     linear-gradient(
       45deg,
       transparent calc(50% - var(--holo-hud-glow-half)),
-      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half))
-        calc(50% + var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half)) calc(50% + var(--holo-hud-glow-half)),
       transparent calc(50% + var(--holo-hud-glow-half))
     ),
     linear-gradient(
       45deg,
       transparent calc(50% - var(--holo-hud-glow-half)),
-      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half))
-        calc(50% + var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half)) calc(50% + var(--holo-hud-glow-half)),
       transparent calc(50% + var(--holo-hud-glow-half))
     );
   background-size:
@@ -1592,10 +1573,8 @@
     calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke),
     var(--holo-hud-stroke) calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)),
     var(--holo-hud-stroke) calc(100% - var(--holo-hud-stroke)),
-    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset)))
-      calc(100% - var(--holo-hud-stroke)),
-    calc(100% - var(--holo-hud-stroke))
-      calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
+    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))) calc(100% - var(--holo-hud-stroke)),
+    calc(100% - var(--holo-hud-stroke)) calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
     calc(100% - var(--holo-hud-stroke)) var(--holo-hud-stroke),
     calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke)
   );
@@ -1618,15 +1597,13 @@
     linear-gradient(
       135deg,
       transparent calc(50% - var(--holo-hud-glow-half)),
-      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half))
-        calc(50% + var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half)) calc(50% + var(--holo-hud-glow-half)),
       transparent calc(50% + var(--holo-hud-glow-half))
     ),
     linear-gradient(
       135deg,
       transparent calc(50% - var(--holo-hud-glow-half)),
-      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half))
-        calc(50% + var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half)) calc(50% + var(--holo-hud-glow-half)),
       transparent calc(50% + var(--holo-hud-glow-half))
     );
   background-position:
@@ -1658,10 +1635,8 @@
     calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke),
     var(--holo-hud-stroke) calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)),
     var(--holo-hud-stroke) calc(100% - var(--holo-hud-stroke)),
-    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset)))
-      calc(100% - var(--holo-hud-stroke)),
-    calc(100% - var(--holo-hud-stroke))
-      calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
+    calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))) calc(100% - var(--holo-hud-stroke)),
+    calc(100% - var(--holo-hud-stroke)) calc(100% - (var(--holo-chamfer) - var(--holo-hud-chamfer-inset))),
     calc(100% - var(--holo-hud-stroke)) var(--holo-hud-stroke),
     calc(var(--holo-chamfer) - var(--holo-hud-chamfer-inset)) var(--holo-hud-stroke)
   );
@@ -1684,15 +1659,13 @@
     linear-gradient(
       135deg,
       transparent calc(50% - var(--holo-hud-glow-half)),
-      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half))
-        calc(50% + var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-hot) calc(50% - var(--holo-hud-glow-half)) calc(50% + var(--holo-hud-glow-half)),
       transparent calc(50% + var(--holo-hud-glow-half))
     ),
     linear-gradient(
       135deg,
       transparent calc(50% - var(--holo-hud-glow-half)),
-      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half))
-        calc(50% + var(--holo-hud-glow-half)),
+      var(--holo-frame-glow-line) calc(50% - var(--holo-hud-glow-half)) calc(50% + var(--holo-hud-glow-half)),
       transparent calc(50% + var(--holo-hud-glow-half))
     );
   background-position:
@@ -1731,24 +1704,18 @@
     inset 0 -9px 14px -15px rgba(255, 154, 132, 0.21);
 }
 
-:root[data-hermes-theme='holo']
-  :is([data-slot='context-hud'], [data-slot='lera-hud'])
-  .hud-row,
+:root[data-hermes-theme='holo'] :is([data-slot='context-hud'], [data-slot='lera-hud']) .hud-row,
 :root[data-hermes-theme='holo'] [data-slot='model-hud'] :is(.mhud-name, .mhud-kvs) {
   box-shadow: inset 0 0 14px var(--holo-inner-cell-glow);
 }
 
-:root[data-hermes-theme='holo']
-  :is([data-slot='context-hud'], [data-slot='lera-hud'])
-  .hud-gauge {
+:root[data-hermes-theme='holo'] :is([data-slot='context-hud'], [data-slot='lera-hud']) .hud-gauge {
   box-shadow:
     inset -1px 0 0 var(--holo-inner-cell-line),
     inset -9px 0 14px -15px rgba(255, 154, 132, 0.2);
 }
 
-:root[data-hermes-theme='holo']
-  :is([data-slot='context-hud'], [data-slot='lera-hud'])
-  .hud-kvs,
+:root[data-hermes-theme='holo'] :is([data-slot='context-hud'], [data-slot='lera-hud']) .hud-kvs,
 :root[data-hermes-theme='holo'] [data-slot='model-hud'] .mhud-kvs {
   box-shadow:
     inset 1px 0 0 var(--holo-inner-cell-line),
@@ -2277,11 +2244,8 @@
 :root[data-hermes-theme='holo'] [data-slot='overlay-view'],
 :root[data-hermes-theme='holo'] [data-slot='dialog-content'],
 :root[data-hermes-theme='holo'] [data-slot='select-content'] {
-  --holo-win-halo:
-    drop-shadow(0 0 2px rgba(255, 120, 100, 1))
-    drop-shadow(0 0 5px rgba(255, 90, 72, 0.95))
-    drop-shadow(0 0 10px rgba(255, 80, 62, 0.85))
-    drop-shadow(0 0 18px rgba(255, 70, 55, 0.65))
+  --holo-win-halo: drop-shadow(0 0 2px rgba(255, 120, 100, 1)) drop-shadow(0 0 5px rgba(255, 90, 72, 0.95))
+    drop-shadow(0 0 10px rgba(255, 80, 62, 0.85)) drop-shadow(0 0 18px rgba(255, 70, 55, 0.65))
     drop-shadow(0 0 28px rgba(255, 60, 48, 0.45));
 }
 
@@ -2766,7 +2730,32 @@
        right edge → out-segment → right edge → BR bevel → bottom edge →
        centered LIP → bottom edge → BL bevel → left edge → out-segment →
        left edge → back to TL. */
-  --holo-win-shape: polygon(40px 0, calc(50% - 90px) 0, calc(50% - 78px) 12px, calc(50% - 54px) 12px, calc(50% - 42px) 0, calc(100% - 40px) 0, 100% 40px, 100% calc(50% - 150px), calc(100% - 14px) calc(50% - 134px), calc(100% - 14px) calc(50% + 134px), 100% calc(50% + 150px), 100% calc(100% - 40px), calc(100% - 40px) 100%, calc(50% + 130px) 100%, calc(50% + 110px) calc(100% - 16px), calc(50% - 110px) calc(100% - 16px), calc(50% - 130px) 100%, 40px 100%, 0 calc(100% - 40px), 0 calc(50% + 150px), 14px calc(50% + 134px), 14px calc(50% - 134px), 0 calc(50% - 150px), 0 40px);
+  --holo-win-shape: polygon(
+    40px 0,
+    calc(50% - 90px) 0,
+    calc(50% - 78px) 12px,
+    calc(50% - 54px) 12px,
+    calc(50% - 42px) 0,
+    calc(100% - 40px) 0,
+    100% 40px,
+    100% calc(50% - 150px),
+    calc(100% - 14px) calc(50% - 134px),
+    calc(100% - 14px) calc(50% + 134px),
+    100% calc(50% + 150px),
+    100% calc(100% - 40px),
+    calc(100% - 40px) 100%,
+    calc(50% + 130px) 100%,
+    calc(50% + 110px) calc(100% - 16px),
+    calc(50% - 110px) calc(100% - 16px),
+    calc(50% - 130px) 100%,
+    40px 100%,
+    0 calc(100% - 40px),
+    0 calc(50% + 150px),
+    14px calc(50% + 134px),
+    14px calc(50% - 134px),
+    0 calc(50% - 150px),
+    0 40px
+  );
 }
 
 /* (1) The opaque floor, clipped to the chamfer.
@@ -2942,13 +2931,12 @@
      backdrop (hex texture + edge glow + back-wall gradient) in one knob. */
   opacity: 0.3;
   /* Warm pool at the far (back) wall so the depth reads as lit. */
-  background:
-    radial-gradient(
-      48% 44% at 50% 47%,
-      rgba(255, 150, 110, 0.22) 0%,
-      rgba(255, 140, 100, 0.06) 50%,
-      transparent 80%
-    );
+  background: radial-gradient(
+    48% 44% at 50% 47%,
+    rgba(255, 150, 110, 0.22) 0%,
+    rgba(255, 140, 100, 0.06) 50%,
+    transparent 80%
+  );
 }
 
 :root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] .lera-room-face {
@@ -3016,7 +3004,9 @@
 
 /* CEILING — width = back-wall width, length(height) = room depth. Its FRONT edge
    (bottom in local space) hinges at the back wall's top edge. */
-:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-room'] .lera-room-face[data-face='ceiling'] {
+:root[data-hermes-theme='holo'][data-window-shell='holo']
+  [data-slot='window-room']
+  .lera-room-face[data-face='ceiling'] {
   width: var(--room-w);
   height: var(--room-d);
   margin-left: calc(var(--room-w) / -2);
@@ -3100,15 +3090,10 @@
      into the little room that remains. No 50px+ rings — they'd only be clipped,
      costing raster time for no visible glow. Composited ONCE, never animated →
      zero per-frame CPU. */
-  filter:
-    drop-shadow(0 0 1px rgba(255, 225, 212, 1))
-    drop-shadow(0 0 2px rgba(255, 190, 170, 1))
-    drop-shadow(0 0 4px rgba(255, 150, 128, 1))
-    drop-shadow(0 0 7px rgba(255, 115, 95, 1))
-    drop-shadow(0 0 11px rgba(255, 98, 80, 1))
-    drop-shadow(0 0 16px rgba(255, 88, 70, 0.98))
-    drop-shadow(0 0 24px rgba(255, 78, 62, 0.85))
-    drop-shadow(0 0 36px rgba(255, 68, 52, 0.6));
+  filter: drop-shadow(0 0 1px rgba(255, 225, 212, 1)) drop-shadow(0 0 2px rgba(255, 190, 170, 1))
+    drop-shadow(0 0 4px rgba(255, 150, 128, 1)) drop-shadow(0 0 7px rgba(255, 115, 95, 1))
+    drop-shadow(0 0 11px rgba(255, 98, 80, 1)) drop-shadow(0 0 16px rgba(255, 88, 70, 0.98))
+    drop-shadow(0 0 24px rgba(255, 78, 62, 0.85)) drop-shadow(0 0 36px rgba(255, 68, 52, 0.6));
 }
 
 /* Inner hole — the same silhouette inset by the stroke, in the FLOOR color,
@@ -3154,9 +3139,7 @@
      fast — 6 wide rings turned the frame into a blurry slab that drowned the
      chamfer notches (the "rectangularized" bug) and fogged the titlebar buttons.
      Three tight rings keep the line crisp and the silhouette readable. */
-  filter:
-    drop-shadow(0 0 3px rgba(255, 165, 140, 0.9))
-    drop-shadow(0 0 8px rgba(255, 105, 85, 0.7))
+  filter: drop-shadow(0 0 3px rgba(255, 165, 140, 0.9)) drop-shadow(0 0 8px rgba(255, 105, 85, 0.7))
     drop-shadow(0 0 18px rgba(255, 80, 62, 0.45));
 }
 
@@ -3373,7 +3356,9 @@
   font-size: 0.875rem;
   line-height: 1;
   cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
 }
 
 :root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-control:hover {
@@ -3403,4 +3388,203 @@
   :root[data-hermes-theme='holo'] [data-slot='aui_intro'] .fit-text {
     animation: none;
   }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BOT MODE — a bot's empty chat (plugins/hermes-bots/chat-empty.tsx)
+
+   Upstream heads that splash with the blob `BotFace` and titles it with the
+   Collapse serif. Neither belongs to the holo shell: the blob reads as a toy
+   beside the HUD instruments, and the serif is the PRODUCT wordmark's face —
+   a bot's chat is not the product splash. The markup renders both marks and
+   this file picks one, so the plugin needs no theme context of its own.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* Off by default: every non-holo skin keeps upstream's face untouched. */
+.lera-bot-sigil {
+  display: none;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='bot_chat_face'] > :not(.lera-bot-sigil) {
+  display: none;
+}
+
+:root[data-hermes-theme='holo'] .lera-bot-sigil {
+  /* One source for every beat, so the reduced-motion opt-out below can
+     re-assert them without restating a single number. */
+  --sigil-spin: 19s;
+  --sigil-spin-inner: 13s;
+  --sigil-breathe: 4.2s;
+  --sigil-orbit: 7.5s;
+  --sigil-scan: 5.5s;
+
+  display: block;
+  overflow: visible;
+  /* One bloom for the whole mark. A filter on the root composites once; per
+     element drop-shadows would re-blur on every animated frame. */
+  filter: drop-shadow(0 0 6px var(--holo-glow-2)) drop-shadow(0 0 18px var(--holo-glow-3));
+}
+
+:root[data-hermes-theme='holo'] .lera-bot-sigil__bezel {
+  fill: rgba(255, 81, 68, 0.05);
+  stroke: var(--holo-frame-coral);
+  stroke-width: 1.1;
+  opacity: 0.55;
+}
+
+:root[data-hermes-theme='holo'] .lera-bot-sigil__ring {
+  stroke: var(--holo-bright);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  opacity: 0.85;
+  transform-origin: 50px 50px;
+  animation: lera-sigil-spin var(--sigil-spin) linear infinite;
+}
+
+:root[data-hermes-theme='holo'] .lera-bot-sigil__ring--inner {
+  stroke: var(--holo-mid);
+  stroke-width: 1.4;
+  opacity: 0.7;
+  animation-duration: var(--sigil-spin-inner);
+  animation-direction: reverse;
+}
+
+:root[data-hermes-theme='holo'] .lera-bot-sigil__ticks path {
+  stroke: var(--holo-frame-coral);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.5;
+}
+
+:root[data-hermes-theme='holo'] .lera-bot-sigil__core,
+:root[data-hermes-theme='holo'] .lera-bot-sigil__pupil {
+  transform-origin: 50px 50px;
+  animation: lera-sigil-breathe var(--sigil-breathe) ease-in-out infinite;
+}
+
+:root[data-hermes-theme='holo'] .lera-bot-sigil__pupil {
+  fill: var(--holo-core);
+  /* Offset so the pupil and the halo are never at the same phase — the core
+     reads as breathing rather than as one object pulsing. */
+  animation-delay: calc(var(--sigil-breathe) / -3);
+}
+
+:root[data-hermes-theme='holo'] .lera-bot-sigil__orbit {
+  transform-origin: 50px 50px;
+  animation: lera-sigil-spin var(--sigil-orbit) linear infinite;
+}
+
+:root[data-hermes-theme='holo'] .lera-bot-sigil__orbit circle {
+  fill: var(--holo-core);
+}
+
+/* The sweep starts above the clip and travels through it, so the visible pass
+   is short and the tail of the cycle is dead time — a slow blink, not a
+   strobe. */
+:root[data-hermes-theme='holo'] .lera-bot-sigil__scan {
+  fill: var(--holo-bright);
+  opacity: 0.13;
+  animation: lera-sigil-scan var(--sigil-scan) cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes lera-sigil-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lera-sigil-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.09);
+    opacity: 1;
+  }
+}
+
+@keyframes lera-sigil-scan {
+  0% {
+    transform: translateY(0);
+  }
+  55%,
+  100% {
+    transform: translateY(115px);
+  }
+}
+
+/* DELIBERATE reduced-motion opt-out, for this one decorative mark only.
+   styles.css blanket-kills every animation under `prefers-reduced-motion`
+   (`animation-duration: 0.01ms !important`), and Windows reports `reduce` for
+   the whole session while the app is used over RDP — which is how this desktop
+   runs. The mark was asked for animated, so it re-asserts its own beats here.
+   Nothing else in the app is touched, and deleting this block hands the mark
+   back to the system setting. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-hermes-theme='holo']
+    .lera-bot-sigil
+    :is(
+      .lera-bot-sigil__ring,
+      .lera-bot-sigil__core,
+      .lera-bot-sigil__pupil,
+      .lera-bot-sigil__orbit,
+      .lera-bot-sigil__scan
+    ) {
+    animation-iteration-count: infinite !important;
+  }
+
+  :root[data-hermes-theme='holo'] .lera-bot-sigil__ring {
+    animation-duration: var(--sigil-spin) !important;
+  }
+
+  :root[data-hermes-theme='holo'] .lera-bot-sigil__ring--inner {
+    animation-duration: var(--sigil-spin-inner) !important;
+  }
+
+  :root[data-hermes-theme='holo'] .lera-bot-sigil__core,
+  :root[data-hermes-theme='holo'] .lera-bot-sigil__pupil {
+    animation-duration: var(--sigil-breathe) !important;
+  }
+
+  :root[data-hermes-theme='holo'] .lera-bot-sigil__orbit {
+    animation-duration: var(--sigil-orbit) !important;
+  }
+
+  :root[data-hermes-theme='holo'] .lera-bot-sigil__scan {
+    animation-duration: var(--sigil-scan) !important;
+  }
+}
+
+/* Hidden window: the shell parks continuous animation rather than paying for
+   an off-screen composite. `animation-play-state` is a different property from
+   the durations above, so this keeps winning even through the opt-out. */
+:root[data-renderer-animations-paused] .lera-bot-sigil * {
+  animation-play-state: paused !important;
+}
+
+/* The bot's NAME, in the shell's instrument voice: the HUD card headers'
+   treatment (see lera-hud.css) scaled up to splash size. */
+:root[data-hermes-theme='holo'] [data-slot='bot_chat_empty'] .wordmark {
+  font-family: var(--font-holo-display);
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  /* Tracking is added to the RIGHT of the last glyph too, so a centred line
+     sits visibly left of centre without pulling that trailing space back. */
+  text-indent: 0.26em;
+  color: var(--holo-bright);
+  /* `mix-blend-plus-lighter` is what makes upstream's serif glow against the
+     flat chat surface; over the hex wall it washes the coral out to near
+     white, so the bloom is done with a shadow instead. */
+  mix-blend-mode: normal;
+  text-shadow:
+    0 0 14px rgba(255, 123, 111, 0.75),
+    0 0 38px rgba(255, 70, 58, 0.45);
+}
+
+:root[data-hermes-theme='holo'] [data-slot='bot_chat_empty'] p:not(.wordmark) {
+  color: var(--holo-frame-coral);
+  opacity: 0.72;
+  letter-spacing: 0.08em;
 }

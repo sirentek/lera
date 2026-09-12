@@ -15,7 +15,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { displayName } from './labels'
+import { DEFAULT_AGENT_NAME, displayName } from './labels'
 import {
   aliasIdentityFor,
   beginAliasRouteIndex,
@@ -108,8 +108,8 @@ describe('alias identity survives the hosted handoff (#89131)', () => {
 
     expect(aliasIdentityFor(otherDefault)).toBeNull()
     expect(displayName(otherDefault, null)).toBe('Personal')
-    // Local default while the ACTIVE gateway is local: untouched "Hermes".
-    expect(displayName({ name: 'default' }, null)).toBe('Hermes')
+    // Local default while the ACTIVE gateway is local: the agent's own name.
+    expect(displayName({ name: 'default' }, null)).toBe(DEFAULT_AGENT_NAME)
   })
 
   it('fails closed when two aliases claim one backend row', () => {

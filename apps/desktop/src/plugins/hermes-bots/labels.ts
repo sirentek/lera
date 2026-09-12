@@ -11,6 +11,12 @@
 import { aliasIdentityFor } from './routing'
 import type { BotMeta, RosterRow } from './types'
 
+/** LERA FORK: what the primary (`default`) profile is CALLED on every Bot Mode
+ *  surface — the roster row, the tab, the group-chat speaker label and the
+ *  empty-chat splash all read identity through here, so the fork's name lives
+ *  in exactly one place. Upstream hardcodes 'Hermes' at each site. */
+export const DEFAULT_AGENT_NAME = 'Lera'
+
 export function displayName(bot: Partial<RosterRow>, meta?: BotMeta | null): string {
   // A configured alias route claiming this row overrides source-derived
   // identity: the friendly alias name must survive hosted-session
@@ -52,10 +58,10 @@ export function displayName(bot: Partial<RosterRow>, meta?: BotMeta | null): str
   }
 
   // The primary profile is literally named "default" — as a bot identity
-  // that reads like nobody bothered. Present it as Hermes (the agent it is)
-  // unless the user gives it a real title.
+  // that reads like nobody bothered. Present it as the agent it is (LERA FORK:
+  // Lera, not Hermes) unless the user gives it a real title.
   if ((bot.name || '').trim().toLowerCase() === 'default' && !bot.title) {
-    return 'Hermes'
+    return DEFAULT_AGENT_NAME
   }
 
   const raw = (bot.title || bot.name || '').replace(/[-_]+/g, ' ').trim()

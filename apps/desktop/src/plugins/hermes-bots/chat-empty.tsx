@@ -14,6 +14,7 @@ import { isBackfilledFacePng } from './avatar-image'
 import { $botMeta, $lastRoster } from './data'
 import { useBots } from './i18n'
 import { displayName } from './labels'
+import { LeraBotSigil } from './lera-sigil'
 import { botRosterMeta } from './routing'
 import type { RosterRow } from './types'
 
@@ -91,7 +92,10 @@ export function BotChatEmpty({ sessionId }: { sessionId: string }) {
       style={{ transform: `translateY(-${FACE_BLOCK / 2}px)` }}
     >
       <div className="w-full min-w-0">
-        <div className="flex justify-center" style={{ marginBottom: FACE_GAP }}>
+        {/* LERA FORK: both marks render; holo.css shows the sigil and hides the
+            blob face on the holo skin, and does the reverse everywhere else. */}
+        <div className="flex justify-center" data-slot="bot_chat_face" style={{ marginBottom: FACE_GAP }}>
+          <LeraBotSigil size={FACE_SIZE} />
           <BotFace
             color={avatarColor(color, bot.name)}
             image={photo ? image : null}
