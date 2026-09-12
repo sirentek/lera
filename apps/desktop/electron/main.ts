@@ -1044,6 +1044,17 @@ let translucencyState = readPersistedTranslucency()
 // painting a themed backing onto them would turn them into opaque rectangles.
 const translucencyBackedWindows = new WeakSet()
 
+// LERA FORK: windows this fork creates with `transparent: true` — the frameless
+// holo shell, whose red chamfered frame is drawn in CSS and whose corners must
+// stay genuinely see-through. A DWM backdrop material and per-pixel alpha are
+// mutually exclusive: upstream documents the same collision for the HUD window
+// (hud-ipc.ts), where ANY setBackgroundMaterial call on a transparent window —
+// `'none'` included — permanently kills the alpha. Upstream's own main window
+// is not transparent, so it never had to make the choice; this fork's is, so
+// these windows take the CSS tint the theme already paints and skip the native
+// material entirely.
+const transparentShellWindows = new WeakSet()
+
 // Set a live window's native opacity, but only when the state asks it to fade
 // — or when the window is already faded and is on its way back to opaque. The
 // window's own opacity is the record of whether that door was ever opened; see
@@ -1091,7 +1102,12 @@ function applyWindowTranslucency(win, changed = { backing: true, material: true,
     // translucencyBackedWindows above).
     if (translucencyBackedWindows.has(win)) {
       if (changed.backing && typeof win.setBackgroundColor === 'function') {
-        win.setBackgroundColor(glassActive(translucencyState) ? '#00000000' : getWindowBackgroundColor())
+        // A transparent shell stays fully transparent whatever the mode: the
+        // themed colour is what glass-OFF paints, and on this window it would
+        // fill the whole rect straight over the chamfered frame.
+        win.setBackgroundColor(
+          transparentShellWindows.has(win) || glassActive(translucencyState) ? '#00000000' : getWindowBackgroundColor()
+        )
       }
 
       if (changed.material) {
@@ -1103,7 +1119,12 @@ function applyWindowTranslucency(win, changed = { backing: true, material: true,
           win.setVibrancy(vibrancyForTranslucency(translucencyState), { animationDuration: 150 })
         }
 
-        if (IS_WINDOWS && GLASS_SUPPORTED && typeof win.setBackgroundMaterial === 'function') {
+        if (
+          IS_WINDOWS &&
+          GLASS_SUPPORTED &&
+          !transparentShellWindows.has(win) &&
+          typeof win.setBackgroundMaterial === 'function'
+        ) {
           win.setBackgroundMaterial(backgroundMaterialFor(translucencyState))
         }
       }
@@ -14671,6 +14692,14 @@ function createWindow() {
     // background must stay fully transparent or it paints over the chamfered
     // frame. macOS keeps the themed colour for the vibrancy material.
     backgroundColor: IS_MAC ? getWindowBackgroundColor() : '#00000000',
+    // ...and no DWM backdrop behind it, for the same reason — the material
+    // fills the window RECT, which is the translucent grey slab that showed
+    // up outside the frame once 0.21.2's glass mode reached this window.
+    // Omitted rather than set to `'none'`: upstream's HUD finding is that even
+    // `'none'` counts as applying a material on a transparent window. (The
+    // spread only ever sets this on Windows, so dropping it costs macOS
+    // nothing — its frost is `vibrancy`, which the spread still supplies.)
+    backgroundMaterial: undefined,
     // Shared with the secondary session windows (chatWindowWebPreferences);
     // stream-aware throttling is applied per-window via streamThrottle so a
     // live answer keeps painting while the window is blurred or minimized,
@@ -14683,6 +14712,10 @@ function createWindow() {
 
   // Chat-surface registration: see applyWindowTranslucency.
   translucencyBackedWindows.add(mainWindow)
+
+  if (!IS_MAC) {
+    transparentShellWindows.add(mainWindow)
+  }
 
   if (IS_MAC) {
     mainWindow.setWindowButtonPosition?.(WINDOW_BUTTON_POSITION)
