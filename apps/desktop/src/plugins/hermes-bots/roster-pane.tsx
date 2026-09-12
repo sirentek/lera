@@ -452,7 +452,7 @@ export function BotsPane() {
     })
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-slot="bots-panel">
       {renderRosterToolbar({
         b,
         activityToasts,

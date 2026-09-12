@@ -649,6 +649,7 @@
    echo offset; the panels' overflow clips are released below ("Bloom
    spill") so the halo bleeds past the pane like the composer's. */
 :root[data-hermes-theme='holo'] [data-slot='sidebar'],
+:root[data-hermes-theme='holo'] [data-slot='bots-panel'],
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar'] {
   --holo-frame-top: calc(var(--titlebar-height, 0px) + 0.375rem);
   --holo-frame-inset: 9px;
@@ -884,6 +885,7 @@
    of the aside, so the frame stops above the context HUD card — the wrapper
    zeroes the frame insets (it already IS the ring box). */
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::before,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel'] > :first-child::before,
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] > :first-child::before {
   content: '';
   position: absolute;
@@ -916,7 +918,8 @@
   box-shadow: var(--holo-inner-glow);
 }
 
-:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::before {
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::before,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel'] > :first-child::before {
   clip-path: polygon(
     0 0,
     calc(100% - var(--holo-chamfer)) 0,
@@ -960,8 +963,54 @@
   transform-origin: left center;
 }
 
+/* ── Bots pane: the same panel frame the Sessions pane wears ────────────────
+   SESSIONS and BOTS are two tabs of one PaneShell zone, so the Bots pane is
+   NOT inside [data-slot='sidebar'] — it is its own absolute layer and misses
+   every frame rule keyed off the aside. It is also a single element where the
+   chat sidebar is two (aside supplies the outer gap, sidebar-panel is the ring
+   box), so [data-slot='bots-panel'] plays both parts: it joins the aside's var
+   block above (frame vars, z:3, tilt) and KEEPS --holo-frame-top/inset
+   non-zero — the pseudos inset themselves off its own border box instead of a
+   parent's padding. Everything else is the sessions frame verbatim (same
+   chamfer orientation), so the two tabs cannot drift apart.
+
+   The echo offset and wall-mount tilt follow the aside's side the way the
+   aside's own .border-l/.border-r rules do; the sibling sidebar in the same
+   zone is what carries that class, so read it from there. */
+:root[data-hermes-theme='holo'] [data-tree-group]:has([data-slot='sidebar'].border-l) [data-slot='bots-panel'] {
+  --holo-ex: -11px;
+  --holo-tilt: -5deg;
+  transform-origin: right center;
+}
+
+:root[data-hermes-theme='holo'] [data-tree-group]:has([data-slot='sidebar'].border-r) [data-slot='bots-panel'] {
+  --holo-ex: 11px;
+  --holo-tilt: 5deg;
+  transform-origin: left center;
+}
+
+/* Content steps inside the ring. The aside/sidebar-panel split spends the
+   frame inset on the aside and the content inset on the panel; here one
+   element pays both, so the ring inset is added to the same content gap the
+   sessions panel uses (0 1.25rem 1.125rem — trimmed sideways because the
+   roster rows carry their own px). */
+:root[data-hermes-theme='holo'] [data-slot='bots-panel'] {
+  padding: calc(var(--holo-frame-top) + 0.5rem) calc(var(--holo-frame-inset) + 0.75rem)
+    calc(var(--holo-frame-inset) + 0.5rem);
+}
+
+/* Bloom spill — same release as the aside's, one layer up: the pane layer this
+   sits in is `absolute inset-0 overflow-auto`, and that clip strangles the
+   halo at the ring box. The roster scrolls in its own inner scroller, so this
+   layer never needed the scrollbar. */
+:root[data-hermes-theme='holo'] div:has(> [data-slot='bots-panel']) {
+  overflow: visible;
+}
+
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::before,
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::after,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel']::before,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel']::after,
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::before,
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::after {
   content: '';
@@ -974,6 +1023,7 @@
    here: the ring's clip-path would clip a drop-shadow away (clip-path runs
    after filter). The bloom is the dedicated line-glow layer below. */
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::after,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel']::after,
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::after {
   z-index: 30;
   background: var(--holo-frame-border-gradient);
@@ -985,6 +1035,7 @@
 /* Echo ring — dim, slightly blurred duplicate offset behind the panel.
    Negative z paints it over the glass fill but under all panel content. */
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::before,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel']::before,
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel']::before {
   /* The dim projection needs a slightly wider physical stroke than the hot
      primary ring to retain equal apparent weight at its lower luminance —
@@ -1011,7 +1062,9 @@
    `.cut-2`); file panel mirrors it (top-left + bottom-right). Hollow
    evenodd rings keep the interior transparent — only the stroke line paints. */
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::before,
-:root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::after {
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel']::after,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel']::before,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel']::after {
   clip-path: polygon(
     evenodd,
     0 0,
@@ -1062,6 +1115,7 @@
    pseudos are taken by the rings; the child is static, so the inset resolves
    against the panel); z 29 tucks it just under the crisp z-30 ring. */
 :root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::after,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel'] > :first-child::after,
 :root[data-hermes-theme='holo'] [data-slot='right-sidebar-panel'] > :first-child::after {
   --holo-line: linear-gradient(var(--holo-frame-glow-line), var(--holo-frame-glow-line));
   content: '';
@@ -1088,7 +1142,8 @@
 /* Layers: top edge, right edge, bottom edge, left edge, then the two chamfer
    diagonals. Sessions panel cuts top-right + bottom-left, so its edges stop
    short of those corners and the diagonals run NW–SE (45deg bands). */
-:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::after {
+:root[data-hermes-theme='holo'] [data-slot='sidebar-panel'] > :first-child::after,
+:root[data-hermes-theme='holo'] [data-slot='bots-panel'] > :first-child::after {
   background-image:
     var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
     linear-gradient(
