@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import type { ComponentProps } from 'react'
+import { type ComponentProps, useState } from 'react'
 
 import { TreeSkeleton } from '@/components/chat/skeletons'
 import { ErrorBoundary } from '@/components/error-boundary'
@@ -23,6 +23,7 @@ import { ContextHud } from './context-hud'
 import { ProjectTree } from './files/tree'
 import { useProjectTree } from './files/use-project-tree'
 import { FirecrawlHud } from './firecrawl-hud'
+import { LeraCollapsiblePane } from './lera-collapsible-pane'
 
 interface RightSidebarPaneProps {
   onActivateFile: (path: string) => void
@@ -33,6 +34,9 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSide
   const { t } = useI18n()
   const r = t.rightSidebar
   const panesFlipped = useStore($panesFlipped)
+  const [modelCollapsedHeight, setModelCollapsedHeight] = useState(0)
+  const [contextCollapsedHeight, setContextCollapsedHeight] = useState(0)
+  const restoreSide = panesFlipped ? 'left' : 'right'
   const currentCwd = useStore($currentCwd).trim()
   const selectedStoredSessionId = useStore($selectedStoredSessionId)
   const workspaceCwdOwner = useStore($workspaceCwdOwner)
@@ -88,7 +92,13 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSide
       )}
       data-slot="right-sidebar"
     >
-      <div className="flex min-h-0 flex-1 flex-col" data-slot="right-sidebar-panel">
+      <LeraCollapsiblePane
+        pane="files"
+        restoreSide={restoreSide}
+        slot="right-sidebar-panel"
+        tabLabel="FILES"
+        title={r.files}
+      >
         <FilesystemTab
           canCollapse={canCollapse}
           collapseNonce={collapseNonce}
@@ -107,10 +117,14 @@ export function RightSidebarPane({ onActivateFile, onActivateFolder }: RightSide
           onRefresh={() => void refreshRoot()}
           openState={openState}
         />
-      </div>
-      <FirecrawlHud />
-      <ContextHud />
-      <ModelHud />
+      </LeraCollapsiblePane>
+      <FirecrawlHud restoreOffset={modelCollapsedHeight + contextCollapsedHeight} restoreSide={restoreSide} />
+      <ContextHud
+        onCollapsedHeightChange={setContextCollapsedHeight}
+        restoreOffset={modelCollapsedHeight}
+        restoreSide={restoreSide}
+      />
+      <ModelHud onCollapsedHeightChange={setModelCollapsedHeight} restoreSide={restoreSide} />
     </aside>
   )
 }
@@ -165,7 +179,7 @@ function FilesystemTab({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <RightSidebarSectionHeader>
+      <RightSidebarSectionHeader data-lera-files-heading="">
         <div className="flex min-w-0 flex-1">
           <SidebarPanelLabel>{cwdName}</SidebarPanelLabel>
         </div>

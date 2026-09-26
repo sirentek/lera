@@ -1,5 +1,6 @@
 import { useStore } from '@nanostores/react'
 
+import { LeraCollapsibleHud, type LeraHudDockProps } from '@/app/right-sidebar/lera-collapsible-hud'
 import { useI18n } from '@/i18n'
 import { modelBaseId, modelDisplayParts } from '@/lib/model-status-label'
 import { DEFAULT_REASONING_EFFORT, reasoningEffortLabel } from '@/lib/reasoning-effort'
@@ -14,7 +15,7 @@ import { useTheme } from '@/themes/context'
  * the statusbar already shows these numbers for every other skin (styles live
  * in styles/holo.css, reusing the chamfered HUD-card frame grammar).
  */
-export function ModelHud() {
+export function ModelHud({ onCollapsedHeightChange, restoreOffset, restoreSide }: LeraHudDockProps = {}) {
   const { themeName } = useTheme()
   const { t } = useI18n()
   const model = useStore($currentModel)
@@ -36,10 +37,17 @@ export function ModelHud() {
   const effortLabel = reasoningEffortLabel(reasoningEffort || DEFAULT_REASONING_EFFORT)
 
   return (
-    <section aria-label={t.shell.modelMenu.search} data-slot="model-hud">
-      <header>
-        <span>MODEL</span>
-      </header>
+    <LeraCollapsibleHud
+      hud="model"
+      label={t.shell.modelMenu.search}
+      onCollapsedHeightChange={onCollapsedHeightChange}
+      restoreOffset={restoreOffset}
+      restoreSide={restoreSide}
+      showPlan={false}
+      slot="model-hud"
+      tabLabel="MODEL"
+      title="MODEL"
+    >
       <div className="mhud-name" title={model || undefined}>
         {name || '—'}
         {tag ? <em>{tag}</em> : null}
@@ -58,6 +66,6 @@ export function ModelHud() {
           <b data-on={isFast}>{isFast ? 'ON' : 'OFF'}</b>
         </div>
       </div>
-    </section>
+    </LeraCollapsibleHud>
   )
 }

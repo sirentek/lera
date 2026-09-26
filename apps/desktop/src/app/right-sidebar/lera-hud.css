@@ -220,6 +220,216 @@
   text-shadow: none;
 }
 
+/* The restore tab centers on its panel's last expanded vertical footprint. Keeping
+   it out of flow lets Sessions take all the space the hidden card frees.
+   The card stays mounted so its live usage and refresh state survive hiding. */
+:root[data-hermes-theme='holo'] .hud-collapse-dock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-width: 0;
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-dock [hidden] {
+  display: none;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='codex'] {
+  anchor-name: --holo-codex-dock;
+  --hud-restore-anchor: --holo-codex-dock;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='claude'] {
+  anchor-name: --holo-claude-dock;
+  --hud-restore-anchor: --holo-claude-dock;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='firecrawl'] {
+  anchor-name: --holo-firecrawl-dock;
+  --hud-restore-anchor: --holo-firecrawl-dock;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='context'] {
+  anchor-name: --holo-context-dock;
+  --hud-restore-anchor: --holo-context-dock;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='model'] {
+  anchor-name: --holo-model-dock;
+  --hud-restore-anchor: --holo-model-dock;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='files'] {
+  anchor-name: --holo-files-dock;
+  --hud-restore-anchor: --holo-files-dock;
+  --hud-collapse-heading: --holo-files-heading;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='sessions'] {
+  anchor-name: --holo-sessions-dock;
+  --hud-restore-anchor: --holo-sessions-dock;
+  --hud-collapse-heading: --holo-session-heading;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='sessions'] > [hidden] {
+  display: none;
+}
+
+/* The file slot retains its space above the cards. Keep its viewport measurable
+   while invisible so the virtual tree retains selection and scroll position. */
+:root[data-hermes-theme='holo'] [data-hud-dock='files'] > [data-collapsed='true'] {
+  visibility: hidden;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='sessions'] [data-lera-session-header] {
+  anchor-name: --holo-session-heading;
+  padding-right: 1.125rem;
+}
+
+:root[data-hermes-theme='holo'] [data-hud-dock='files'] [data-lera-files-heading] {
+  anchor-name: --holo-files-heading;
+  padding-right: 1.75rem;
+}
+
+:root[data-hermes-theme='holo'] .lera-pane-collapse {
+  position: absolute;
+  position-anchor: var(--hud-collapse-heading);
+  top: anchor(center, 1.75rem);
+  right: 0.875rem;
+  translate: 0 -50%;
+  z-index: 31;
+  -webkit-app-region: no-drag;
+}
+
+/* Sessions' pane layer is z=5. Its attached restore tab must sit above that
+   entire layer, otherwise the panel frame paints over the tab's backing. */
+:root[data-hermes-theme='holo'] [data-slot='lera-zone-hud']:has(.hud-collapse-rail) {
+  z-index: 6;
+}
+
+/* The zone surface clips panes by default. Release that outer clip only while
+   this tab straddles its edge; the pane's own scrollers still clip content. */
+:root[data-hermes-theme='holo']
+  :has(> [data-slot='pane-body-stack'] > [data-slot='lera-zone-hud'] .hud-collapse-rail) {
+  overflow: visible;
+}
+
+/* The pane body also clips the offset frame's left edge. Its session list
+   scrolls inside the pane, so this outer body can let the frame spill. */
+:root[data-hermes-theme='holo']
+  [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  > :first-child {
+  overflow: visible;
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-dock > section > header {
+  align-items: center;
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-dock > section > header small {
+  margin-left: auto;
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-button {
+  margin-right: 0.25rem;
+  color: var(--holo-bright);
+  border: 1px solid color-mix(in srgb, var(--holo-bright) 45%, transparent);
+  filter: drop-shadow(0 0 3px var(--holo-glow-2));
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-rail[data-slot='lera-hud'] {
+  --holo-chamfer: 6px;
+  position: absolute;
+  right: calc(var(--holo-frame-inset) * -1 - 0.625rem - 5px);
+  bottom: var(--hud-restore-offset);
+  translate: 0 50%;
+  z-index: 40;
+  margin: 0;
+  padding: 0.75rem 0.375rem;
+}
+
+/* The manual popover enters the top layer without changing theme inheritance.
+   Anchor it to the same dock so it follows the panel when the layout resizes. */
+:root[data-hermes-theme='holo'] .hud-collapse-rail:popover-open {
+  position: fixed;
+  position-anchor: var(--hud-restore-anchor);
+  inset: auto;
+  right: calc(anchor(right) - var(--holo-frame-inset) - 0.625rem - 5px);
+  bottom: calc(anchor(bottom) + var(--hud-restore-offset));
+  width: max-content;
+  height: auto;
+  border: 0;
+  overflow: visible;
+  background: transparent;
+  color: inherit;
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-rail[data-restore-side='left'] {
+  right: auto;
+  left: calc(var(--holo-frame-inset) * -1 - 0.625rem - 5px);
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-rail[data-restore-side='left']:popover-open {
+  right: auto;
+  left: calc(anchor(left) - var(--holo-frame-inset) - 0.625rem - 5px);
+}
+
+/* The Sessions slot keeps its footprint above the independently visible cards.
+   Its tab tracks the center of that slot as cards and window size change. */
+:root[data-hermes-theme='holo'] :is([data-hud-dock='sessions'], [data-hud-dock='files']) .hud-collapse-rail {
+  bottom: 50%;
+}
+
+:root[data-hermes-theme='holo'] :is([data-hud-dock='sessions'], [data-hud-dock='files']) .hud-collapse-rail:popover-open {
+  bottom: calc(anchor(center) + var(--hud-pane-center-shift, 0px));
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-rail[data-slot='lera-hud']::before {
+  /* An opaque face above the pane frame, beneath the tab's own complete ring. */
+  z-index: 0;
+  transform: none;
+  opacity: 1;
+  background: var(--theme-background-seed);
+  box-shadow: var(--holo-inner-glow);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--holo-chamfer)) 0,
+    100% var(--holo-chamfer),
+    100% 100%,
+    var(--holo-chamfer) 100%,
+    0 calc(100% - var(--holo-chamfer))
+  );
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-rail > header {
+  margin: 0;
+}
+
+/* The rail owns its backing; keep the shared header fill from duplicating it. */
+:root[data-hermes-theme='holo'] .hud-collapse-rail > header::before {
+  display: none;
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-restore {
+  position: relative;
+  z-index: 1;
+  flex-direction: column;
+  color: var(--holo-bright);
+  font-family: var(--font-holo-display);
+  font-size: 0.625rem;
+  letter-spacing: 0.2em;
+}
+
+:root[data-hermes-theme='holo'] .hud-collapse-restore > span {
+  writing-mode: vertical-rl;
+}
+
+:root[data-hermes-theme='holo'] :is(.hud-collapse-button, .hud-collapse-restore):is(:hover, :focus-visible) {
+  color: var(--holo-core);
+  filter: drop-shadow(0 0 5px var(--holo-glow-1));
+}
+
 :root[data-hermes-theme='holo'] [data-slot='lera-hud'] .hud-row {
   display: flex;
   align-items: center;
@@ -379,14 +589,14 @@
   text-transform: uppercase;
 }
 
-/* ── chat-sidebar mirror: FIRECRAWL docks in the left sidebar with MODEL, so
-   there it must mirror the model card's frame direction — cuts to top-left +
-   bottom-right, NE-SW chamfer lines — instead of the right-sidebar default
-   (top-right + bottom-left). Scoped to [data-slot='sidebar'] so CODEX / CLAUDE
-   / FIRECRAWL keep the default cut in the right sidebar. Mirrors the three base
-   pseudos above: ring clip, header glass-fill clip, header line-bloom. */
-:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud']::before,
-:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud']::after {
+/* Top-left + bottom-right cuts: the chat-sidebar cards, Codex/Claude panels,
+   and Files restore tab share the mirrored ring, fill and line bloom.
+   The restore tab keeps a solid face so the window outline stays behind it. */
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud']:not(.hud-collapse-rail)::before,
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud']:not(.hud-collapse-rail)::after,
+:root[data-hermes-theme='holo'] :is([data-hud='codex'], [data-hud='claude'])::before,
+:root[data-hermes-theme='holo'] :is([data-hud='codex'], [data-hud='claude'])::after,
+:root[data-hermes-theme='holo'] [data-hud-dock='files'] .hud-collapse-rail::after {
   clip-path: polygon(
     evenodd,
     var(--holo-chamfer) 0,
@@ -408,7 +618,9 @@
   );
 }
 
-:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud'] > header::before {
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud']:not(.hud-collapse-rail) > header::before,
+:root[data-hermes-theme='holo'] :is([data-hud='codex'], [data-hud='claude']) > header::before,
+:root[data-hermes-theme='holo'] [data-hud-dock='files'] .hud-collapse-rail::before {
   clip-path: polygon(
     var(--holo-chamfer) 0,
     100% 0,
@@ -419,7 +631,9 @@
   );
 }
 
-:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud'] > header::after {
+:root[data-hermes-theme='holo'] [data-slot='sidebar'] [data-slot='lera-hud']:not(.hud-collapse-rail) > header::after,
+:root[data-hermes-theme='holo'] :is([data-hud='codex'], [data-hud='claude']) > header::after,
+:root[data-hermes-theme='holo'] [data-hud-dock='files'] .hud-collapse-rail > header::after {
   background-image:
     var(--holo-line), var(--holo-line), var(--holo-line), var(--holo-line),
     linear-gradient(

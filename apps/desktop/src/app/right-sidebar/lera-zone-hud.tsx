@@ -12,6 +12,7 @@
 // second local transform here would put the frames on different perspective
 // planes.
 import { useStore } from '@nanostores/react'
+import { useState } from 'react'
 
 import { $panesFlipped } from '@/store/layout'
 import { useTheme } from '@/themes/context'
@@ -24,6 +25,7 @@ import { CodexHud } from './codex-hud'
 export function LeraZoneHud({ panes }: { panes: string[] }) {
   const { themeName } = useTheme()
   const panesFlipped = useStore($panesFlipped)
+  const [claudeCollapsedHeight, setClaudeCollapsedHeight] = useState(0)
 
   // Both cards render null off the holo skin; skip the wrapper too so no other
   // theme gains a stray flex row under the zone.
@@ -33,8 +35,8 @@ export function LeraZoneHud({ panes }: { panes: string[] }) {
 
   return (
     <div className="flex shrink-0 flex-col" data-flipped={panesFlipped || undefined} data-slot="lera-zone-hud">
-      <CodexHud />
-      <ClaudeHud />
+      <CodexHud restoreOffset={claudeCollapsedHeight} />
+      <ClaudeHud onCollapsedHeightChange={setClaudeCollapsedHeight} />
     </div>
   )
 }

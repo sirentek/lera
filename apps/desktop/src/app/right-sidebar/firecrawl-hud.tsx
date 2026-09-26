@@ -6,6 +6,7 @@ import './lera-hud.css'
 
 import { useTheme } from '@/themes/context'
 
+import { LeraCollapsibleHud, type LeraHudDockProps } from './lera-collapsible-hud'
 import { elapsedPeriodPercent, type FirecrawlUsage, formatHudDate, gaugePercent, useLeraHudPoll } from './lera-hud-data'
 import { LeraHudGauge } from './lera-hud-gauge'
 import { useHudManualRefresh, useScrambledText } from './lera-hud-refresh'
@@ -25,7 +26,7 @@ const POLL_INTERVAL_MS = 10 * 60 * 1000
  * REFRESHING.. in the header — except the scramble lands on the four credit
  * rows instead of gauge-column labels. See lera-hud-refresh.ts.
  */
-export function FirecrawlHud() {
+export function FirecrawlHud({ onCollapsedHeightChange, restoreOffset, restoreSide }: LeraHudDockProps = {}) {
   const { themeName } = useTheme()
   const isHolo = themeName === 'holo'
   const { refreshing, reloadToken, triggerProps } = useHudManualRefresh()
@@ -50,45 +51,34 @@ export function FirecrawlHud() {
   const remainingPct = elapsedPeriodPercent(usage?.billingPeriodStart, usage?.billingPeriodEnd)
 
   return (
-    <section
-      {...triggerProps}
-      aria-label="Firecrawl credits — activate to refresh"
-      data-hud="firecrawl"
-      data-slot="lera-hud"
+    <LeraCollapsibleHud
+      bodyClassName="hud-row"
+      hud="firecrawl"
+      label="Firecrawl credits"
+      onCollapsedHeightChange={onCollapsedHeightChange}
+      refreshing={refreshing}
+      restoreOffset={restoreOffset}
+      restoreSide={restoreSide}
+      tabLabel="FIRECRAWL"
+      title="FIRECRAWL"
+      triggerProps={triggerProps}
     >
-      <header>
-        <span>FIRECRAWL</span>
-        {refreshing ? (
-          // Dots are real elements rather than an animated ::after `content`
-          // string — discrete content animation is not reliably supported.
-          <small className="hud-refresh-tag">
-            REFRESHING
-            <span className="hud-refresh-dot">.</span>
-            <span className="hud-refresh-dot">.</span>
-            <span className="hud-refresh-dot">.</span>
-          </small>
-        ) : (
-          <small>USED</small>
-        )}
-      </header>
-      <div className="hud-row">
-        <LeraHudGauge gradientId="holoFirecrawlGaugeGrad" pct={pct} remainingPct={remainingPct} />
-        <div className="hud-kvs">
-          <FirecrawlRow
-            label="REMAINING"
-            refreshing={refreshing}
-            value={remaining === null ? '—' : remaining.toLocaleString('en-US')}
-          />
-          <FirecrawlRow
-            label="PLAN"
-            refreshing={refreshing}
-            value={plan === null ? '—' : `${plan.toLocaleString('en-US')}/MO`}
-          />
-          <FirecrawlRow label="PERIOD START" refreshing={refreshing} value={formatHudDate(usage?.billingPeriodStart)} />
-          <FirecrawlRow label="PERIOD END" refreshing={refreshing} value={formatHudDate(usage?.billingPeriodEnd)} />
-        </div>
+      <LeraHudGauge gradientId="holoFirecrawlGaugeGrad" pct={pct} remainingPct={remainingPct} />
+      <div className="hud-kvs">
+        <FirecrawlRow
+          label="REMAINING"
+          refreshing={refreshing}
+          value={remaining === null ? '—' : remaining.toLocaleString('en-US')}
+        />
+        <FirecrawlRow
+          label="PLAN"
+          refreshing={refreshing}
+          value={plan === null ? '—' : `${plan.toLocaleString('en-US')}/MO`}
+        />
+        <FirecrawlRow label="PERIOD START" refreshing={refreshing} value={formatHudDate(usage?.billingPeriodStart)} />
+        <FirecrawlRow label="PERIOD END" refreshing={refreshing} value={formatHudDate(usage?.billingPeriodEnd)} />
       </div>
-    </section>
+    </LeraCollapsibleHud>
   )
 }
 

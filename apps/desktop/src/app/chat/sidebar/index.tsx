@@ -149,6 +149,7 @@ import { SidebarSectionAddButton } from './chrome'
 import { SidebarCronJobsSection } from './cron-jobs-section'
 import { SidebarFilterMenu } from './filter-menu'
 import { useGatewaySessionGroups } from './gateway-group-model'
+import { LeraSessionPanel } from './lera-session-panel'
 import { SidebarLoadMoreRow } from './load-more-row'
 import { orderByIds, reconcileOrderIds, resolveManualSessionOrderIds, sameIds } from './order'
 import { filterSessionsByProfileScope } from './profile-scope'
@@ -1474,7 +1475,7 @@ export function ChatSidebar({
       data-tour="sessions-sidebar"
     >
       <SidebarContent className="gap-0 overflow-hidden bg-transparent px-2.5">
-        <div className="flex min-h-0 flex-1 flex-col" data-slot="sidebar-panel">
+        <LeraSessionPanel>
           <SidebarGroup className="shrink-0 p-0 pb-2 pt-[calc(var(--titlebar-height)+0.375rem)]">
             <SidebarGroupContent>
               <SidebarMenu className="gap-px">
@@ -1510,6 +1511,7 @@ export function ChatSidebar({
                       )}
                       // A tip anchored to the label points at the end of the
                       // word; the row is what it's actually about.
+                      data-lera-session-header={isNewSession || undefined}
                       data-tip-region=""
                       onClick={() => {
                         // A plain new session lands in whatever profile the live
@@ -1939,7 +1941,7 @@ export function ChatSidebar({
               <ProfileRail />
             </div>
           )}
-        </div>
+        </LeraSessionPanel>
       </SidebarContent>
       <ProjectDialog />
       {/* One mount for the whole app. The header of WorktreeDialog tells why. */}

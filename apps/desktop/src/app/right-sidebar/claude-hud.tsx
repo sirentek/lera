@@ -6,6 +6,7 @@ import './lera-hud.css'
 
 import { useTheme } from '@/themes/context'
 
+import { LeraCollapsibleHud } from './lera-collapsible-hud'
 import {
   type ClaudeUsage,
   type ClaudeUsageLimit,
@@ -36,7 +37,11 @@ const POLL_INTERVAL_MS = 5 * 60 * 1000
  * the header tag swaps the plan name for REFRESHING.. — see the
  * `[data-refreshing]` block in lera-hud.css.
  */
-export function ClaudeHud() {
+interface ClaudeHudProps {
+  onCollapsedHeightChange?: (height: number) => void
+}
+
+export function ClaudeHud({ onCollapsedHeightChange }: ClaudeHudProps = {}) {
   const { themeName } = useTheme()
   const isHolo = themeName === 'holo'
   const { refreshing, reloadToken, triggerProps } = useHudManualRefresh()
@@ -47,51 +52,39 @@ export function ClaudeHud() {
   }
 
   return (
-    <section
-      {...triggerProps}
-      aria-label="Claude plan usage limits — activate to refresh"
-      data-hud="claude"
-      data-slot="lera-hud"
+    <LeraCollapsibleHud
+      bodyClassName="hud-trio"
+      hud="claude"
+      label="Claude plan usage limits"
+      onCollapsedHeightChange={onCollapsedHeightChange}
+      plan={usage?.plan}
+      refreshing={refreshing}
+      tabLabel="CLAUDE"
+      title="CLAUDE PLAN USAGE"
+      triggerProps={triggerProps}
     >
-      <header>
-        <span>CLAUDE PLAN USAGE</span>
-        {refreshing ? (
-          // Dots are real elements rather than an animated ::after `content`
-          // string — discrete content animation is not reliably supported.
-          <small className="hud-refresh-tag">
-            REFRESHING
-            <span className="hud-refresh-dot">.</span>
-            <span className="hud-refresh-dot">.</span>
-            <span className="hud-refresh-dot">.</span>
-          </small>
-        ) : (
-          <small>{usage?.plan ? usage.plan.toUpperCase() : 'USED'}</small>
-        )}
-      </header>
-      <div className="hud-trio">
-        <ClaudeGaugeColumn
-          gradientId="holoClaudeGaugeSession"
-          label="SESSION"
-          limit={usage?.session}
-          refreshing={refreshing}
-          windowSeconds={HUD_SESSION_WINDOW_SECONDS}
-        />
-        <ClaudeGaugeColumn
-          gradientId="holoClaudeGaugeWeeklyAll"
-          label="WEEKLY"
-          limit={usage?.weeklyAll}
-          refreshing={refreshing}
-          windowSeconds={HUD_WEEKLY_WINDOW_SECONDS}
-        />
-        <ClaudeGaugeColumn
-          gradientId="holoClaudeGaugeFable"
-          label="FABLE"
-          limit={usage?.weeklyFable}
-          refreshing={refreshing}
-          windowSeconds={HUD_WEEKLY_WINDOW_SECONDS}
-        />
-      </div>
-    </section>
+      <ClaudeGaugeColumn
+        gradientId="holoClaudeGaugeSession"
+        label="SESSION"
+        limit={usage?.session}
+        refreshing={refreshing}
+        windowSeconds={HUD_SESSION_WINDOW_SECONDS}
+      />
+      <ClaudeGaugeColumn
+        gradientId="holoClaudeGaugeWeeklyAll"
+        label="WEEKLY"
+        limit={usage?.weeklyAll}
+        refreshing={refreshing}
+        windowSeconds={HUD_WEEKLY_WINDOW_SECONDS}
+      />
+      <ClaudeGaugeColumn
+        gradientId="holoClaudeGaugeFable"
+        label="FABLE"
+        limit={usage?.weeklyFable}
+        refreshing={refreshing}
+        windowSeconds={HUD_WEEKLY_WINDOW_SECONDS}
+      />
+    </LeraCollapsibleHud>
   )
 }
 

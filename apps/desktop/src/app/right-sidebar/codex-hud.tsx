@@ -6,6 +6,7 @@ import './lera-hud.css'
 
 import { useTheme } from '@/themes/context'
 
+import { LeraCollapsibleHud } from './lera-collapsible-hud'
 import {
   type CodexUsage,
   type CodexUsageWindow,
@@ -38,7 +39,11 @@ const POLL_INTERVAL_MS = 5 * 60 * 1000
  * card does — cache-bypassing re-poll, spinning scan arcs in the ring,
  * scrambling readouts, REFRESHING.. in the header — see lera-hud-refresh.ts.
  */
-export function CodexHud() {
+interface CodexHudProps {
+  restoreOffset?: number
+}
+
+export function CodexHud({ restoreOffset = 0 }: CodexHudProps = {}) {
   const { themeName } = useTheme()
   const isHolo = themeName === 'holo'
   const { refreshing, reloadToken, triggerProps } = useHudManualRefresh()
@@ -49,49 +54,37 @@ export function CodexHud() {
   }
 
   return (
-    <section
-      {...triggerProps}
-      aria-label="Codex usage limits — activate to refresh"
-      data-hud="codex"
-      data-slot="lera-hud"
+    <LeraCollapsibleHud
+      bodyClassName="hud-duo"
+      hud="codex"
+      label="Codex usage limits"
+      plan={usage?.plan}
+      refreshing={refreshing}
+      restoreOffset={restoreOffset}
+      tabLabel="CODEX"
+      title="CODEX ANALYTICS"
+      triggerProps={triggerProps}
     >
-      <header>
-        <span>CODEX ANALYTICS</span>
-        {refreshing ? (
-          // Dots are real elements rather than an animated ::after `content`
-          // string — discrete content animation is not reliably supported.
-          <small className="hud-refresh-tag">
-            REFRESHING
-            <span className="hud-refresh-dot">.</span>
-            <span className="hud-refresh-dot">.</span>
-            <span className="hud-refresh-dot">.</span>
-          </small>
-        ) : (
-          <small>{usage?.plan ? usage.plan.toUpperCase() : 'USED'}</small>
-        )}
-      </header>
-      <div className="hud-duo">
-        {/* ChatGPT returns the short rolling window first and the long one
+      {/* ChatGPT returns the short rolling window first and the long one
             second, which lines the columns up with the CLAUDE card's
             SESSION-then-WEEKLY reading order. Each column labels itself from
             its own reported duration, so a plan that ships only one 7-day
             window (Plus) still labels the left ring WEEKLY. */}
-        <CodexGaugeColumn
-          fallbackLabel="5H LIMIT"
-          fallbackWindowSeconds={HUD_SESSION_WINDOW_SECONDS}
-          gradientId="holoCodexGaugePrimary"
-          refreshing={refreshing}
-          window={usage?.primary}
-        />
-        <CodexGaugeColumn
-          fallbackLabel="WEEKLY"
-          fallbackWindowSeconds={HUD_WEEKLY_WINDOW_SECONDS}
-          gradientId="holoCodexGaugeSecondary"
-          refreshing={refreshing}
-          window={usage?.secondary}
-        />
-      </div>
-    </section>
+      <CodexGaugeColumn
+        fallbackLabel="5H LIMIT"
+        fallbackWindowSeconds={HUD_SESSION_WINDOW_SECONDS}
+        gradientId="holoCodexGaugePrimary"
+        refreshing={refreshing}
+        window={usage?.primary}
+      />
+      <CodexGaugeColumn
+        fallbackLabel="WEEKLY"
+        fallbackWindowSeconds={HUD_WEEKLY_WINDOW_SECONDS}
+        gradientId="holoCodexGaugeSecondary"
+        refreshing={refreshing}
+        window={usage?.secondary}
+      />
+    </LeraCollapsibleHud>
   )
 }
 
