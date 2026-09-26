@@ -4,6 +4,7 @@ import { persistString, storedString } from '@/lib/storage'
 import type { ModelOptionProvider } from '@/types/hermes'
 
 const STORAGE_KEY = 'hermes.desktop.visible-models'
+const KNOWN_MODELS_KEY = 'hermes.desktop.known-models'
 
 /** Models shown per provider in the status-bar dropdown before the user has
  *  customized the list. Backend `models` are already relevance-ordered. */
@@ -68,8 +69,8 @@ export function collapseModelFamilies(models: readonly string[]): ModelFamily[] 
   return families
 }
 
-function loadVisible(): Set<string> | null {
-  const raw = storedString(STORAGE_KEY)
+function loadModelKeys(storageKey: string): Set<string> | null {
+  const raw = storedString(storageKey)
 
   if (!raw) {
     return null
@@ -86,13 +87,35 @@ function loadVisible(): Set<string> | null {
 
 /** Explicit set of visible `provider::model` keys, or null when the user
  *  hasn't customized — in which case the curated default applies. */
-export const $visibleModels = atom<Set<string> | null>(loadVisible())
+export const $visibleModels = atom<Set<string> | null>(loadModelKeys(STORAGE_KEY))
 
 export const $modelVisibilityOpen = atom(false)
 
-export function setVisibleModels(keys: Set<string>): void {
+export function setVisibleModels(keys: Set<string>, providers?: readonly ModelOptionProvider[]): void {
   $visibleModels.set(new Set(keys))
   persistString(STORAGE_KEY, JSON.stringify([...keys]))
+
+  if (providers) {
+    rememberModelCatalog(providers)
+  }
+}
+
+export function knownModelKeys(): Set<string> | null {
+  return loadModelKeys(KNOWN_MODELS_KEY)
+}
+
+/** Remember every offered family, including hidden choices and removed models.
+ * This distinguishes new releases after reopening from intentional exclusions. */
+export function rememberModelCatalog(providers: readonly ModelOptionProvider[]): void {
+  const known = knownModelKeys() ?? new Set<string>()
+
+  for (const provider of providers) {
+    for (const family of collapseModelFamilies(provider.models ?? [])) {
+      known.add(modelVisibilityKey(provider.slug, family.id))
+    }
+  }
+
+  persistString(KNOWN_MODELS_KEY, JSON.stringify([...known]))
 }
 
 export function setModelVisibilityOpen(open: boolean): void {
@@ -109,6 +132,55 @@ export function defaultVisibleKeys(providers: readonly ModelOptionProvider[]): S
   }
 
   return keys
+}
+
+/** Explicit catalog refresh reveals newly discovered default models in a
+ * customized provider. Models already offered before refresh remain hidden
+ * when the user excluded them; hide-all preferences also stay intact. */
+export function revealNewCatalogModels(
+  stored: Set<string> | null,
+  previous: readonly ModelOptionProvider[] | undefined,
+  providers: readonly ModelOptionProvider[],
+  knownModels?: ReadonlySet<string> | null
+): Set<string> | null {
+  if (!stored?.size || (!previous && !knownModels)) {
+    return stored
+  }
+
+  const defaults = defaultVisibleKeys(providers)
+  let next = stored
+
+  for (const provider of providers) {
+    const before = previous?.find(row => row.slug === provider.slug)
+    const prefix = `${provider.slug}::`
+    const remembered = knownModels && [...knownModels].some(key => key.startsWith(prefix))
+
+    if (
+      (!before && !remembered) ||
+      stored.has(emptyProviderSentinelKey(provider.slug)) ||
+      ![...stored].some(key => key.startsWith(prefix) && !isProviderSentinel(key))
+    ) {
+      continue
+    }
+
+    const known = new Set(collapseModelFamilies(before?.models ?? []).map(family => family.id))
+
+    for (const family of collapseModelFamilies(provider.models ?? [])) {
+      const key = modelVisibilityKey(provider.slug, family.id)
+
+      const wasOffered = remembered ? knownModels!.has(key) : known.has(family.id)
+
+      if (!wasOffered && defaults.has(key) && !next.has(key)) {
+        if (next === stored) {
+          next = new Set(stored)
+        }
+
+        next.add(key)
+      }
+    }
+  }
+
+  return next
 }
 
 /** Add a provider's curated default model keys to `target`. Prefers the

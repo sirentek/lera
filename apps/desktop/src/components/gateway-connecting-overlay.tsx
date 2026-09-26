@@ -145,6 +145,7 @@ export function GatewayConnectingOverlay() {
       // glass or the shell shows through. Contract: `[data-glass-opaque]`
       // in styles.css.
       data-glass-opaque=""
+      data-slot="gateway-connecting"
     >
       <DecodeText
         active={phase === 'live' && (previewing || connecting)}

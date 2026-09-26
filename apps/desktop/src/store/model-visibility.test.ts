@@ -10,6 +10,7 @@ import {
   isProviderSentinel,
   modelVisibilityKey,
   resolveVisibleKeys,
+  revealNewCatalogModels,
   setProviderVisibility,
   toggleModelVisibility
 } from './model-visibility'
@@ -18,6 +19,61 @@ const provider = (slug: string, models: string[]): ModelOptionProvider => ({
   models,
   name: slug,
   slug
+})
+
+describe('catalog refresh visibility', () => {
+  const before = [provider('openai-codex', ['gpt-5.6-sol', 'gpt-5.5'])]
+  const after = [provider('openai-codex', ['gpt-6-sol', 'gpt-5.6-sol', 'gpt-5.5'])]
+
+  it('reveals newly offered models while preserving previously hidden choices', () => {
+    const stored = new Set([modelVisibilityKey('openai-codex', 'gpt-5.6-sol')])
+    const next = revealNewCatalogModels(stored, before, after)!
+
+    expect(next.has(modelVisibilityKey('openai-codex', 'gpt-6-sol'))).toBe(true)
+    expect(next.has(modelVisibilityKey('openai-codex', 'gpt-5.5'))).toBe(false)
+    expect(next.has(modelVisibilityKey('openai-codex', 'gpt-5.6-sol'))).toBe(true)
+    expect(stored.has(modelVisibilityKey('openai-codex', 'gpt-6-sol'))).toBe(false)
+    expect(revealNewCatalogModels(next, after, after)).toBe(next)
+  })
+
+  it('preserves default visibility, hide-all preferences and unknown previous catalogs', () => {
+    const hidden = new Set([emptyProviderSentinelKey('openai-codex')])
+    const empty = new Set<string>()
+    const stored = new Set([modelVisibilityKey('openai-codex', 'gpt-5.6-sol')])
+
+    expect(revealNewCatalogModels(null, before, after)).toBeNull()
+    expect(revealNewCatalogModels(hidden, before, after)).toBe(hidden)
+    expect(revealNewCatalogModels(empty, before, after)).toBe(empty)
+    expect(revealNewCatalogModels(stored, undefined, after)).toBe(stored)
+  })
+
+  it('uses provider identity and featured defaults when revealing new families', () => {
+    const stored = new Set([modelVisibilityKey('openai', 'old'), modelVisibilityKey('other', 'old')])
+    const previous = [provider('openai', ['old']), provider('other', ['old', 'new'])]
+
+    const refreshed = [
+      { ...provider('openai', ['old', 'new', 'new-fast', 'unfeatured']), featured_models: ['new'] },
+      provider('other', ['old', 'new'])
+    ]
+
+    const next = revealNewCatalogModels(stored, previous, refreshed)!
+
+    expect(next.has(modelVisibilityKey('openai', 'new'))).toBe(true)
+    expect(next.has(modelVisibilityKey('openai', 'new-fast'))).toBe(false)
+    expect(next.has(modelVisibilityKey('openai', 'unfeatured'))).toBe(false)
+    expect(next.has(modelVisibilityKey('other', 'new'))).toBe(false)
+  })
+
+  it('reveals new releases after reopening even if the query already has the latest catalog', () => {
+    const stored = new Set([modelVisibilityKey('openai-codex', 'gpt-5.6-sol')])
+    const known = new Set(before[0].models!.map(model => modelVisibilityKey('openai-codex', model)))
+    // gpt-5.5 was hidden and removed from a later catalog. Its reappearance
+    // must not undo that choice when the genuinely new gpt-6-sol arrives.
+    const next = revealNewCatalogModels(stored, after, after, known)!
+
+    expect(next.has(modelVisibilityKey('openai-codex', 'gpt-6-sol'))).toBe(true)
+    expect(next.has(modelVisibilityKey('openai-codex', 'gpt-5.5'))).toBe(false)
+  })
 })
 
 describe('model visibility', () => {

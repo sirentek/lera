@@ -5,6 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import { useModelControls } from '@/app/session/hooks/use-model-controls'
 import { DropdownMenu, DropdownMenuContent } from '@/components/ui/dropdown-menu'
+import { $visibleModels, modelVisibilityKey, setVisibleModels } from '@/store/model-visibility'
 import { $collapsedProviders, toggleCollapsedProvider } from '@/store/provider-collapse'
 import { $activeSessionId, $currentModel, $currentProvider } from '@/store/session'
 
@@ -58,11 +59,16 @@ beforeEach(() => {
   $currentModel.set('')
   $currentProvider.set('')
   $collapsedProviders.set([])
+  $visibleModels.set(null)
+  window.localStorage.removeItem('hermes.desktop.known-models')
   getGlobalModelOptions.mockResolvedValue({ providers: MOCK_PROVIDERS })
 })
 
 afterEach(() => {
   cleanup()
+  $visibleModels.set(null)
+  window.localStorage.removeItem('hermes.desktop.visible-models')
+  window.localStorage.removeItem('hermes.desktop.known-models')
   vi.clearAllMocks()
 })
 
@@ -463,6 +469,65 @@ describe('ModelMenuPanel provider collapse', () => {
     await vi.waitFor(() => {
       expect(getGlobalModelOptions).toHaveBeenCalledTimes(2)
     })
+    expect(onSelectModel).not.toHaveBeenCalled()
+  })
+
+  it('shows a newly released model after refresh without restoring old hidden models or switching the current pick', async () => {
+    $currentProvider.set('openai-codex')
+    $currentModel.set('gpt-5.6-sol')
+    $visibleModels.set(new Set([modelVisibilityKey('openai-codex', 'gpt-5.6-sol')]))
+
+    const codex = {
+      models: ['gpt-5.6-sol', 'gpt-5.5'],
+      name: 'ChatGPT or Codex subscription',
+      slug: 'openai-codex'
+    }
+
+    getGlobalModelOptions
+      .mockResolvedValueOnce({ providers: [codex] })
+      .mockResolvedValueOnce({ providers: [{ ...codex, models: ['gpt-6-sol', ...codex.models] }] })
+    const { content, onSelectModel } = renderPanel()
+
+    await content.findByText('GPT-5.6-sol')
+    expect(content.queryByText('GPT-5.5')).toBeNull()
+    fireEvent.click(await content.findByText('Refresh models'))
+
+    await content.findByText('GPT-6-sol')
+    expect(content.queryByText('GPT-5.5')).toBeNull()
+    expect($visibleModels.get()?.has(modelVisibilityKey('openai-codex', 'gpt-6-sol'))).toBe(true)
+    expect(JSON.parse(window.localStorage.getItem('hermes.desktop.visible-models')!)).toContain(
+      modelVisibilityKey('openai-codex', 'gpt-6-sol')
+    )
+    expect(onSelectModel).not.toHaveBeenCalled()
+    expect($currentModel.get()).toBe('gpt-5.6-sol')
+  })
+
+  it('uses the saved catalog when a reopened menu has already fetched the new model', async () => {
+    $currentProvider.set('openai-codex')
+    $currentModel.set('gpt-5.6-sol')
+
+    const codex = {
+      models: ['gpt-5.6-sol', 'gpt-5.5'],
+      name: 'ChatGPT or Codex subscription',
+      slug: 'openai-codex'
+    }
+
+    setVisibleModels(new Set([modelVisibilityKey('openai-codex', 'gpt-5.6-sol')]), [codex])
+    getGlobalModelOptions.mockResolvedValue({ providers: [{ ...codex, models: ['gpt-6-sol', ...codex.models] }] })
+    const { content, onSelectModel } = renderPanel()
+
+    await content.findByText('GPT-5.6-sol')
+    expect(content.queryByText('GPT-6-sol')).toBeNull()
+    fireEvent.click(await content.findByText('Refresh models'))
+
+    await content.findByText('GPT-6-sol')
+    expect(content.queryByText('GPT-5.5')).toBeNull()
+    expect(JSON.parse(window.localStorage.getItem('hermes.desktop.known-models')!)).toEqual(
+      expect.arrayContaining([
+        modelVisibilityKey('openai-codex', 'gpt-5.5'),
+        modelVisibilityKey('openai-codex', 'gpt-6-sol')
+      ])
+    )
     expect(onSelectModel).not.toHaveBeenCalled()
   })
 

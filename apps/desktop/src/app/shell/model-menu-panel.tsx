@@ -12,7 +12,13 @@ import { currentPickerSelection } from '@/lib/model-status-label'
 import { DEFAULT_REASONING_EFFORT } from '@/lib/reasoning-effort'
 import { cn } from '@/lib/utils'
 import { $modelPresets, applyModelPreset, modelPresetKey, setModelPreset } from '@/store/model-presets'
-import { $visibleModels } from '@/store/model-visibility'
+import {
+  $visibleModels,
+  knownModelKeys,
+  rememberModelCatalog,
+  revealNewCatalogModels,
+  setVisibleModels
+} from '@/store/model-visibility'
 import { notifyError } from '@/store/notifications'
 import {
   $defaultReasoningEffort,
@@ -102,6 +108,7 @@ export function ModelMenuPanel({
 
     try {
       const queryKey = modelOptionsQueryKey(profile, activeSessionId, ownerConnectionId)
+      const previous = queryClient.getQueryData<ModelOptionsResponse>(queryKey)
 
       const next = await requestModelOptions({
         gateway,
@@ -110,6 +117,16 @@ export function ModelMenuPanel({
         request: requestGateway,
         sessionId: activeSessionId
       })
+
+      // Read visibility after the request: preserve edits made while refreshing.
+      const stored = $visibleModels.get()
+      const visible = revealNewCatalogModels(stored, previous?.providers, next.providers ?? [], knownModelKeys())
+
+      if (visible && visible !== stored) {
+        setVisibleModels(visible)
+      }
+
+      rememberModelCatalog(next.providers ?? [])
 
       queryClient.setQueryData<ModelOptionsResponse>(queryKey, next)
 

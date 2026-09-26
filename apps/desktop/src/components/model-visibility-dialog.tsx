@@ -66,11 +66,11 @@ export function ModelVisibilityDialog({
   const visible = effectiveVisibleKeys(stored, providers)
 
   const toggle = (provider: ModelOptionProvider, model: string) => {
-    setVisibleModels(toggleModelVisibility($visibleModels.get(), providers, provider.slug, model))
+    setVisibleModels(toggleModelVisibility($visibleModels.get(), providers, provider.slug, model), providers)
   }
 
   const setProviderVisible = (provider: ModelOptionProvider, next: boolean) => {
-    setVisibleModels(setProviderVisibility($visibleModels.get(), providers, provider.slug, next))
+    setVisibleModels(setProviderVisibility($visibleModels.get(), providers, provider.slug, next), providers)
   }
 
   const q = normalize(search)

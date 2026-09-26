@@ -1,0 +1,374 @@
+/* ── Launch sequence: panels swing in, then session text materialises ─────
+   Sequenced by holo-panel-boot.ts. <html data-holo-boot> is the phase
+   (hold -> run -> text -> removed); each panel additionally carries
+   data-holo-enter once the sequencer lets it go:
+     (none)  waiting — hidden, folded against its room wall
+     play    its swing stage (only after the previous stage has FINISHED)
+     rest    a remount of a panel that already swung — shown at rest
+   The session text stays dark until phase `text`, i.e. after every panel
+   swing is over. Once the attribute is removed none of this applies, so a
+   later panel toggle / tab switch / scroll never replays it.
+
+   EVERYTHING here animates only `transform` and `opacity`. The renderer's
+   main thread stalls for up to ~2s at a time during boot (measured over CDP:
+   no rAF frames between 3.8s and 5.9s); transform/opacity animations run on
+   the compositor and keep moving through those stalls. The first version of
+   this file animated a registered custom property instead — main-thread only
+   — and the panels froze and then jumped, which read as them "going back and
+   forth". Do not route this through a CSS variable animation again.
+
+   The rotation reuses each panel's own resting --holo-tilt (±5deg, sign set by
+   side in holo.css), x16 at the start (≈ ±80deg): the panel starts lying along
+   its side wall and turns inward to face the viewer.
+   Inside the shared zone stack the stack owns the transform (holo.css sets
+   its children to transform:none), so the sequencer never marks the children
+   and the rules below skip them. */
+:root[data-hermes-theme='holo'][data-holo-boot]
+  :is(
+    [data-slot='sidebar'],
+    [data-slot='bots-panel'],
+    [data-slot='lera-zone-hud'],
+    [data-slot='right-sidebar'],
+    [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  ) {
+  --holo-boot-from: perspective(1600px) rotateY(calc(var(--holo-tilt, 0deg) * 16));
+}
+
+:root[data-hermes-theme='holo'][data-holo-boot]
+  :is(
+    [data-slot='sidebar'],
+    [data-slot='bots-panel'],
+    [data-slot='lera-zone-hud'],
+    [data-slot='right-sidebar'],
+    [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  ):not([data-holo-enter]) {
+  opacity: 0.01; /* not 0 — see "GPU warm-up" in holo-panel-boot.ts */
+  transform: var(--holo-boot-from);
+}
+
+:root[data-hermes-theme='holo'][data-holo-boot] [data-holo-enter='play'] {
+  animation: lera-holo-panel-swing 7200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Zone-stack children: the stack hides and swings for them. */
+:root[data-hermes-theme='holo'][data-holo-boot]
+  [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  :is([data-slot='sidebar'], [data-slot='bots-panel'], [data-slot='lera-zone-hud']) {
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+@keyframes lera-holo-panel-swing {
+  0% {
+    opacity: 0.01;
+    transform: var(--holo-boot-from);
+  }
+  /* Hologram "power-on" flicker while the panel is still mostly turned away. */
+  12% {
+    opacity: 0.55;
+  }
+  16% {
+    opacity: 0.15;
+  }
+  22% {
+    opacity: 0.8;
+  }
+  27% {
+    opacity: 0.4;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(1600px) rotateY(var(--holo-tilt, 0deg));
+  }
+}
+
+/* ── Session text: holographic scan-write ──────────────────────────────────
+   Each top-level block of the open session (user bubbles, every paragraph /
+   table / list of the assistant's markdown) is WRITTEN left to right by a
+   coral beam edge, blocks cascading top to bottom. The text itself never
+   moves or scales — it is uncovered in place behind the beam (clip-path) —
+   so there is none of the vertical rubber-band stretch the earlier CRT
+   "power-on" (scaleY) version had; don't bring a scale transform back here.
+
+   Mechanics: the block's clip-path opens inset(… 100% …) -> inset(…0…) while
+   its ::after — a full-width strip whose RIGHT edge carries the hot beam and
+   a 90px trailing glow — slides translateX(-100%) -> 0 on the same duration
+   and easing, so the beam sits exactly on the reveal edge. The beam then
+   fades out on its own. A short opacity stutter on the block gives the
+   hologram flicker. clip-path is a main-thread animation, but this phase only
+   starts after the panel swings, when the boot work is over (see the GPU
+   warm-up note in holo-panel-boot.ts). */
+
+/* The whole centre column (thread, pills, intro orb), the composer dock, the
+   pane tabs and the terminal strip wait under the launch screen and through
+   the panel swings, so nothing pops in plain in between. The dock and the
+   terminal are NOT inside composer-bounds (they are siblings in the chat
+   pane), so they must be listed on their own — missing the dock is what left
+   the input box sitting in plain view over the launch screen. 0.01, not 0: still rasterised while
+   waiting (GPU warm-up, holo-panel-boot.ts). In phase `text` the column is
+   back at 1 and each part runs its own entrance below — the thread blocks'
+   scan-write keeps them hidden until their turn via its clip-path fill. */
+:root[data-hermes-theme='holo']:is([data-holo-boot='hold'], [data-holo-boot='run'])
+  :is(
+    [data-slot='composer-bounds'],
+    [data-slot='composer-dock'],
+    [data-slot='pane-tab'],
+    [data-persistent-terminal]
+  ) {
+  opacity: 0.01;
+}
+
+/* persistent.tsx writes `opacity: 1` inline on the terminal strip, which a
+   plain rule can't beat. !important only here, only while waiting; the
+   phase-`text` flicker is an animation, and animations already override
+   inline styles. */
+:root[data-hermes-theme='holo']:is([data-holo-boot='hold'], [data-holo-boot='run'])
+  [data-persistent-terminal] {
+  opacity: 0.01 !important;
+}
+
+:root[data-hermes-theme='holo'][data-holo-boot='text']
+  [data-slot='composer-bounds']
+  :is([data-slot='aui_user-message-root'], [data-slot='aui_directive-text'], [data-slot='aui_thread-content'] .aui-md > *) {
+  --holo-write-delay: calc(600ms + var(--holo-reveal-i, 11) * 280ms);
+  position: relative;
+  animation:
+    lera-holo-write 2400ms cubic-bezier(0.35, 0, 0.25, 1) var(--holo-write-delay) both,
+    lera-holo-write-flicker 900ms linear var(--holo-write-delay) both;
+}
+
+:root[data-hermes-theme='holo'][data-holo-boot='text']
+  [data-slot='composer-bounds']
+  :is([data-slot='aui_user-message-root'], [data-slot='aui_directive-text'], [data-slot='aui_thread-content'] .aui-md > *)::after {
+  content: '';
+  position: absolute;
+  inset: -3px 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent calc(100% - 90px),
+    rgba(255, 96, 75, 0.1) calc(100% - 60px),
+    rgba(255, 122, 96, 0.4) calc(100% - 8px),
+    #ffd9cf calc(100% - 2px),
+    transparent 100%
+  );
+  animation:
+    lera-holo-write-beam 2400ms cubic-bezier(0.35, 0, 0.25, 1) var(--holo-write-delay) both,
+    lera-holo-write-beam-out 500ms ease-out calc(var(--holo-write-delay) + 2400ms) both;
+}
+
+/* Stagger by position; anything past the 11th block shares the last slot so
+   a long session still finishes in reasonable time. */
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(1) { --holo-reveal-i: 1; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(2) { --holo-reveal-i: 2; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(3) { --holo-reveal-i: 3; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(4) { --holo-reveal-i: 4; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(5) { --holo-reveal-i: 5; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(6) { --holo-reveal-i: 6; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(7) { --holo-reveal-i: 7; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(8) { --holo-reveal-i: 8; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(9) { --holo-reveal-i: 9; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(10) { --holo-reveal-i: 10; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(11) { --holo-reveal-i: 11; }
+:root[data-holo-boot='text'] [data-slot='aui_thread-content'] [data-slot='aui_user-message-root'] { --holo-reveal-i: 0; }
+:root[data-holo-boot='text'] [data-slot='aui_directive-text'] { --holo-reveal-i: 0; }
+
+/* -6px margins so glyph overhang / focus rings aren't shaved off. */
+@keyframes lera-holo-write {
+  from {
+    clip-path: inset(-6px 100% -6px -6px);
+  }
+  to {
+    clip-path: inset(-6px -6px -6px -6px);
+  }
+}
+
+@keyframes lera-holo-write-flicker {
+  0% {
+    opacity: 0.35;
+  }
+  12% {
+    opacity: 1;
+  }
+  18% {
+    opacity: 0.5;
+  }
+  26% {
+    opacity: 1;
+  }
+  34% {
+    opacity: 0.75;
+  }
+  42%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes lera-holo-write-beam {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes lera-holo-write-beam-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── Centre UI entrances (phase `text`) ─────────────────────────────────────
+   Composer dock: rises into place from below the floor line and powers on
+   with the same hologram flicker as the panels. Pane tabs: flicker on. Intro
+   orb (new session): materialises out of a spinning point and settles on its
+   usual lifted pose; its caption flickers on after it. Transform/opacity
+   only; no scaleY on anything that carries text (that read as rubber). */
+:root[data-hermes-theme='holo'][data-holo-boot='text'] [data-slot='composer-dock'] {
+  animation: lera-holo-dock-in 2400ms cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
+}
+
+:root[data-hermes-theme='holo'][data-holo-boot='text'] :is([data-slot='pane-tab'], [data-persistent-terminal]) {
+  animation: lera-holo-write-flicker 1400ms linear 900ms both;
+}
+
+:root[data-hermes-theme='holo'][data-holo-boot='text'] [data-slot='aui_intro'] .lera-holo-orb {
+  animation: lera-holo-orb-arrive 3200ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
+}
+
+:root[data-hermes-theme='holo'][data-holo-boot='text'] [data-slot='aui_intro'] .lera-holo-prompt {
+  animation: lera-holo-write-flicker 1400ms linear 2200ms both;
+}
+
+@keyframes lera-holo-dock-in {
+  0% {
+    opacity: 0.01;
+    transform: translateY(70px);
+  }
+  14% {
+    opacity: 0.7;
+  }
+  20% {
+    opacity: 0.2;
+  }
+  28% {
+    opacity: 0.9;
+  }
+  34% {
+    opacity: 0.45;
+  }
+  46%,
+  100% {
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* End pose = holo.css's resting .lera-holo-orb transform; keep in sync. */
+@keyframes lera-holo-orb-arrive {
+  0% {
+    opacity: 0.01;
+    transform: translate(-50%, calc(-50% - 14vh)) rotateX(5deg) translateZ(16px) scale(0.08) rotate(-160deg);
+  }
+  18% {
+    opacity: 0.8;
+  }
+  24% {
+    opacity: 0.25;
+  }
+  32% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, calc(-50% - 14vh)) rotateX(5deg) translateZ(16px);
+  }
+}
+
+/* Scan beam — a fixed layer holo-panel-boot.ts drops over the chat column's
+   rect for one pass, then removes. Only its transform animates. */
+.lera-holo-scan-beam {
+  position: fixed;
+  z-index: 4;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lera-holo-scan-beam::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 90px;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(255, 96, 75, 0.1) 70%, rgba(255, 142, 112, 0.55) 96%, #ffd9cf 98%, transparent 100%);
+  box-shadow: 0 2px 18px rgba(255, 110, 80, 0.55);
+  transform: translateY(-100px);
+  animation: lera-holo-scan-sweep 5200ms cubic-bezier(0.45, 0, 0.3, 1) 720ms both;
+}
+
+@keyframes lera-holo-scan-sweep {
+  0% {
+    opacity: 0;
+    transform: translateY(-100px);
+  }
+  8% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(var(--scan-h, 100vh));
+  }
+}
+
+/* DELIBERATE reduced-motion opt-out (same reason as the bot sigil in holo.css):
+   styles.css blanket-kills every animation under `prefers-reduced-motion`, and
+   Windows reports `reduce` for the whole session over RDP, which is how this
+   desktop runs. All of this plays once per launch only. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-hermes-theme='holo'][data-holo-boot] [data-holo-enter='play'] {
+    animation-duration: 7200ms !important;
+  }
+
+  :root[data-hermes-theme='holo'][data-holo-boot='text']
+    [data-slot='composer-bounds']
+    :is([data-slot='aui_user-message-root'], [data-slot='aui_directive-text'], [data-slot='aui_thread-content'] .aui-md > *) {
+    animation-duration: 2400ms, 900ms !important;
+  }
+
+  :root[data-hermes-theme='holo'][data-holo-boot='text']
+    [data-slot='composer-bounds']
+    :is([data-slot='aui_user-message-root'], [data-slot='aui_directive-text'], [data-slot='aui_thread-content'] .aui-md > *)::after {
+    animation-duration: 2400ms, 500ms !important;
+  }
+
+  .lera-holo-scan-beam::before {
+    animation-duration: 5200ms !important;
+  }
+
+  :root[data-hermes-theme='holo'][data-holo-boot='text'] [data-slot='composer-dock'] {
+    animation-duration: 2400ms !important;
+  }
+
+  :root[data-hermes-theme='holo'][data-holo-boot='text'] :is([data-slot='pane-tab'], [data-persistent-terminal], [data-slot='aui_intro'] .lera-holo-prompt) {
+    animation-duration: 1400ms !important;
+  }
+
+  :root[data-hermes-theme='holo'][data-holo-boot='text'] [data-slot='aui_intro'] .lera-holo-orb {
+    animation-duration: 3200ms !important;
+  }
+}

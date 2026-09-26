@@ -1,0 +1,622 @@
+/* ── Holo launch screen (holo-boot-screen.ts) ───────────────────────────────
+   Hex core (three counter-rotating hexagon rings in the room wall's hex
+   language + a chasing honeycomb cell ring), glitching LERA wordmark, a
+   system boot log, a slanted-segment data stream, corner brackets and a scan
+   line. Exit: the core spins up, collapses to a point and releases a
+   shockwave; brackets fly out.
+
+   Transform/opacity animations only — this is on screen while the renderer
+   main thread stalls for seconds at a time during boot, and only compositor
+   animations keep moving through that. Static filters / clip-paths are fine
+   (drawn once), animated ones are not.
+
+   Every animated element declares --lb-d (duration) and, when one-shot, --lb-n: 1,
+   so the reduced-motion opt-out at the bottom can re-assert them. --lb-n must
+   NOT inherit (a one-shot parent would turn its looping children one-shot). */
+@property --lb-n {
+  syntax: '<number> | infinite';
+  inherits: false;
+  initial-value: infinite;
+}
+
+/* Holo only; upstream's plain CONNECTING overlay is replaced by this. */
+:root:not([data-hermes-theme='holo']) .lera-boot {
+  display: none;
+}
+
+:root[data-hermes-theme='holo'] [data-slot='gateway-connecting'] {
+  display: none !important;
+}
+
+.lera-boot {
+  --S: min(36vh, 300px);
+  --line: rgba(255, 122, 96, 0.9);
+  --line-dim: rgba(255, 122, 96, 0.35);
+  --glow: rgba(255, 96, 75, 0.6);
+  --hot: #ffe3d8;
+  position: fixed;
+  inset: 0;
+  /* Above the room veil (z:2), panels (3) and composer dock (30); below the
+     main window frame glow (60) so the frame keeps framing it. */
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* The UI underneath is invisible (0.01) but live — don't let clicks reach it. */
+  pointer-events: auto;
+  background: radial-gradient(ellipse 45% 55% at 50% 48%, rgba(10, 3, 2, 0.45), transparent 70%);
+  font-family: var(--dt-font-mono, ui-monospace, Consolas, monospace);
+}
+
+.lera-boot.is-exiting {
+  pointer-events: none;
+}
+
+.lera-boot__stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  padding: 30px 44px 26px;
+  transform: translateY(-4vh);
+}
+
+/* ── Hex core ─────────────────────────────────────────────────────────────── */
+.lera-boot__core {
+  position: relative;
+  width: var(--S);
+  height: var(--S);
+  --lb-d: 1600ms;
+  --lb-n: 1;
+  animation: lera-boot-core-in var(--lb-d) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.lera-boot__halo {
+  position: absolute;
+  inset: 22%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 120, 90, 0.34), rgba(255, 80, 60, 0.12) 45%, transparent 70%);
+  --lb-d: 2.4s;
+  animation: lera-boot-breathe var(--lb-d) ease-in-out infinite alternate;
+}
+
+.lera-boot__hex {
+  position: absolute;
+}
+
+/* The glow filter sits on the SAME element that rotates, so it is rasterised
+   once and the compositor just turns the result. On the wrapper around a
+   rotating child it was re-run every frame (the filtered content changed),
+   which kept the GPU busy enough to hold the launch sequence at its cap. */
+.lera-boot__hex svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 3px var(--glow)) drop-shadow(0 0 9px rgba(255, 90, 70, 0.35));
+  will-change: transform;
+}
+
+.lera-boot__hex polygon {
+  fill: none;
+  stroke: var(--line);
+  vector-effect: non-scaling-stroke;
+}
+
+.lera-boot__hex--outer {
+  inset: 0;
+}
+
+.lera-boot__hex--outer polygon {
+  stroke-width: 1.2;
+  stroke-dasharray: 22 5 2 5;
+}
+
+.lera-boot__hex--outer svg {
+  --lb-d: 48s;
+  animation: lera-boot-spin var(--lb-d) linear infinite;
+}
+
+.lera-boot__hex--mid {
+  inset: 14%;
+}
+
+.lera-boot__hex--mid polygon {
+  stroke: var(--line-dim);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.lera-boot__hex--mid svg {
+  --lb-d: 22s;
+  animation: lera-boot-spin var(--lb-d) linear infinite reverse;
+}
+
+.lera-boot__hex--inner {
+  inset: 29%;
+}
+
+.lera-boot__hex--inner polygon {
+  stroke: #ffb39f;
+  stroke-width: 2;
+  stroke-dasharray: 40 12;
+}
+
+.lera-boot__hex--inner svg {
+  --lb-d: 9s;
+  animation: lera-boot-spin var(--lb-d) cubic-bezier(0.6, 0.05, 0.4, 0.95) infinite;
+}
+
+/* Honeycomb cell ring: 12 hex cells, a light chasing round them. */
+.lera-boot__cells {
+  position: absolute;
+  inset: 0;
+}
+
+.lera-boot__cells i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13px;
+  height: 15px;
+  margin: -7.5px 0 0 -6.5px;
+  background: var(--line);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  transform: rotate(var(--a)) translateY(calc(var(--S) * -0.405)) rotate(calc(var(--a) * -1));
+  --lb-d: 1.8s;
+  animation: lera-boot-cell var(--lb-d) linear calc(var(--i) * 0.15s) infinite;
+}
+
+.lera-boot__word {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  padding-left: 0.42em;
+  font-family: var(--font-holo-display, inherit);
+  font-size: calc(var(--S) * 0.12);
+  font-weight: 700;
+  letter-spacing: 0.42em;
+  line-height: 1;
+  color: var(--hot);
+  text-shadow:
+    0 0 10px rgba(255, 110, 80, 0.95),
+    0 0 26px rgba(255, 80, 60, 0.5);
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+}
+
+/* Chromatic glitch slices. */
+.lera-boot__word::before,
+.lera-boot__word::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  padding-left: 0.42em;
+  opacity: 0;
+  --lb-d: 2.8s;
+  animation: lera-boot-glitch var(--lb-d) steps(1) infinite;
+}
+
+.lera-boot__word::before {
+  color: #ff5a44;
+}
+
+.lera-boot__word::after {
+  color: #ffd2c4;
+  animation-delay: 0.9s;
+  animation-direction: reverse;
+}
+
+/* ── Boot log ─────────────────────────────────────────────────────────────── */
+.lera-boot__log {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: calc(var(--S) * 1.25);
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 160, 140, 0.75);
+}
+
+.lera-boot__log p {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  --lb-d: 700ms;
+  --lb-n: 1;
+  animation: lera-boot-line var(--lb-d) linear calc(700ms + var(--i) * 550ms) both;
+}
+
+.lera-boot__log em {
+  flex: 1;
+  border-bottom: 1px dotted var(--line-dim);
+  transform: translateY(-3px);
+}
+
+.lera-boot__log b {
+  font-weight: 600;
+  color: var(--hot);
+  text-shadow: 0 0 8px var(--glow);
+}
+
+.lera-boot__log b[data-live] {
+  --lb-d: 1s;
+  animation: lera-boot-blink var(--lb-d) steps(1) infinite;
+}
+
+/* ── Data stream: slanted segments, a pulse running along them ─────────── */
+.lera-boot__stream {
+  display: flex;
+  gap: 3px;
+}
+
+.lera-boot__stream i {
+  width: 9px;
+  height: 5px;
+  background: var(--line);
+  box-shadow: 0 0 6px var(--glow);
+  transform: skewX(-28deg);
+  --lb-d: 2.8s;
+  animation: lera-boot-seg var(--lb-d) linear calc(var(--i) * 0.1s) infinite;
+}
+
+/* ── Corner brackets + scan line ─────────────────────────────────────────── */
+.lera-boot__bracket {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 0 solid var(--line);
+  filter: drop-shadow(0 0 4px var(--glow));
+  --bx: 0px;
+  --by: 0px;
+  --lb-d: 1100ms;
+  --lb-n: 1;
+  animation: lera-boot-bracket-in var(--lb-d) cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
+}
+
+.lera-boot__bracket[data-c='tl'] {
+  left: 0;
+  top: 0;
+  border-width: 2px 0 0 2px;
+  --bx: -1;
+  --by: -1;
+}
+
+.lera-boot__bracket[data-c='tr'] {
+  right: 0;
+  top: 0;
+  border-width: 2px 2px 0 0;
+  --bx: 1;
+  --by: -1;
+}
+
+.lera-boot__bracket[data-c='bl'] {
+  left: 0;
+  bottom: 0;
+  border-width: 0 0 2px 2px;
+  --bx: -1;
+  --by: 1;
+}
+
+.lera-boot__bracket[data-c='br'] {
+  right: 0;
+  bottom: 0;
+  border-width: 0 2px 2px 0;
+  --bx: 1;
+  --by: 1;
+}
+
+.lera-boot__scan {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lera-boot__scan::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 93%,
+    rgba(255, 110, 80, 0.06) 98.6%,
+    rgba(255, 200, 180, 0.7) 99.7%,
+    transparent 100%
+  );
+  transform: translateY(-100%);
+  --lb-d: 3.6s;
+  animation: lera-boot-scan var(--lb-d) cubic-bezier(0.45, 0, 0.55, 1) 1s infinite;
+}
+
+/* Shockwave: lives in the stage (not the core, which collapses to a point on
+   exit) and sits exactly over the core's box. */
+.lera-boot__shock {
+  position: absolute;
+  left: 50%;
+  top: 30px;
+  width: var(--S);
+  height: var(--S);
+  margin-left: calc(var(--S) * -0.5);
+  border-radius: 50%;
+  border: 2px solid var(--hot);
+  box-shadow:
+    0 0 24px var(--glow),
+    inset 0 0 24px var(--glow);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Exit ─────────────────────────────────────────────────────────────────── */
+.lera-boot.is-exiting .lera-boot__core {
+  --lb-d: 1100ms;
+  animation: lera-boot-core-out var(--lb-d) cubic-bezier(0.6, 0, 0.3, 1) both;
+}
+
+.lera-boot.is-exiting .lera-boot__hex svg {
+  --lb-d: 900ms;
+  --lb-n: 1;
+  animation: lera-boot-spin-up var(--lb-d) cubic-bezier(0.5, 0, 0.2, 1) both;
+}
+
+.lera-boot.is-exiting .lera-boot__cells i {
+  --lb-d: 0.6s;
+  --lb-n: 1;
+  animation: lera-boot-cell-flash var(--lb-d) ease-out both;
+}
+
+.lera-boot.is-exiting .lera-boot__halo {
+  --lb-d: 1000ms;
+  --lb-n: 1;
+  animation: lera-boot-flare var(--lb-d) ease-out 250ms both;
+}
+
+.lera-boot.is-exiting :is(.lera-boot__log, .lera-boot__stream, .lera-boot__scan) {
+  --lb-d: 450ms;
+  --lb-n: 1;
+  animation: lera-boot-fade var(--lb-d) ease-in 550ms both;
+}
+
+.lera-boot.is-exiting .lera-boot__log b[data-live] {
+  animation: none;
+  opacity: 1;
+}
+
+.lera-boot.is-exiting .lera-boot__bracket {
+  --lb-d: 800ms;
+  --lb-n: 1;
+  animation: lera-boot-bracket-out var(--lb-d) cubic-bezier(0.5, 0, 0.75, 0) 450ms both;
+}
+
+.lera-boot.is-exiting .lera-boot__shock {
+  --lb-d: 1000ms;
+  --lb-n: 1;
+  animation: lera-boot-shock var(--lb-d) cubic-bezier(0.1, 0.6, 0.3, 1) 380ms both;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────────────── */
+@keyframes lera-boot-core-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) rotate(-30deg);
+  }
+  18% {
+    opacity: 0.7;
+  }
+  24% {
+    opacity: 0.2;
+  }
+  34% {
+    opacity: 0.9;
+  }
+  40% {
+    opacity: 0.5;
+  }
+  55%,
+  100% {
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes lera-boot-core-out {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.02) rotate(90deg);
+    opacity: 0;
+  }
+}
+
+@keyframes lera-boot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lera-boot-spin-up {
+  to {
+    transform: rotate(240deg);
+  }
+}
+
+@keyframes lera-boot-breathe {
+  from {
+    opacity: 0.55;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes lera-boot-cell {
+  0% {
+    opacity: 1;
+  }
+  45%,
+  100% {
+    opacity: 0.1;
+  }
+}
+
+@keyframes lera-boot-cell-flash {
+  0% {
+    opacity: 0.4;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes lera-boot-glitch {
+  0%,
+  86%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+  87% {
+    opacity: 0.85;
+    transform: translate(-5px, 1px);
+  }
+  89% {
+    opacity: 0.6;
+    transform: translate(4px, -1px);
+  }
+  91% {
+    opacity: 0.9;
+    transform: translate(-2px, 0);
+  }
+  93% {
+    opacity: 0;
+  }
+}
+
+@keyframes lera-boot-line {
+  0% {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  25% {
+    opacity: 0.8;
+  }
+  35% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lera-boot-blink {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes lera-boot-seg {
+  0% {
+    opacity: 1;
+  }
+  35%,
+  100% {
+    opacity: 0.14;
+  }
+}
+
+@keyframes lera-boot-bracket-in {
+  from {
+    opacity: 0;
+    transform: translate(calc(var(--bx) * 28px), calc(var(--by) * 28px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lera-boot-bracket-out {
+  to {
+    opacity: 0;
+    transform: translate(calc(var(--bx) * 90px), calc(var(--by) * 90px));
+  }
+}
+
+@keyframes lera-boot-scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes lera-boot-flare {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.8);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+
+@keyframes lera-boot-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes lera-boot-shock {
+  0% {
+    opacity: 0;
+    transform: scale(0.05);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(7);
+  }
+}
+
+/* DELIBERATE reduced-motion opt-out: styles.css blanket-kills animations under
+   `prefers-reduced-motion`, which Windows reports for the whole RDP session
+   this desktop runs in. The launch screen only exists during boot. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-hermes-theme='holo'] .lera-boot *,
+  :root[data-hermes-theme='holo'] .lera-boot *::before,
+  :root[data-hermes-theme='holo'] .lera-boot *::after {
+    animation-duration: var(--lb-d) !important;
+    animation-iteration-count: var(--lb-n) !important;
+  }
+}
