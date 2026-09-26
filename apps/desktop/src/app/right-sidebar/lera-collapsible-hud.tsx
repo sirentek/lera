@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n/context'
 
+import { playHoloCollapse, playHoloExpand } from './lera-collapse-motion'
 import type { useHudManualRefresh } from './lera-hud-refresh'
 import { LeraRestoreTab } from './lera-restore-tab'
 
@@ -52,13 +53,20 @@ export function LeraCollapsibleHud({
   const focusToggle = useRef(false)
   const collapseButton = useRef<HTMLButtonElement>(null)
   const restoreButton = useRef<HTMLButtonElement>(null)
+  const closing = useRef(false)
+  const expanding = useRef(false)
 
   useLayoutEffect(() => {
     if (focusToggle.current) {
       ;(collapsed ? restoreButton : collapseButton).current?.focus()
       focusToggle.current = false
     }
-  }, [collapsed])
+
+    if (!collapsed && expanding.current) {
+      expanding.current = false
+      playHoloExpand(panel.current, restoreSide)
+    }
+  }, [collapsed, restoreSide])
 
   useEffect(() => () => onCollapsedHeightChange?.(0), [onCollapsedHeightChange])
 
@@ -71,6 +79,7 @@ export function LeraCollapsibleHud({
           offset={panelHeight / 2 + restoreOffset}
           onRestore={() => {
             focusToggle.current = true
+            expanding.current = true
             setCollapsed(false)
             onCollapsedHeightChange?.(0)
           }}
@@ -110,12 +119,21 @@ export function LeraCollapsibleHud({
               className="hud-collapse-button"
               onClick={event => {
                 event.stopPropagation()
+
+                if (closing.current) {
+                  return
+                }
+
                 const height = panel.current?.offsetHeight ?? 0
                 const margin = panel.current ? Number.parseFloat(window.getComputedStyle(panel.current).marginTop) : 0
-                setPanelHeight(height)
-                focusToggle.current = true
-                setCollapsed(true)
-                onCollapsedHeightChange?.(height + margin)
+                closing.current = true
+                playHoloCollapse(panel.current, restoreSide, () => {
+                  closing.current = false
+                  setPanelHeight(height)
+                  focusToggle.current = true
+                  setCollapsed(true)
+                  onCollapsedHeightChange?.(height + margin)
+                })
               }}
               ref={collapseButton}
               size="inline"

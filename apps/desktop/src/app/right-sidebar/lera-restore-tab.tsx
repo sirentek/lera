@@ -4,6 +4,8 @@ import { type CSSProperties, type Ref, useLayoutEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/i18n/context'
 
+import { playHoloTabIn } from './lera-collapse-motion'
+
 interface LeraRestoreTabProps {
   buttonRef: Ref<HTMLButtonElement>
   controls: string
@@ -35,6 +37,10 @@ export function LeraRestoreTab({
     } else {
       element?.removeAttribute('popover')
     }
+
+    playHoloTabIn(element, side)
+    // Power-on plays once per appearance; a later side flip only repositions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return (

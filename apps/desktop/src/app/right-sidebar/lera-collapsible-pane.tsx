@@ -3,6 +3,7 @@ import '@/app/right-sidebar/lera-hud.css'
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
 import { type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react'
 
+import { playHoloCollapse, playHoloExpand } from '@/app/right-sidebar/lera-collapse-motion'
 import { LeraRestoreTab } from '@/app/right-sidebar/lera-restore-tab'
 import { Button } from '@/components/ui/button'
 import { Tip } from '@/components/ui/tooltip'
@@ -31,6 +32,9 @@ export function LeraCollapsiblePane({
   const [collapsed, setCollapsed] = useState(false)
   const panelId = useId()
   const dock = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const closing = useRef(false)
+  const expanding = useRef(false)
   const collapseButton = useRef<HTMLButtonElement>(null)
   const restoreButton = useRef<HTMLButtonElement>(null)
   const focusToggle = useRef(false)
@@ -42,7 +46,12 @@ export function LeraCollapsiblePane({
       ;(isCollapsed ? restoreButton : collapseButton).current?.focus()
       focusToggle.current = false
     }
-  }, [isCollapsed])
+
+    if (!isCollapsed && expanding.current) {
+      expanding.current = false
+      playHoloExpand(panel.current, restoreSide)
+    }
+  }, [isCollapsed, restoreSide])
 
   useLayoutEffect(() => {
     const element = dock.current
@@ -98,6 +107,7 @@ export function LeraCollapsiblePane({
           offset={0}
           onRestore={() => {
             focusToggle.current = true
+            expanding.current = true
             setCollapsed(false)
           }}
           side={restoreSide}
@@ -113,6 +123,7 @@ export function LeraCollapsiblePane({
         hidden={pane === 'sessions' && isCollapsed}
         id={panelId}
         inert={isCollapsed}
+        ref={panel}
       >
         {children}
       </div>
@@ -124,8 +135,16 @@ export function LeraCollapsiblePane({
             aria-label={`${t.common.collapse} ${title}`}
             className={`hud-collapse-button lera-pane-collapse lera-${pane}-collapse`}
             onClick={() => {
-              focusToggle.current = true
-              setCollapsed(true)
+              if (closing.current) {
+                return
+              }
+
+              closing.current = true
+              playHoloCollapse(panel.current, restoreSide, () => {
+                closing.current = false
+                focusToggle.current = true
+                setCollapsed(true)
+              })
             }}
             ref={collapseButton}
             size="inline"
