@@ -1,0 +1,163 @@
+/* ── Holo post-launch transitions (holo-session-transition.ts) ──────────────
+   Transform/opacity animations only, like the launch sequence, so they stay on
+   the compositor. */
+
+/* ── Panel power-off: the launch swing, reversed ─────────────────────────────
+   The clone keeps the panel's classes, so holo.css still gives it its frame,
+   --holo-tilt sign and transform-origin; this only animates it back against
+   its room wall (tilt x16, ≈80deg) while it flickers out. */
+:root[data-hermes-theme='holo'] [data-holo-ghost] {
+  z-index: 3;
+  pointer-events: none !important;
+  animation: lera-holo-panel-off 1100ms cubic-bezier(0.55, 0, 0.8, 0.3) both;
+}
+
+@keyframes lera-holo-panel-off {
+  0% {
+    opacity: 1;
+    transform: perspective(1600px) rotateY(var(--holo-tilt, 0deg));
+  }
+  18% {
+    opacity: 0.45;
+  }
+  24% {
+    opacity: 0.9;
+  }
+  34% {
+    opacity: 0.3;
+  }
+  42% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(1600px) rotateY(calc(var(--holo-tilt, 0deg) * 16));
+  }
+}
+
+/* ── New session: the Lera orb materialises ─────────────────────────────────
+   Orb: out of a spinning point to its usual lifted pose (end pose = holo.css
+   .lera-holo-orb resting transform; keep in sync). A hot ring leaves it as it
+   locks. Caption and composer flicker on after. */
+:root[data-hermes-theme='holo'][data-holo-session='enter'] [data-slot='aui_intro'] .lera-holo-orb {
+  animation: lera-holo-orb-materialize 1900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Shockwave ring — aui_intro's own pseudos, which holo.css leaves unused
+   (content: none) outside this sequence. Centred on the orb. */
+:root[data-hermes-theme='holo'][data-holo-session='enter'] [data-slot='aui_intro']::after {
+  content: '';
+  position: absolute;
+  /* Explicit box: base intro styles give this pseudo its own inset/height,
+     which beat aspect-ratio and stretched the ring into a tall ellipse. */
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: calc(var(--holo-orb-size) * 0.5);
+  height: calc(var(--holo-orb-size) * 0.5);
+  border-radius: 50%;
+  border: 2px solid #ffe3d8;
+  box-shadow:
+    0 0 26px rgba(255, 96, 75, 0.7),
+    inset 0 0 26px rgba(255, 96, 75, 0.6);
+  pointer-events: none;
+  opacity: 0;
+  animation: lera-holo-orb-shock 1100ms cubic-bezier(0.1, 0.6, 0.3, 1) 700ms both;
+}
+
+:root[data-hermes-theme='holo'][data-holo-session='enter'] [data-slot='aui_intro'] .lera-holo-prompt {
+  animation: lera-holo-session-flicker 1000ms linear 1100ms both;
+}
+
+:root[data-hermes-theme='holo'][data-holo-session='enter'] [data-slot='composer-dock'] {
+  animation: lera-holo-session-flicker 900ms linear 150ms both;
+}
+
+@keyframes lera-holo-orb-materialize {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 14vh)) rotateX(5deg) translateZ(16px) scale(0.06) rotate(-200deg);
+  }
+  16% {
+    opacity: 0.85;
+  }
+  22% {
+    opacity: 0.2;
+  }
+  30% {
+    opacity: 1;
+  }
+  38% {
+    opacity: 0.55;
+  }
+  48%,
+  100% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, calc(-50% - 14vh)) rotateX(5deg) translateZ(16px);
+  }
+}
+
+@keyframes lera-holo-orb-shock {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 14vh)) scale(0.2);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 14vh)) scale(2.6);
+  }
+}
+
+@keyframes lera-holo-session-flicker {
+  0% {
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.8;
+  }
+  22% {
+    opacity: 0.2;
+  }
+  32% {
+    opacity: 1;
+  }
+  42% {
+    opacity: 0.5;
+  }
+  56%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* DELIBERATE reduced-motion opt-out (same reason as the launch sequence):
+   Windows reports `reduce` for the whole RDP session this desktop runs in, and
+   styles.css's blanket rule would collapse all of this to a single frame —
+   which is exactly the "orb appears all at once" this file exists to fix. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-hermes-theme='holo'] [data-holo-ghost] {
+    animation-duration: 1100ms !important;
+  }
+
+  :root[data-hermes-theme='holo'][data-holo-session='enter'] [data-slot='aui_intro'] .lera-holo-orb {
+    animation-duration: 1900ms !important;
+  }
+
+  :root[data-hermes-theme='holo'][data-holo-session='enter'] [data-slot='aui_intro']::after {
+    animation-duration: 1100ms !important;
+  }
+
+  :root[data-hermes-theme='holo'][data-holo-session='enter'] [data-slot='aui_intro'] .lera-holo-prompt {
+    animation-duration: 1000ms !important;
+  }
+
+  :root[data-hermes-theme='holo'][data-holo-session='enter'] [data-slot='composer-dock'] {
+    animation-duration: 900ms !important;
+  }
+}

@@ -10,6 +10,8 @@ import './styles/holo-hex-restore.css'
 import './styles/holo-room-background'
 // Side-effect: side panels swing in from the room walls on launch (holo only).
 import './styles/holo-panel-boot'
+// Side-effect: holo new-session / panel-close transitions (after launch).
+import './styles/holo-session-transition'
 // Side-effect: reports in-flight turns to the main process for the quit guard.
 import './store/active-work'
 // Side-effect: mirrors the machine's AC/battery state for poll demotion.

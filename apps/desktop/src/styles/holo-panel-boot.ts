@@ -52,9 +52,12 @@ const HOLD_FALLBACK_MS = 60_000
 // Hard stop for the whole sequence once running.
 const RUN_FALLBACK_MS = 60_000
 
-function sweepChatColumn(): void {
+// One pass of the coral scan beam over the chat column. Defaults are the
+// launch timing; holo-session-transition.ts reuses it with a faster pass.
+export function sweepChatColumn({ durationMs = 5200, delayMs = 720 } = {}): void {
   const target =
     document.querySelector<HTMLElement>("[data-slot='aui_thread-viewport']") ??
+    document.querySelector<HTMLElement>("[data-slot='composer-bounds']") ??
     document.querySelector<HTMLElement>('main')
 
   const rect = target?.getBoundingClientRect()
@@ -73,8 +76,10 @@ function sweepChatColumn(): void {
     height: `${rect.height}px`
   })
   beam.style.setProperty('--scan-h', `${rect.height + 100}px`)
+  beam.style.setProperty('--scan-dur', `${durationMs}ms`)
+  beam.style.setProperty('--scan-delay', `${delayMs}ms`)
   document.body.appendChild(beam)
-  window.setTimeout(() => beam.remove(), 6200)
+  window.setTimeout(() => beam.remove(), delayMs + durationMs + 300)
 }
 
 // Inside the shared zone stack the stack owns the transform (holo.css), so its
