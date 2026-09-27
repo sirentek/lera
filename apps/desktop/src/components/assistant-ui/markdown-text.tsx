@@ -38,6 +38,7 @@ import { previewTargetFromMarkdownHref } from '@/lib/preview-targets'
 import { sessionRefFromMarkdownHref } from '@/lib/session-refs'
 import { isDirectiveInProgress } from '@/lib/transcript-directives'
 import { cn } from '@/lib/utils'
+import { useTheme } from '@/themes/context'
 
 import { ArtifactCard } from './artifact-card'
 import { SessionRefLink } from './directive-text'
@@ -490,6 +491,14 @@ const MARKDOWN_CONTAINER_CLASS_NAME = cn(
 
 const MAX_MARKDOWN_CHARS = 200_000
 
+// Lera holo: while a message streams, Streamdown's animate plugin wraps each
+// newly arrived word in <span data-sd-animate>; holo-stream-fx.css turns that
+// into the hologram "glyph write". Only the name and stagger are used — the CSS
+// owns duration on purpose (the plugin zeroes --sd-duration on the next token,
+// which would cut every word's animation short). Module scope: Streamdown
+// memoizes the plugin on this object's JSON.
+const HOLO_STREAM_ANIMATION = { animation: 'lera-holo-glyph', sep: 'word', stagger: 18 } as const
+
 function HugeTextFallback({ containerClassName, text }: { containerClassName?: string; text: string }) {
   const chunks = useMemo(() => chunkByLines(text, 200), [text])
 
@@ -583,6 +592,7 @@ function MarkdownTextSurface({
 }: MarkdownTextSurfaceProps) {
   const { status, text } = useMessagePartText()
   const isStreaming = status.type === 'running'
+  const holo = useTheme().themeName === 'holo'
 
   // Keep code parsing enabled while streaming so incomplete fenced blocks still
   // render as code cards. The expensive Shiki pass is deferred by
@@ -725,6 +735,7 @@ function MarkdownTextSurface({
       label="markdown-render"
     >
       <StreamdownTextPrimitive
+        animated={holo ? HOLO_STREAM_ANIMATION : undefined}
         components={components}
         containerClassName={cn(MARKDOWN_CONTAINER_CLASS_NAME, containerClassName)}
         containerProps={containerProps}

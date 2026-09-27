@@ -1,0 +1,121 @@
+/* ── Holo live output: the assistant's reply is WRITTEN, not pasted ─────────
+   Only while a message is streaming. Finished messages, history and the
+   launch sequence (holo-panel-boot.css, phase `text`) are untouched: the word
+   spans below exist only while Streamdown's `isAnimating` is on (the running
+   part), and the block rule is scoped to the running message root and
+   switched off for the whole launch (`data-holo-boot`).
+
+   Words — markdown-text.tsx passes Streamdown `animated` in holo, which wraps
+   every newly arrived word in <span data-sd-animate>. Each one ignites
+   white-hot with a coral bloom, stutters like a hologram locking on, then
+   cools to the normal text colour, so the newest words burn brightest and the
+   glow trails behind the write head. Color/text-shadow are left out of the
+   last keyframe on purpose: the animation then settles on whatever the word
+   really is (link, bold, muted quote) instead of a hard-coded colour.
+   The duration is fixed here, NOT read from --sd-duration: the plugin sets
+   that to 0ms on the very next token, which would cut each word short.
+   Spans stay inline (no transform): inline-block would stop long paths/URLs
+   from wrapping. Code/pre/math text is never wrapped by the plugin. */
+:root[data-hermes-theme='holo']:not([data-holo-boot]) .aui-md [data-sd-animate] {
+  animation: lera-holo-glyph 1000ms cubic-bezier(0.2, 0, 0.3, 1) var(--sd-delay, 0ms) both;
+}
+
+@keyframes lera-holo-glyph {
+  0% {
+    opacity: 0;
+    color: #fff4ef;
+    text-shadow:
+      0 0 2px #ffffff,
+      0 0 10px rgba(255, 110, 80, 0.95),
+      0 0 22px rgba(255, 96, 75, 0.6);
+  }
+  10% {
+    opacity: 0.95;
+  }
+  18% {
+    opacity: 0.25;
+  }
+  28% {
+    opacity: 1;
+    color: #ffd9cf;
+    text-shadow:
+      0 0 1px #ffe3d8,
+      0 0 8px rgba(255, 110, 80, 0.8),
+      0 0 18px rgba(255, 96, 75, 0.4);
+  }
+  38% {
+    opacity: 0.7;
+  }
+  46%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Blocks the plugin can't reach word by word — code cards, tables, artifact
+   cards, images — get the launch sequence's scan-write instead (same
+   keyframes as holo-panel-boot.css, faster pass): a coral beam edge writes
+   the block left to right as it appears. `.aui-md > div` is Streamdown's own
+   root (the WHOLE message) — the blocks are its children, one level down;
+   targeting `.aui-md > *` here would re-scan the entire message instead.
+   A block mounts once and keeps its DOM while it grows, so this plays once
+   per block; when the message stops streaming the rule stops matching and
+   nothing replays. */
+:root[data-hermes-theme='holo']:not([data-holo-boot])
+  [data-slot='aui_assistant-message-root']:has(> [data-message-streaming='true'])
+  .aui-md
+  > div
+  > :not(p, ul, ol, h1, h2, h3, h4, h5, h6, blockquote) {
+  position: relative;
+  animation:
+    lera-holo-write 900ms cubic-bezier(0.35, 0, 0.25, 1) both,
+    lera-holo-write-flicker 700ms linear both;
+}
+
+:root[data-hermes-theme='holo']:not([data-holo-boot])
+  [data-slot='aui_assistant-message-root']:has(> [data-message-streaming='true'])
+  .aui-md
+  > div
+  > :not(p, ul, ol, h1, h2, h3, h4, h5, h6, blockquote)::after {
+  content: '';
+  position: absolute;
+  inset: -3px 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent calc(100% - 90px),
+    rgba(255, 96, 75, 0.1) calc(100% - 60px),
+    rgba(255, 122, 96, 0.4) calc(100% - 8px),
+    #ffd9cf calc(100% - 2px),
+    transparent 100%
+  );
+  animation:
+    lera-holo-write-beam 900ms cubic-bezier(0.35, 0, 0.25, 1) both,
+    lera-holo-write-beam-out 400ms ease-out 900ms both;
+}
+
+/* DELIBERATE reduced-motion opt-out (same reason as holo-panel-boot.css):
+   Windows reports `reduce` for the whole RDP session this desktop runs in,
+   and styles.css's blanket rule would collapse every word to one frame. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-hermes-theme='holo']:not([data-holo-boot]) .aui-md [data-sd-animate] {
+    animation-duration: 1000ms !important;
+  }
+
+  :root[data-hermes-theme='holo']:not([data-holo-boot])
+    [data-slot='aui_assistant-message-root']:has(> [data-message-streaming='true'])
+    .aui-md
+    > div
+    > :not(p, ul, ol, h1, h2, h3, h4, h5, h6, blockquote) {
+    animation-duration: 900ms, 700ms !important;
+  }
+
+  :root[data-hermes-theme='holo']:not([data-holo-boot])
+    [data-slot='aui_assistant-message-root']:has(> [data-message-streaming='true'])
+    .aui-md
+    > div
+    > :not(p, ul, ol, h1, h2, h3, h4, h5, h6, blockquote)::after {
+    animation-duration: 900ms, 400ms !important;
+  }
+}

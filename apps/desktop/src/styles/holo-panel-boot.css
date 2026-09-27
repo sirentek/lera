@@ -87,9 +87,13 @@
 }
 
 /* ── Session text: holographic scan-write ──────────────────────────────────
-   Each top-level block of the open session (user bubbles, every paragraph /
-   table / list of the assistant's markdown) is WRITTEN left to right by a
-   coral beam edge, blocks cascading top to bottom. The text itself never
+   The open session's whole transcript (aui_thread-content: user bubbles and
+   assistant answers together) is WRITTEN left to right as ONE block by a
+   single coral beam edge. It used to scan per block (each user bubble, its
+   inline text span, each assistant message) with a stagger, which showed as
+   several separate beams/"balloons" at once — the user wants one. The
+   new-session intro variant of aui_thread-content (orb) is excluded: the orb
+   has its own entrance below. The text itself never
    moves or scales — it is uncovered in place behind the beam (clip-path) —
    so there is none of the vertical rubber-band stretch the earlier CRT
    "power-on" (scaleY) version had; don't bring a scale transform back here.
@@ -131,10 +135,13 @@
   opacity: 0.01 !important;
 }
 
+/* position: relative is only held for this phase; verified no absolute
+   descendant of aui_thread-content positions against anything above it, so
+   nothing moves when it is set or dropped. */
 :root[data-hermes-theme='holo'][data-holo-boot='text']
   [data-slot='composer-bounds']
-  :is([data-slot='aui_user-message-root'], [data-slot='aui_directive-text'], [data-slot='aui_thread-content'] .aui-md > *) {
-  --holo-write-delay: calc(600ms + var(--holo-reveal-i, 11) * 280ms);
+  [data-slot='aui_thread-content']:not(:has([data-slot='aui_intro'])) {
+  --holo-write-delay: 600ms;
   position: relative;
   animation:
     lera-holo-write 2400ms cubic-bezier(0.35, 0, 0.25, 1) var(--holo-write-delay) both,
@@ -143,11 +150,14 @@
 
 :root[data-hermes-theme='holo'][data-holo-boot='text']
   [data-slot='composer-bounds']
-  :is([data-slot='aui_user-message-root'], [data-slot='aui_directive-text'], [data-slot='aui_thread-content'] .aui-md > *)::after {
+  [data-slot='aui_thread-content']:not(:has([data-slot='aui_intro']))::after {
   content: '';
   position: absolute;
   inset: -3px 0;
-  z-index: 1;
+  /* Above the sticky user bubble (aui_user-message-root, z-index 40) or the
+     beam slides UNDER the prompt box. Stays contained: the clip-path above
+     makes aui_thread-content its own stacking context for the whole phase. */
+  z-index: 50;
   pointer-events: none;
   background: linear-gradient(
     90deg,
@@ -161,22 +171,6 @@
     lera-holo-write-beam 2400ms cubic-bezier(0.35, 0, 0.25, 1) var(--holo-write-delay) both,
     lera-holo-write-beam-out 500ms ease-out calc(var(--holo-write-delay) + 2400ms) both;
 }
-
-/* Stagger by position; anything past the 11th block shares the last slot so
-   a long session still finishes in reasonable time. */
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(1) { --holo-reveal-i: 1; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(2) { --holo-reveal-i: 2; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(3) { --holo-reveal-i: 3; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(4) { --holo-reveal-i: 4; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(5) { --holo-reveal-i: 5; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(6) { --holo-reveal-i: 6; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(7) { --holo-reveal-i: 7; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(8) { --holo-reveal-i: 8; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(9) { --holo-reveal-i: 9; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(10) { --holo-reveal-i: 10; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] .aui-md > :nth-child(11) { --holo-reveal-i: 11; }
-:root[data-holo-boot='text'] [data-slot='aui_thread-content'] [data-slot='aui_user-message-root'] { --holo-reveal-i: 0; }
-:root[data-holo-boot='text'] [data-slot='aui_directive-text'] { --holo-reveal-i: 0; }
 
 /* -6px margins so glyph overhang / focus rings aren't shaved off. */
 @keyframes lera-holo-write {
@@ -346,13 +340,13 @@
 
   :root[data-hermes-theme='holo'][data-holo-boot='text']
     [data-slot='composer-bounds']
-    :is([data-slot='aui_user-message-root'], [data-slot='aui_directive-text'], [data-slot='aui_thread-content'] .aui-md > *) {
+    [data-slot='aui_thread-content']:not(:has([data-slot='aui_intro'])) {
     animation-duration: 2400ms, 900ms !important;
   }
 
   :root[data-hermes-theme='holo'][data-holo-boot='text']
     [data-slot='composer-bounds']
-    :is([data-slot='aui_user-message-root'], [data-slot='aui_directive-text'], [data-slot='aui_thread-content'] .aui-md > *)::after {
+    [data-slot='aui_thread-content']:not(:has([data-slot='aui_intro']))::after {
     animation-duration: 2400ms, 500ms !important;
   }
 

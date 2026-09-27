@@ -12,6 +12,8 @@ import './styles/holo-room-background'
 import './styles/holo-panel-boot'
 // Side-effect: holo new-session / panel-close transitions (after launch).
 import './styles/holo-session-transition'
+// Side-effect: holo "glyph write" on the assistant's reply while it streams.
+import './styles/holo-stream-fx.css'
 // Side-effect: reports in-flight turns to the main process for the quit guard.
 import './store/active-work'
 // Side-effect: mirrors the machine's AC/battery state for poll demotion.
