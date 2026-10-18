@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { HermesApiRequest } from '@/global'
 
-import { useLeraHudPoll } from './lera-hud-data'
+import { useLeraHudPoll, useLeraHudPollState } from './lera-hud-data'
 
 interface TestUsage {
   ok: boolean
+  needsLogin?: boolean
   value?: number
 }
 
@@ -53,5 +54,22 @@ describe('useLeraHudPoll', () => {
 
     await act(() => vi.advanceTimersByTimeAsync(295_000))
     expect(api).toHaveBeenCalledTimes(2)
+  })
+
+  it('exposes a sign-in failure, backs off, and clears it on the next good payload', async () => {
+    api.mockResolvedValueOnce({ needsLogin: true, ok: false }).mockResolvedValueOnce({ ok: true, value: 7 })
+
+    const { result } = renderHook(() => useLeraHudPollState<TestUsage>('/usage', 300_000, true))
+
+    await act(async () => {})
+    expect(result.current.failure?.needsLogin).toBe(true)
+    expect(result.current.data).toBeNull()
+
+    await act(() => vi.advanceTimersByTimeAsync(5_000))
+    expect(api).toHaveBeenCalledTimes(1)
+
+    await act(() => vi.advanceTimersByTimeAsync(295_000))
+    expect(api).toHaveBeenCalledTimes(2)
+    expect(result.current).toEqual({ data: { ok: true, value: 7 }, failure: null })
   })
 })

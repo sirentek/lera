@@ -22,6 +22,7 @@ import { untombstoneSessions } from '@/store/session-removal'
 import { forgetSessionUnread } from '@/store/session-unread'
 import type { HermesConfigRecord, SessionInfo } from '@/types/hermes'
 
+import { LeraTempSetting } from './lera-temp-settings'
 import { EmptyState, ListRow, SectionHeading, SettingsContent, SettingsSkeleton, ToggleRow } from './primitives'
 import { useDeepLinkHighlight } from './use-deep-link-highlight'
 
@@ -118,6 +119,8 @@ export function SessionsSettings() {
   return (
     <SettingsContent>
       <DefaultProjectDirSetting />
+
+      <LeraTempSetting />
 
       <AutoArchiveSetting />
 

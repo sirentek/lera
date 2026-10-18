@@ -3360,6 +3360,40 @@
   cursor: nwse-resize;
 }
 
+/* ── titlebar drag band ───────────────────────────────────────────────────────
+   The window moves from the trapezoid between the frame's top line and the
+   bottom of the two top corner bevels (40px — the same bevel as
+   --holo-win-shape). app-region ignores clip-path, so the band is 20 stacked
+   2px rows (WindowDragRegion), each inset to the bevel at its mid-height.
+   z-index 0 + first in the DOM: every titlebar button (no-drag) is both
+   painted and folded in after it, so the buttons stay clickable. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-slot='window-drag-region'] {
+  position: fixed;
+  top: var(--holo-win-inset);
+  left: var(--holo-win-inset);
+  right: var(--holo-win-inset);
+  height: 40px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+:root[data-hermes-theme='holo'][data-window-shell='holo'] .lera-window-drag-row {
+  position: absolute;
+  top: calc(var(--drag-row) * 2px);
+  left: calc(39px - var(--drag-row) * 2px);
+  right: calc(39px - var(--drag-row) * 2px);
+  height: 2px;
+  -webkit-app-region: drag;
+}
+
+/* The pane-shell's own titlebar drag strips ran 5px below the band (to the
+   bottom of the 34px titlebar row); the band above replaces them here.
+   `initial`, NOT `none`: Chromium parses `none` as no-drag, which (coming after
+   the band in the DOM) would punch holes in it. */
+:root[data-hermes-theme='holo'][data-window-shell='holo'] [data-window-drag-handle] {
+  -webkit-app-region: initial !important;
+}
+
 /* ── custom window controls (min / max / close) ──────────────────────────────
    Replace the OS overlay the transparent window can't draw. Pinned top-right
    inside the frame inset, above everything, drag-excluded. HUD chip styling to

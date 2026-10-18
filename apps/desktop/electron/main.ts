@@ -96,6 +96,7 @@ import {
 } from './browser-windows'
 import { detectBundleSkew } from './bundle-skew'
 import { detectBundleSwap } from './bundle-swap'
+import { toggleMaximizeOnCaptionDoubleClick } from './caption-double-click'
 import { registerChatOnboardingWindow } from './chat-onboarding-window'
 import { applyConnectionChange, teardownSshState } from './connection-apply'
 import {
@@ -14715,6 +14716,10 @@ function createWindow() {
 
   if (!IS_MAC) {
     transparentShellWindows.add(mainWindow)
+  }
+
+  if (IS_WINDOWS) {
+    toggleMaximizeOnCaptionDoubleClick(mainWindow)
   }
 
   if (IS_MAC) {

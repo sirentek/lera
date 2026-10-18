@@ -1,0 +1,204 @@
+/* ── Holo side-panel show / hide swing (holo-side-toggle.ts) ────────────────
+   The track a side toggle shows or hides carries data-holo-side-fx for the
+   length of the swing; the panel inside it plays the launch swing's motion
+   (holo-panel-boot.css): it turns between its resting wall-mount tilt and
+   lying along its room wall (tilt x16, ≈ ±80deg) about the same origin
+   holo.css gives it, so it folds INTO the room and back out.
+     arm  held folded and invisible while the reveal frame is drawn
+     in   folded -> resting, with the hologram power-on flicker
+     out  resting -> folded, flickering off; the track collapses after
+   Transform/opacity only, so it stays on the compositor. */
+:root[data-hermes-theme='holo']
+  [data-holo-side-fx]
+  :is(
+    [data-slot='sidebar'],
+    [data-slot='bots-panel'],
+    [data-slot='lera-zone-hud'],
+    [data-slot='right-sidebar'],
+    [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  ) {
+  --holo-side-rest: perspective(1600px) rotateY(var(--holo-tilt, 0deg));
+  --holo-side-folded: perspective(1600px) rotateY(calc(var(--holo-tilt, 0deg) * 16));
+}
+
+:root[data-hermes-theme='holo']
+  [data-holo-side-fx='in']
+  :is(
+    [data-slot='sidebar'],
+    [data-slot='bots-panel'],
+    [data-slot='lera-zone-hud'],
+    [data-slot='right-sidebar'],
+    [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  ) {
+  animation: lera-holo-side-in 1000ms cubic-bezier(0.25, 0.8, 0.35, 1) both;
+}
+
+:root[data-hermes-theme='holo']
+  [data-holo-side-fx='out']
+  :is(
+    [data-slot='sidebar'],
+    [data-slot='bots-panel'],
+    [data-slot='lera-zone-hud'],
+    [data-slot='right-sidebar'],
+    [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  ) {
+  animation: lera-holo-side-out 650ms cubic-bezier(0.55, 0, 0.8, 0.3) both;
+}
+
+/* opacity 0.01, not 0 — still rasterised (see "GPU warm-up" in
+   holo-panel-boot.ts), so `in` doesn't pay for it on its first frame. */
+:root[data-hermes-theme='holo']
+  [data-holo-side-fx='arm']
+  :is(
+    [data-slot='sidebar'],
+    [data-slot='bots-panel'],
+    [data-slot='lera-zone-hud'],
+    [data-slot='right-sidebar'],
+    [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  ) {
+  opacity: 0.01;
+  transform: var(--holo-side-folded);
+}
+
+/* Zone-stack children: the stack owns the transform and swings for them. */
+:root[data-hermes-theme='holo']
+  [data-holo-side-fx]
+  [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+  :is([data-slot='sidebar'], [data-slot='bots-panel'], [data-slot='lera-zone-hud']) {
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+/* A side holding no holo panel (e.g. a lone file tree or review pane) just
+   fades, so its phase still ends on an animationend. */
+:root[data-hermes-theme='holo']
+  [data-holo-side-fx='in']:not(
+    :has(
+      :is(
+        [data-slot='sidebar'],
+        [data-slot='bots-panel'],
+        [data-slot='lera-zone-hud'],
+        [data-slot='right-sidebar']
+      )
+    )
+  ) {
+  animation: lera-holo-side-fade-in 400ms ease-out both;
+}
+
+:root[data-hermes-theme='holo']
+  [data-holo-side-fx='out']:not(
+    :has(
+      :is(
+        [data-slot='sidebar'],
+        [data-slot='bots-panel'],
+        [data-slot='lera-zone-hud'],
+        [data-slot='right-sidebar']
+      )
+    )
+  ) {
+  animation: lera-holo-side-fade-out 300ms ease-in both;
+}
+
+/* A panel on its way out is already gone as far as the user is concerned. */
+:root[data-hermes-theme='holo'] [data-holo-side-fx='out'] {
+  pointer-events: none;
+}
+
+@keyframes lera-holo-side-in {
+  0% {
+    opacity: 0.01;
+    transform: var(--holo-side-folded);
+  }
+  12% {
+    opacity: 0.6;
+  }
+  18% {
+    opacity: 0.15;
+  }
+  26% {
+    opacity: 0.85;
+  }
+  32% {
+    opacity: 0.4;
+  }
+  44% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: var(--holo-side-rest);
+  }
+}
+
+@keyframes lera-holo-side-out {
+  0% {
+    opacity: 1;
+    transform: var(--holo-side-rest);
+  }
+  18% {
+    opacity: 0.45;
+  }
+  24% {
+    opacity: 0.9;
+  }
+  34% {
+    opacity: 0.3;
+  }
+  42% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    transform: var(--holo-side-folded);
+  }
+}
+
+@keyframes lera-holo-side-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes lera-holo-side-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* DELIBERATE reduced-motion opt-out (same reason as holo-panel-boot.css):
+   Windows reports `reduce` for the whole RDP session this desktop runs in, and
+   styles.css's blanket rule would collapse the swing to a single frame. */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-hermes-theme='holo']
+    [data-holo-side-fx='in']
+    :is(
+      [data-slot='sidebar'],
+      [data-slot='bots-panel'],
+      [data-slot='lera-zone-hud'],
+      [data-slot='right-sidebar'],
+      [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+    ) {
+    animation-duration: 1000ms !important;
+  }
+
+  :root[data-hermes-theme='holo']
+    [data-holo-side-fx='out']
+    :is(
+      [data-slot='sidebar'],
+      [data-slot='bots-panel'],
+      [data-slot='lera-zone-hud'],
+      [data-slot='right-sidebar'],
+      [data-slot='pane-body-stack']:has(> [data-slot='lera-zone-hud'])
+    ) {
+    animation-duration: 650ms !important;
+  }
+
+  :root[data-hermes-theme='holo'] [data-holo-side-fx='in'] {
+    animation-duration: 400ms !important;
+  }
+
+  :root[data-hermes-theme='holo'] [data-holo-side-fx='out'] {
+    animation-duration: 300ms !important;
+  }
+}

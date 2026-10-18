@@ -14,7 +14,7 @@ import { type CSSProperties, lazy, type ReactNode, Suspense, useCallback, useEff
 import { useLocation, useNavigate } from 'react-router'
 
 import { graftRefreshedTailOntoBackfill } from '@/app/chat/transcript-backfill'
-import { WindowFrame } from '@/app/shell/window-frame'
+import { WindowDragRegion, WindowFrame } from '@/app/shell/window-frame'
 import { formatRefValue } from '@/components/assistant-ui/directive-text'
 import { BootFailureOverlay } from '@/components/boot-failure-overlay'
 import { ConfirmHost } from '@/components/confirm-host'
@@ -1235,6 +1235,9 @@ export function ContribWiring({ children }: { children: ReactNode }) {
 
   return (
     <ContribWiringContext.Provider value={api}>
+      {/* Lera holo frameless titlebar drag band. FIRST on purpose: every
+          no-drag button after it carves itself out (see window-frame.tsx). */}
+      <WindowDragRegion />
       <div
         className="contents"
         style={

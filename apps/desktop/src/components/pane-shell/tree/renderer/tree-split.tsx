@@ -15,6 +15,7 @@ import { guardGuestPointers } from '@/lib/guest-pointer-guard'
 import { rafCoalesce } from '@/lib/raf-coalesce'
 import { cn } from '@/lib/utils'
 import { $paneStates, type PaneStateSnapshot, setPaneHeightOverride, setPaneWidthOverride } from '@/store/panes'
+import { useHoloSideToggle } from '@/styles/holo-side-toggle'
 
 import { $layoutEditMode } from '../../edit-mode'
 import type { LayoutNode, SplitNode } from '../model'
@@ -626,12 +627,16 @@ export function TreeSplit({
     return side !== null && collapsedSides.has(side)
   }
 
+  // Lera: holo swing on side show/hide — a side being hidden stays on screen
+  // until its swing-out ends (styles/holo-side-toggle.ts).
+  const sideFx = useHoloSideToggle(new Map(node.children.map((child, i) => [child.id, sideGone(i)])))
+
   // One pass per child: collapse/minimize state, resolved fixed track, clamps,
   // and narrow-unmount flag. fixedTrackSize + subtreeGone each re-walk the
   // subtree, so resolve them ONCE here instead of per read below.
   const tracks = node.children.map((child, i) => {
     const minimized = isMinimized(child)
-    const collapsed = isCollapsed(child) || sideGone(i)
+    const collapsed = isCollapsed(child) || (sideGone(i) && !sideFx.leaving(child.id))
     const track = minimized || collapsed ? null : fixedTrackSize(child, axis, trackCtx)
     const sizing = minimized || collapsed ? null : sizingFor(child, track)
     // Narrow-collapse UNMOUNTS (the edge overlay owns the live instance) — but
@@ -698,6 +703,7 @@ export function TreeSplit({
           <div
             className="relative flex min-h-0 min-w-0"
             key={child.id}
+            {...sideFx.props(child.id)}
             style={
               collapsed
                 ? { display: 'none' }

@@ -1,5 +1,5 @@
 import { useStore } from '@nanostores/react'
-import { useEffect } from 'react'
+import { type CSSProperties, useEffect } from 'react'
 
 import { Codicon } from '@/components/ui/codicon'
 import { useI18n } from '@/i18n'
@@ -38,6 +38,11 @@ const RESIZE_HANDLES = [
 
 type ResizeDirection = (typeof RESIZE_HANDLES)[number]
 
+// Rows of the titlebar drag band (holo.css: 2px each across the 40px corner
+// bevel). Chromium builds app-region rects from layout boxes and ignores
+// clip-path, so the bevelled trapezoid is approximated as a staircase.
+const DRAG_ROWS = Array.from({ length: 20 }, (_, row) => row)
+
 function shouldRenderWindowShell(): boolean {
   if (IS_MAC) {return false}
 
@@ -46,6 +51,22 @@ function shouldRenderWindowShell(): boolean {
   if (typeof window === 'undefined') {return false}
 
   return typeof window.hermesDesktop?.window?.startResize === 'function'
+}
+
+// The frameless window's move handle: the trapezoid between the frame's top
+// line and the bottom of its two top corner bevels. Must be rendered BEFORE the
+// titlebar buttons in the DOM — Chromium folds app-region rects in tree order,
+// so only a no-drag that comes AFTER this layer carves a clickable hole in it.
+export function WindowDragRegion() {
+  if (!shouldRenderWindowShell()) {return null}
+
+  return (
+    <div aria-hidden="true" className="lera-window-drag-region" data-slot="window-drag-region">
+      {DRAG_ROWS.map(row => (
+        <div className="lera-window-drag-row" key={row} style={{ '--drag-row': row } as CSSProperties} />
+      ))}
+    </div>
+  )
 }
 
 export function WindowFrame() {

@@ -57,6 +57,16 @@ export interface ClaudeUsage {
   weeklyAll?: ClaudeUsageLimit
   /** Weekly cap scoped to the Fable model. */
   weeklyFable?: ClaudeUsageLimit
+  /** On a failed payload: only a fresh `claude auth login` fixes it. */
+  needsLogin?: boolean
+}
+
+/** POST/GET /api/plugins/lera-hud/claude/login — the card-started sign-in. */
+export interface ClaudeLoginStatus {
+  ok: boolean
+  running?: boolean
+  exitCode?: number | null
+  error?: string
 }
 
 /**
@@ -102,7 +112,23 @@ export function useLeraHudPoll<T extends { ok: boolean }>(
   enabled: boolean,
   reloadToken = 0
 ) {
+  return useLeraHudPollState<T>(path, intervalMs, enabled, reloadToken).data
+}
+
+/**
+ * useLeraHudPoll plus `failure`: the latest non-ok payload, cleared by the
+ * next good one — for cards that explain WHY they're empty (CLAUDE's sign-in
+ * offer). A failure flagged `needsLogin` isn't transient, so it drops to the
+ * normal interval instead of the quick initial retry.
+ */
+export function useLeraHudPollState<T extends { ok: boolean; needsLogin?: boolean }>(
+  path: string,
+  intervalMs: number,
+  enabled: boolean,
+  reloadToken = 0
+) {
   const [data, setData] = useState<T | null>(null)
+  const [failure, setFailure] = useState<T | null>(null)
 
   useEffect(() => {
     if (!enabled || !window.hermesDesktop?.api) {
@@ -111,6 +137,7 @@ export function useLeraHudPoll<T extends { ok: boolean }>(
 
     let disposed = false
     let hasSuccessfulPayload = false
+    let settledFailure = false
     let timer: number | undefined
     // Only the first request of a manually-triggered run carries ?force=1,
     // which makes the plugin skip its TTL cache and actually re-fetch upstream.
@@ -129,6 +156,10 @@ export function useLeraHudPoll<T extends { ok: boolean }>(
         if (!disposed && result?.ok) {
           hasSuccessfulPayload = true
           setData(result)
+          setFailure(null)
+        } else if (!disposed && result) {
+          settledFailure = result.needsLogin === true
+          setFailure(result)
         }
       } catch {
         // Keep showing the last snapshot; the next tick retries.
@@ -140,7 +171,10 @@ export function useLeraHudPoll<T extends { ok: boolean }>(
         // instead of leaving all gauges at NO DATA for a full poll interval.
         // Once a payload has arrived, retain it and return to the normal,
         // upstream-friendly cadence across transient failures.
-        timer = window.setTimeout(() => void poll(), hasSuccessfulPayload ? intervalMs : INITIAL_RETRY_MS)
+        timer = window.setTimeout(
+          () => void poll(),
+          hasSuccessfulPayload || settledFailure ? intervalMs : INITIAL_RETRY_MS
+        )
       }
     }
 
@@ -155,7 +189,7 @@ export function useLeraHudPoll<T extends { ok: boolean }>(
     }
   }, [path, intervalMs, enabled, reloadToken])
 
-  return data
+  return { data, failure }
 }
 
 /** Rolling-window lengths shared by the HUD cards' elapsed-time gauges. */
