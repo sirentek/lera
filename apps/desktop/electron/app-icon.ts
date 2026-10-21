@@ -81,15 +81,33 @@ export function appIconCandidates(opts: {
     // `process.resourcesPath` points at Electron's own resources, which has no
     // icon.ico, and the join on a bare '' would probe the cwd. The null guard
     // (filtered out below) keeps the ladder free of that bogus relative path.
+    // Only the unpacked path is probed: in a dev tree unpackedPathFor is the
+    // identity, and a packaged build must never stat inside app.asar (#96857).
     ...(isWindows
       ? [
-          path.join(appRoot, 'assets', 'icon.ico'),
           path.join(unpackedPathFor(appRoot), 'assets', 'icon.ico'),
           resourcesPath ? path.join(resourcesPath, 'icon.ico') : null
         ]
       : []),
+    // The unpacked on-disk copy first (dist/** is asarUnpack'ed), as resolveWebDist() does: statting
+    // any path inside app.asar goes through Electron's asar fs.Stats shim, which emits Node's DEP0180
+    // on every packaged launch (#96857). In a dev tree unpackedPathFor is the identity.
+    path.join(unpackedPathFor(appRoot), 'dist', 'apple-touch-icon.png'),
     path.join(appRoot, 'public', 'apple-touch-icon.png'),
-    path.join(appRoot, 'dist', 'apple-touch-icon.png'),
-    path.join(unpackedPathFor(appRoot), 'dist', 'apple-touch-icon.png')
+    path.join(appRoot, 'dist', 'apple-touch-icon.png')
   ].filter((candidate): candidate is string => Boolean(candidate))
+}
+
+/**
+ * Whether to replace the macOS Dock icon at runtime with `app.dock.setIcon()`.
+ *
+ * A packaged `.app` already carries the Hermes icon in its bundle
+ * (electron-builder `build.icon`). Overriding it with a flat PNG at runtime
+ * hides that bundle icon for the life of the process, so macOS 26 can't apply
+ * the Clear/Tinted Liquid Glass styles to it (#73195). Only a dev run needs the
+ * override: there the bundle is the stock Electron.app and the Dock would show
+ * the Electron logo.
+ */
+export function shouldOverrideDockIcon(opts: { platform: NodeJS.Platform; isPackaged: boolean }): boolean {
+  return opts.platform === 'darwin' && !opts.isPackaged
 }

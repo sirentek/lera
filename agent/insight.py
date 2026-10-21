@@ -4,7 +4,7 @@ A sibling of the curator (``agent/curator.py``) but with a different job:
 instead of maintaining agent-created skills, the insight task periodically
 distills the last few days of conversation history into a compact digest
 and a short list of proactive suggestions, then writes them to
-``$HERMES_HOME/insight.md`` for the holographic memory provider to inject
+``$HERMES_HOME/insight.md`` for the lera-insight plugin to inject
 at turn start.
 
 Design mirrors the curator on purpose so the two stay easy to reason about:
@@ -60,7 +60,7 @@ _MAX_OUTPUT_CHARS = 4000
 # ---------------------------------------------------------------------------
 
 def insight_file() -> Path:
-    """The digest the holographic provider reads at turn start."""
+    """The digest the lera-insight plugin reads at turn start."""
     return get_hermes_home() / "insight.md"
 
 

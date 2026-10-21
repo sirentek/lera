@@ -53,8 +53,8 @@ function rebrandValue(value: unknown): unknown {
 for (const t of Object.values(TRANSLATIONS)) {
   rebrandValue(t)
 
-  // About page heading + boot splash use the uppercase product mark.
-  t.settings.about.heading = PRODUCT_NAME
+  // About page search + boot splash use the uppercase product mark. (0.22.3
+  // dropped the about.heading key; the DOM layer below rebrands that page.)
   t.settings.searchPlaceholder.about = `About ${PRODUCT_NAME}`
   t.boot.ready = `${PRODUCT_NAME} is ready`
   t.boot.steps.startingHermesDesktop = `Starting ${PRODUCT_NAME}…`

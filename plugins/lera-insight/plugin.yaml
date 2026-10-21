@@ -1,0 +1,6 @@
+name: lera-insight
+version: 1.0.0
+description: "Lera: injects the background insight task's output ($HERMES_HOME/insight.md, written by agent/insight.py) — the weekly digest as a cache-safe system prompt section, proactive suggestions as per-turn context. Injects nothing when the digest is missing or empty."
+author: "Lera"
+provides_hooks:
+  - pre_llm_call

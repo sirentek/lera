@@ -1,16 +1,19 @@
 import { useStore } from '@nanostores/react'
 import { useQuery } from '@tanstack/react-query'
-import type { ChangeEvent } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { getElevenLabsVoices, getHermesConfigSchema, saveHermesConfig } from '@/hermes'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
+import { isSubmitEnter } from '@/lib/ime'
 import { BACKEND_BOOT_WAIT_TIMEOUT_MS, withTimeout } from '@/lib/with-timeout'
 import { confirm } from '@/store/confirm'
+import { $activeConnectionId } from '@/store/connections'
 import {
   $dataUrlReadMaxMb,
   clampDataUrlReadMaxMb,
@@ -20,8 +23,10 @@ import {
   refreshDataUrlReadMaxMb,
   setDataUrlReadMaxMb
 } from '@/store/data-url-read-max'
+import { recordSettingsSaved } from '@/store/desktop-metrics'
 import { $disableF12, setDisableF12 } from '@/store/disable-f12'
-import { $keepAwake, setKeepAwake } from '@/store/keep-awake'
+import { $alwaysExternalLinks, setAlwaysExternalLinks } from '@/store/external-links'
+import { $keepAwakeMode, type KeepAwakeMode, setKeepAwakeMode } from '@/store/keep-awake'
 import { notify, notifyError } from '@/store/notifications'
 import { normalizeProfileKey } from '@/store/profile'
 import { repoDiscoveryPolicyFromConfig, repoDiscoveryPolicySignature, scanAndRecordRepos } from '@/store/projects'
@@ -33,26 +38,33 @@ import { useOnProfileSwitch } from '../hooks/use-on-profile-switch'
 import { PanelEmpty } from '../overlays/panel'
 
 import { ConfigField } from './config-field'
+import { configSubpageForField } from './config-subpages'
+import { DELEGATION_ROUTE_COMPANION_KEY, DelegationRouteRow } from './delegation-route-row'
 import {
   clearsEnabledToolsets,
+  configFieldValue,
   diffConfig,
   enumOptionsFor,
   getNested,
   isExternalMemoryProvider,
   sectionFieldEntries,
-  setNested,
+  setConfigField,
   voiceFieldVisible
 } from './helpers'
 import { MemoryConnect } from './memory/connect'
 import { ProviderConfigPanel } from './memory/provider-config-panel'
 import { ModelSettings } from './model-settings'
-import { PoolLimitsSetting } from './pool-limits-setting'
+import { OnboardingSettings } from './onboarding-settings'
 import { EmptyState, ListRow, ListRowSkeleton, SettingsContent, SettingsSkeleton, ToggleRow } from './primitives'
 import { SettingsProfileScope } from './profile-scope'
 import { QuickEntrySettings } from './quick-entry-settings'
+import { SETTING_IDS, settingElementId } from './settings-manifest'
+import { SharedMetricsSettings } from './shared-metrics-settings'
+import { useSettingDeepLink } from './use-setting-deep-link'
 
 export function ConfigSettings({
   activeSectionId,
+  subpage,
   onConfigSaved,
   onMainModelChanged,
   importInputRef
@@ -62,21 +74,25 @@ export function ConfigSettings({
   // when the target profile changes — the same guarantee useOnProfileSwitch
   // provides for app-wide switches, without hand-clearing each piece.
   const scopeProfile = useStore($settingsRequestProfile)
+  const connectionId = useStore($activeConnectionId)
 
   return (
     <ConfigSettingsInner
       activeSectionId={activeSectionId}
       importInputRef={importInputRef}
-      key={scopeProfile ?? '__active__'}
+      key={JSON.stringify([connectionId, scopeProfile ?? '__active__'])}
       onConfigSaved={onConfigSaved}
       onMainModelChanged={onMainModelChanged}
       scopeProfile={scopeProfile}
+      subpage={subpage}
     />
   )
 }
 
 interface ConfigSettingsProps {
   activeSectionId: string
+  /** Undefined preserves the full section for existing embedded consumers. */
+  subpage?: string
   onConfigSaved?: () => void
   onMainModelChanged?: (provider: string, model: string) => void
   importInputRef: React.RefObject<HTMLInputElement | null>
@@ -84,6 +100,7 @@ interface ConfigSettingsProps {
 
 function ConfigSettingsInner({
   activeSectionId,
+  subpage,
   onConfigSaved,
   onMainModelChanged,
   importInputRef,
@@ -91,13 +108,28 @@ function ConfigSettingsInner({
 }: ConfigSettingsProps & { scopeProfile: string | undefined }) {
   const { t } = useI18n()
   const c = t.settings.config
-  const keepAwake = useStore($keepAwake)
+  const keepAwakeMode = useStore($keepAwakeMode)
+
+  const keepAwakeOptions = [
+    { id: 'off', label: c.keepAwakeOff },
+    { id: 'while-working', label: c.keepAwakeWhileWorking },
+    { id: 'always', label: c.keepAwakeAlways }
+  ] as const satisfies readonly { id: KeepAwakeMode; label: string }[]
+
   const disableF12 = useStore($disableF12)
+  const alwaysExternalLinks = useStore($alwaysExternalLinks)
   // The editable draft is local (debounced autosave watches it), but it's seeded
   // from — and saved back through — the shared config cache, so edits are visible
   // in the MCP/model surfaces and reopening the page doesn't reload-flash.
   const [config, setConfig] = useState<HermesConfigRecord | null>(null)
-  const { data: loadedConfig, isError: configLoadFailed, refetch: refetchConfig } = useHermesConfigRecord(scopeProfile)
+
+  const {
+    data: loadedConfig,
+    isError: configLoadFailed,
+    refetch: refetchConfig,
+    writeScope
+  } = useHermesConfigRecord(scopeProfile)
+
   // Writes land on the same cache key the query above reads (base key when
   // following the active profile, suffixed when a scope override is set).
   const writeConfigCache = useMemo(() => hermesConfigCacheWriter(scopeProfile), [scopeProfile])
@@ -107,6 +139,8 @@ function ConfigSettingsInner({
     // consumer); suffixed only for an explicit scope override.
     queryKey:
       scopeProfile == null ? ['hermes-config-schema'] : ['hermes-config-schema', normalizeProfileKey(scopeProfile)],
+    // Lera: bounded, and never a page gate (see the `!config` branch below) —
+    // fields fall back to inferred schemas while this is still in flight.
     queryFn: () =>
       withTimeout(
         getHermesConfigSchema(scopeProfile),
@@ -136,6 +170,7 @@ function ConfigSettingsInner({
   // resolve after a newer one and re-advance the baseline / cache with stale
   // data — each save's diff+request only starts once the previous one lands.
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+
   const profileEpochRef = useRef(0)
 
   const seedConfigRecord = useCallback((next: HermesConfigRecord) => {
@@ -167,8 +202,8 @@ function ConfigSettingsInner({
     setSaveVersion(0)
     saveQueueRef.current = Promise.resolve()
 
-    // Profile-scoped queries keep their last value while they refetch. When
-    // the next profile has an identical config, React Query structurally
+    // Lera: profile-scoped queries keep their last value while they refetch.
+    // When the next profile has an identical config, React Query structurally
     // shares that value and `loadedConfig` never changes identity; the seed
     // effect above therefore cannot run again. Seed explicitly from this
     // refetch result so the settings page cannot remain an eternal skeleton.
@@ -219,7 +254,7 @@ function ConfigSettingsInner({
       saveQueueRef.current = saveQueueRef.current.then(async () => {
         try {
           const patch = diffConfig(configBaselineRef.current ?? {}, snapshot)
-          const result = await saveHermesConfig(patch, scopeProfile)
+          const result = await saveHermesConfig(patch, writeScope ?? scopeProfile)
 
           if (!result.ok) {
             throw new Error(c.autosaveFailed)
@@ -234,6 +269,9 @@ function ConfigSettingsInner({
           // Mirror the saved record into the shared cache so MCP/model surfaces
           // reflect the edit without their own refetch.
           writeConfigCache(snapshot)
+          const savedScope = writeScope ?? scopeProfile
+
+          recordSettingsSaved(patch, schema ?? {}, typeof savedScope === 'string' ? savedScope : savedScope?.profile)
 
           if (saveVersionRef.current === v) {
             // The repo-discovery scan reads the ACTIVE profile's workspace
@@ -259,7 +297,7 @@ function ConfigSettingsInner({
 
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- copy is stable; avoid re-scheduling autosave on locale change
-  }, [config, onConfigSaved, saveVersion])
+  }, [config, onConfigSaved, saveVersion, writeScope, scopeProfile])
 
   const applyConfig = (next: HermesConfigRecord) => {
     saveVersionRef.current += 1
@@ -293,23 +331,36 @@ function ConfigSettingsInner({
 
     // ConfigField already infers schemas for backend-omitted keys. Apply the
     // same safe fallback while the full schema request is still in flight so
-    // a healthy config response can paint Chat immediately.
+    // a healthy config response can paint immediately.
     return sectionFieldEntries(schema ?? {}, config)
   }, [schema, config])
 
-  const fields = sectionFields.get(activeSectionId) ?? []
+  const fields = (sectionFields.get(activeSectionId) ?? []).filter(
+    ([key]) => subpage === undefined || configSubpageForField(activeSectionId, key) === subpage
+  )
+
+  const showModelSettings =
+    activeSectionId === 'model' && (subpage === undefined || ['main', 'auxiliary', 'moa'].includes(subpage))
+
+  const showDesktopSettings = activeSectionId === 'advanced' && (subpage === undefined || subpage === 'desktop')
+  const showAttachments = activeSectionId === 'chat' && (subpage === undefined || subpage === 'attachments')
+  const showSharedMetrics = activeSectionId === 'safety' && subpage === 'privacy'
 
   // Deep-link target from the command palette (?field=<key>): scroll the row
   // into view and flash it, then drop the param so it doesn't re-fire.
   const [searchParams, setSearchParams] = useSearchParams()
   const targetField = searchParams.get('field')
 
+  useSettingDeepLink(`config:${activeSectionId}`, page => subpage === undefined || page === subpage)
+
   useEffect(() => {
     if (!targetField || !config) {
       return
     }
 
-    const element = document.getElementById(`setting-field-${targetField}`)
+    const element = document.getElementById(
+      `setting-field-${targetField === DELEGATION_ROUTE_COMPANION_KEY ? 'delegation.model' : targetField}`
+    )
 
     if (!element) {
       return
@@ -337,7 +388,7 @@ function ConfigSettingsInner({
     )
 
     return () => window.clearTimeout(timeout)
-  }, [config, setSearchParams, targetField])
+  }, [activeSectionId, config, schema, setSearchParams, subpage, targetField])
 
   function handleImport(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -361,72 +412,26 @@ function ConfigSettingsInner({
     e.target.value = ''
   }
 
-  if (!config && activeSectionId === 'model') {
-    const configFieldsFailed = configLoadFailed
-
-    // The model picker has its own endpoints and can render independently of
-    // the generic config schema. Keeping it behind this page-level gate meant
-    // one stuck config/schema IPC request left the entire tab as a skeleton.
-    return (
-      <SettingsContent>
-        <SettingsProfileScope className="mb-5" />
-        <div className="mb-6">
-          <ModelSettings onMainModelChanged={onMainModelChanged} scopeProfile={scopeProfile} />
+  // Keep the model controller and pending MoA saves at a stable position when
+  // selecting siblings or returning to the first page through the parent.
+  const renderPage = (children: ReactNode) => (
+    <SettingsContent>
+      <SettingsProfileScope className="mb-5" />
+      {activeSectionId === 'model' && (
+        <div className={showModelSettings ? 'mb-6' : undefined}>
+          <ModelSettings onMainModelChanged={onMainModelChanged} scopeProfile={scopeProfile} subpage={subpage} />
         </div>
-        {configFieldsFailed ? (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2">
-            <span className="text-sm text-muted-foreground">{c.failedLoad}</span>
-            <Button
-              onClick={() => {
-                void refetchConfig()
-                void refetchSchema()
-              }}
-              size="sm"
-            >
-              {t.skills.refresh}
-            </Button>
-          </div>
-        ) : (
-          <div className="grid gap-1" data-slot="model-config-fields-skeleton">
-            <ListRowSkeleton />
-            <ListRowSkeleton />
-          </div>
-        )}
-      </SettingsContent>
-    )
-  }
-
-  if (!config && activeSectionId === 'chat') {
-    // Chat owns a device-local attachment limit that does not depend on the
-    // backend config. Paint it immediately, then fill the profile-backed rows
-    // when config arrives instead of hiding the whole page behind a skeleton.
-    return (
-      <SettingsContent>
-        <SettingsProfileScope className="mb-5" />
-        <AttachmentSizeSetting />
-        {configLoadFailed ? (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2">
-            <span className="text-sm text-muted-foreground">{c.failedLoad}</span>
-            <Button
-              onClick={() => {
-                void refetchConfig()
-                void refetchSchema()
-              }}
-              size="sm"
-            >
-              {t.skills.refresh}
-            </Button>
-          </div>
-        ) : (
-          <div className="grid gap-1" data-slot="chat-config-fields-skeleton">
-            {[0, 1, 2, 3].map(row => (
-              <ListRowSkeleton key={row} />
-            ))}
-          </div>
-        )}
-      </SettingsContent>
-    )
-  }
+      )}
+      {children}
+      <input
+        accept=".json,application/json"
+        className="hidden"
+        onChange={handleImport}
+        ref={importInputRef}
+        type="file"
+      />
+    </SettingsContent>
+  )
 
   if (!config) {
     // A failed config fetch must surface a retry, not spin forever.
@@ -452,69 +457,111 @@ function ConfigSettingsInner({
       )
     }
 
+    // Lera: the model picker has its own endpoints and the attachment cap is
+    // device-local, so neither waits on the config record — render them now
+    // and hold only the profile-backed rows behind a skeleton.
+    if (activeSectionId === 'model' || showAttachments) {
+      return renderPage(
+        <>
+          {showAttachments ? <AttachmentSizeSetting /> : null}
+          <div className="grid gap-1" data-slot="config-fields-skeleton">
+            {[0, 1, 2, 3].map(row => (
+              <ListRowSkeleton key={row} />
+            ))}
+          </div>
+        </>
+      )
+    }
+
     return <SettingsSkeleton sections={[{ rows: 6 }]} />
   }
 
-  const visibleFields = activeSectionId === 'voice' ? fields.filter(([key]) => voiceFieldVisible(key, config)) : fields
+  const visibleFields = (
+    activeSectionId === 'voice' ? fields.filter(([key]) => voiceFieldVisible(key, config)) : fields
+  ).filter(([key]) => key !== DELEGATION_ROUTE_COMPANION_KEY)
 
-  return (
-    <SettingsContent>
-      {/* Which profile's config.yaml this page edits — shared across every
-          config-backed settings page (and hidden for single-profile users). */}
-      <SettingsProfileScope className="mb-5" />
-      {activeSectionId === 'model' && (
-        <div className="mb-6">
-          <ModelSettings onMainModelChanged={onMainModelChanged} scopeProfile={scopeProfile} />
-        </div>
-      )}
+  const showEmptyState =
+    visibleFields.length === 0 &&
+    (subpage === undefined
+      ? activeSectionId !== 'chat'
+      : !showModelSettings && !showDesktopSettings && !showAttachments && !showSharedMetrics)
+
+  return renderPage(
+    <>
       {/* Device-local desktop prefs (not config.yaml) — they live here since
           keeping the machine awake and the global Quick Entry chord are both
           power-user, this-computer-only knobs. */}
-      {activeSectionId === 'advanced' && (
+      {showDesktopSettings && (
         <>
-          <ToggleRow
-            checked={keepAwake}
+          <ListRow
+            action={
+              <SegmentedControl
+                onChange={mode => {
+                  triggerHaptic('selection')
+                  setKeepAwakeMode(mode)
+                }}
+                options={keepAwakeOptions}
+                value={keepAwakeMode}
+              />
+            }
             description={c.keepAwakeDesc}
-            label={c.keepAwakeTitle}
-            onChange={setKeepAwake}
+            id={settingElementId(SETTING_IDS.advanced.keepAwake)}
+            title={c.keepAwakeTitle}
           />
           <ToggleRow
             checked={disableF12}
             description={c.disableF12Desc}
+            id={settingElementId(SETTING_IDS.advanced.disableF12)}
             label={c.disableF12Title}
             onChange={setDisableF12}
           />
-          <PoolLimitsSetting />
+          <ToggleRow
+            checked={alwaysExternalLinks}
+            description={c.alwaysExternalLinksDesc}
+            label={c.alwaysExternalLinksTitle}
+            onChange={setAlwaysExternalLinks}
+          />
           <QuickEntrySettings />
+          <OnboardingSettings />
         </>
       )}
       {/* Device-local attach/preview byte cap (main-process IPC guard). Chat is
           where image-attachment behavior already lives, so this sits above the
           schema fields for that section. */}
-      {activeSectionId === 'chat' ? <AttachmentSizeSetting /> : null}
-      {visibleFields.length === 0 && activeSectionId !== 'chat' ? (
+      {showAttachments ? <AttachmentSizeSetting /> : null}
+      {/* Shared metrics are two coupled opt-ins with a consent side effect, so they
+          go through their own RPC rather than the generic field autosave. */}
+      {showSharedMetrics ? <SharedMetricsSettings /> : null}
+      {activeSectionId === 'voice' ? (
+        <ListRow description={c.voiceShortcutHintDesc} title={c.voiceShortcutHintTitle} />
+      ) : null}
+      {showEmptyState ? (
         <EmptyState description={c.emptyDesc} title={c.emptyTitle} />
       ) : visibleFields.length === 0 ? null : (
         <div className="grid gap-1">
           {visibleFields.map(([key, field]) => (
             <div className="scroll-mt-6 rounded-lg" id={`setting-field-${key}`} key={key}>
-              <ConfigField
-                descriptionExtra={
-                  key === 'memory.provider' && isExternalMemoryProvider(getNested(config, key)) ? (
-                    <MemoryConnect profile={scopeProfile} provider={String(getNested(config, key))} />
-                  ) : undefined
-                }
-                enumOptions={
-                  key === 'tts.elevenlabs.voice_id'
-                    ? enumOptionsFor(key, getNested(config, key), config, elevenLabsVoiceOptions ?? undefined)
-                    : enumOptionsFor(key, getNested(config, key), config)
-                }
-                onChange={value => updateConfig(setNested(config, key, value))}
-                optionLabels={key === 'tts.elevenlabs.voice_id' ? elevenLabsVoiceLabels : undefined}
-                schema={field}
-                schemaKey={key}
-                value={getNested(config, key)}
-              />
+              {key === 'delegation.model' ? (
+                <DelegationRouteRow config={config} onConfigChange={updateConfig} scope={writeScope ?? scopeProfile} />
+              ) : (
+                <ConfigField
+                  descriptionExtra={
+                    key === 'memory.provider' && isExternalMemoryProvider(getNested(config, key)) ? (
+                      <MemoryConnect profile={scopeProfile} provider={String(getNested(config, key))} />
+                    ) : undefined
+                  }
+                  enumOptions={
+                    key === 'tts.elevenlabs.voice_id'
+                      ? enumOptionsFor(key, getNested(config, key), config, elevenLabsVoiceOptions ?? undefined)
+                      : enumOptionsFor(key, getNested(config, key), config)
+                  }
+                  onChange={value => updateConfig(setConfigField(config, key, value))}
+                  optionLabels={key === 'tts.elevenlabs.voice_id' ? elevenLabsVoiceLabels : undefined}
+                  schema={field}
+                  schemaKey={key}
+                  value={configFieldValue(config, key)}
+                />
+              )}
               {key === 'memory.provider' && isExternalMemoryProvider(getNested(config, key)) ? (
                 <ProviderConfigPanel
                   key={String(getNested(config, key))}
@@ -526,14 +573,7 @@ function ConfigSettingsInner({
           ))}
         </div>
       )}
-      <input
-        accept=".json,application/json"
-        className="hidden"
-        onChange={handleImport}
-        ref={importInputRef}
-        type="file"
-      />
-    </SettingsContent>
+    </>
   )
 }
 
@@ -589,7 +629,7 @@ function AttachmentSizeSetting() {
             onBlur={commit}
             onChange={event => setDraft(event.target.value)}
             onKeyDown={event => {
-              if (event.key === 'Enter') {
+              if (isSubmitEnter(event)) {
                 event.currentTarget.blur()
               }
             }}
@@ -602,6 +642,7 @@ function AttachmentSizeSetting() {
         </div>
       }
       description={c.attachmentSizeDesc}
+      id={settingElementId(SETTING_IDS.chat.attachmentSize)}
       title={c.attachmentSizeTitle}
     />
   )

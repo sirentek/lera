@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { useI18n } from '@/i18n'
 import { capitalize, normalize } from '@/lib/text'
 import { useTheme } from '@/themes/context'
 
@@ -855,8 +856,16 @@ function resolveCopy(personality?: string, seed?: number): IntroCopy {
 export function Intro({ personality, seed }: IntroProps) {
   const [mountSeed] = useState(() => Math.floor(Math.random() * 100000))
   const { themeName } = useTheme()
-  const copy = resolveCopy(personality, mountSeed + (seed ?? 0))
   const showLeraHoloEffect = themeName === 'holo'
+  const { t } = useI18n()
+  const rotationSeed = mountSeed + (seed ?? 0)
+  const copy = resolveCopy(personality, rotationSeed)
+  const key = normalizeKey(personality)
+
+  const bodies =
+    t.intro.stock[key] ?? (NEUTRAL_PERSONALITIES.has(key) ? t.intro.stock.none : t.intro.custom(personality || ''))
+
+  const body = bodies?.[Math.abs(rotationSeed) % bodies.length] ?? copy.body
 
   return (
     <div
@@ -865,12 +874,12 @@ export function Intro({ personality, seed }: IntroProps) {
     >
       <LeraHoloEffect active={showLeraHoloEffect} />
       {showLeraHoloEffect ? (
-        <p className="lera-holo-prompt m-0 text-center leading-normal tracking-tight">{copy.body}</p>
+        <p className="lera-holo-prompt m-0 text-center leading-normal tracking-tight">{body}</p>
       ) : (
         <div className="relative z-[2] w-full min-w-0">
           <Wordmark className="mb-1" text={WORDMARK} />
 
-          <p className="m-0 text-center leading-normal tracking-tight">{copy.body}</p>
+          <p className="m-0 text-center leading-normal tracking-tight">{body}</p>
         </div>
       )}
     </div>

@@ -1,9 +1,10 @@
+import { DEFAULT_REASONING_EFFORT } from '@hermes/shared'
 import { useStore } from '@nanostores/react'
 
 import { LeraCollapsibleHud, type LeraHudDockProps } from '@/app/right-sidebar/lera-collapsible-hud'
 import { useI18n } from '@/i18n'
 import { modelBaseId, modelDisplayParts } from '@/lib/model-status-label'
-import { DEFAULT_REASONING_EFFORT, reasoningEffortLabel } from '@/lib/reasoning-effort'
+import { reasoningEffortLabel } from '@/lib/reasoning-effort'
 import { $currentFastMode, $currentModel, $currentReasoningEffort } from '@/store/session'
 import { useTheme } from '@/themes/context'
 
