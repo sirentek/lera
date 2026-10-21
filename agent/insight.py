@@ -34,9 +34,9 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, NamedTuple, Optional
+from typing import Any, Callable, NamedTuple, Optional
 
 from hermes_constants import get_hermes_home
 from utils import atomic_json_write
@@ -68,7 +68,7 @@ def _state_file() -> Path:
     return get_hermes_home() / ".insight_state.json"
 
 
-def _default_state() -> Dict[str, Any]:
+def _default_state() -> dict[str, Any]:
     return {
         "last_run_at": None,
         "last_run_duration_seconds": None,
@@ -78,7 +78,7 @@ def _default_state() -> Dict[str, Any]:
     }
 
 
-def load_state() -> Dict[str, Any]:
+def load_state() -> dict[str, Any]:
     path = _state_file()
     if not path.exists():
         return _default_state()
@@ -93,7 +93,7 @@ def load_state() -> Dict[str, Any]:
     return _default_state()
 
 
-def save_state(data: Dict[str, Any]) -> None:
+def save_state(data: dict[str, Any]) -> None:
     try:
         atomic_json_write(_state_file(), data, indent=2, sort_keys=True)
     except Exception as e:
@@ -114,7 +114,7 @@ def is_paused() -> bool:
 # Config access (insight.* in config.yaml)
 # ---------------------------------------------------------------------------
 
-def _load_config() -> Dict[str, Any]:
+def _load_config() -> dict[str, Any]:
     try:
         from hermes_cli.config import load_config
         cfg = load_config()
@@ -192,13 +192,13 @@ def should_run_now(now: Optional[datetime] = None) -> bool:
         return False
 
     if now is None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
     last = _parse_iso(load_state().get("last_run_at"))
     if last is None:
         return True
     if last.tzinfo is None:
-        last = last.replace(tzinfo=timezone.utc)
+        last = last.replace(tzinfo=UTC)
     return (now - last) >= timedelta(hours=get_interval_hours())
 
 
@@ -220,9 +220,9 @@ def _collect_recent_history(window_days: int, max_turns: int) -> str:
         logger.debug("insight: SessionDB import failed: %s", e)
         return ""
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=window_days)
+    cutoff = datetime.now(UTC) - timedelta(days=window_days)
     db = None
-    lines: List[str] = []
+    lines: list[str] = []
     turns_used = 0
     try:
         db = SessionDB(read_only=True)
@@ -277,7 +277,7 @@ def _collect_recent_history(window_days: int, max_turns: int) -> str:
     return "\n".join(lines).strip()
 
 
-def _session_within_window(sess: Dict[str, Any], cutoff: datetime) -> bool:
+def _session_within_window(sess: dict[str, Any], cutoff: datetime) -> bool:
     """True if the session's last activity is at or after ``cutoff``."""
     raw = sess.get("last_active") or sess.get("started_at")
     ts = _parse_iso(str(raw)) if raw else None
@@ -285,7 +285,7 @@ def _session_within_window(sess: Dict[str, Any], cutoff: datetime) -> bool:
         # Unknown timestamp: keep it (better to over-include than silently drop).
         return True
     if ts.tzinfo is None:
-        ts = ts.replace(tzinfo=timezone.utc)
+        ts = ts.replace(tzinfo=UTC)
     return ts >= cutoff
 
 
@@ -324,7 +324,7 @@ def _collect_workspace_context() -> str:
     Keeps the digest grounded in where the user actually works (#2 in the
     plan) without opening a separate code path.
     """
-    parts: List[str] = []
+    parts: list[str] = []
     try:
         from agent.runtime_cwd import resolve_context_cwd
         cwd = resolve_context_cwd()
@@ -381,7 +381,7 @@ def _strip(value: Any) -> Optional[str]:
     return text or None
 
 
-def _resolve_runtime(cfg: Dict[str, Any]) -> _Runtime:
+def _resolve_runtime(cfg: dict[str, Any]) -> _Runtime:
     """Pick (provider, model) for the insight fork.
 
     Precedence: ``auxiliary.insight.{provider,model}`` when both set non-auto,
@@ -410,7 +410,7 @@ def _resolve_runtime(cfg: Dict[str, Any]) -> _Runtime:
 def run_insight_pass(
     on_summary: Optional[Callable[[str], None]] = None,
     synchronous: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Execute one insight pass.
 
     Harvests recent history + facts, forks an aux AIAgent to produce the
@@ -418,7 +418,7 @@ def run_insight_pass(
     unless ``synchronous=True``.
     """
     if not synchronous:
-        result: Dict[str, Any] = {"summary": "insight pass started (background)"}
+        result: dict[str, Any] = {"summary": "insight pass started (background)"}
         t = threading.Thread(
             target=lambda: _run_insight_pass_sync(on_summary),
             name="insight-pass",
@@ -429,9 +429,9 @@ def run_insight_pass(
     return _run_insight_pass_sync(on_summary)
 
 
-def _run_insight_pass_sync(on_summary: Optional[Callable[[str], None]]) -> Dict[str, Any]:
-    start = datetime.now(timezone.utc)
-    meta: Dict[str, Any] = {"summary": "no insight", "provider": "", "model": ""}
+def _run_insight_pass_sync(on_summary: Optional[Callable[[str], None]]) -> dict[str, Any]:
+    start = datetime.now(UTC)
+    meta: dict[str, Any] = {"summary": "no insight", "provider": "", "model": ""}
 
     history = _collect_recent_history(get_window_days(), get_max_turns_scanned())
     if not history:
@@ -534,7 +534,7 @@ def _run_insight_pass_sync(on_summary: Optional[Callable[[str], None]]) -> Dict[
 
 def _write_insight(digest: str) -> None:
     """Atomically write the digest with a generation timestamp header."""
-    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    stamp = datetime.now(UTC).strftime("%Y-%m-%d")
     body = f"<!-- generated: {stamp} -->\n{digest}\n"
     path = insight_file()
     tmp = path.with_suffix(path.suffix + ".tmp")
@@ -551,7 +551,7 @@ def _record_run(start: datetime, summary: str) -> None:
     state = load_state()
     state["last_run_at"] = start.isoformat()
     state["last_run_duration_seconds"] = (
-        datetime.now(timezone.utc) - start
+        datetime.now(UTC) - start
     ).total_seconds()
     state["last_run_summary"] = summary
     state["run_count"] = int(state.get("run_count", 0)) + 1
@@ -566,7 +566,7 @@ def maybe_run_insight(
     *,
     idle_for_seconds: Optional[float] = None,
     on_summary: Optional[Callable[[str], None]] = None,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[dict[str, Any]]:
     """Best-effort: run an insight pass if all gates pass. Never raises."""
     try:
         if not should_run_now():

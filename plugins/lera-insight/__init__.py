@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Mapping, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ _SECTION_MAX_CHARS = 4000
 _WEEK_BODY_MAX_CHARS = 3600
 
 
-def _read_insight_sections() -> Dict[str, str]:
+def _read_insight_sections() -> dict[str, str]:
     """Return {'week': ..., 'suggestions': ...} from $HERMES_HOME/insight.md.
 
     Read-only and best-effort. Splits on the two known headings the insight task emits.
