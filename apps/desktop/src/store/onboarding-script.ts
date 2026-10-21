@@ -11,6 +11,7 @@
  * machine to find it.
  */
 
+import { rebrand } from '@/i18n/brand'
 import { machineKind, machineLanguageName, machineSetupLeads, machineUserName } from '@/store/machine'
 
 const VOICE_RULES =
@@ -139,7 +140,7 @@ export function buildChatOnboardingPrompt(suggestedName?: string | null, signedI
   const fallback = forkFallbackOptions()
   const language = machineLanguageName()
 
-  return [
+  const prompt = [
     "You are Hermes, and this is a brand-new user's very first conversation with you. Your job right now is to get the app arranged around them and their first real job started.",
     ...PERSONA,
     // The machine's own language, not a guess from what they typed: this has
@@ -227,4 +228,7 @@ export function buildChatOnboardingPrompt(suggestedName?: string | null, signedI
     // not to get in trouble.
     'Above all of that: someone just walked in and you are glad to see them. Sound like it.'
   ].join(' ')
+
+  // Lera fork: the guided first run speaks as Lera, not Hermes.
+  return rebrand(prompt)
 }

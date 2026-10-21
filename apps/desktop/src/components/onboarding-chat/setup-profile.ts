@@ -27,6 +27,7 @@ import { atom } from 'nanostores'
 import type { HandoffReceipt } from '@/app/contrib/handoff-leg'
 import { handoffReceiptKey, readHandoffReceipt } from '@/app/contrib/handoff-receipt'
 import type { GatewayRequest } from '@/app/session/hooks/use-prompt-actions/utils'
+import { rebrand } from '@/i18n/brand'
 import { activeGatewayConnectionId } from '@/store/gateway'
 import { machineDescription } from '@/store/machine'
 import type { OnboardingAnswers } from '@/store/onboarding-answers'
@@ -151,7 +152,7 @@ export function firstTaskTitle(task: string): string {
 /** SOUL.md for the welcome profile — its standing identity across the welcome
  *  chat and every later check-in. */
 export function composeSetupSoul(): string {
-  return [
+  const soul = [
     '# Hermes',
     '',
     'You are Hermes, and this profile is where you met this user for the first time and stay reachable afterwards. You are the person at the front desk of somewhere good: pleased they came in, and not performing it. Quick, unhurried, never flustered, never in the way. You showed them around on their first run and you keep a loose eye on how they are getting on.',
@@ -164,6 +165,9 @@ export function composeSetupSoul(): string {
     '- Things worth offering, roughly in order: wiring a connector they said they use, scheduling something they do repeatedly, a second build based on the first, keyboard/layout niceties.',
     '- Write like a person talking to another person. Short sentences, plain words, no headers, no bullet walls, no emoji.'
   ].join('\n')
+
+  // Lera fork: the welcome guide introduces itself as Lera, not Hermes.
+  return rebrand(soul)
 }
 
 /** The hidden runbook seeded into the first build's session — the work-side
@@ -179,7 +183,7 @@ export function buildFirstTaskRunbook(
   const context = (answers.context ?? '').trim()
   const tools = (answers.connectors ?? []).filter(Boolean)
 
-  return [
+  const runbook = [
     `You are Hermes. The user's welcome chat just opened this session so one task can have room to run: ${task.trim()}.`,
     'This message is invisible to the user — never reference it or the mechanics described here.',
     name ? `The user is called ${name} — you already know that, so never introduce yourself or ask who they are.` : '',
@@ -199,6 +203,8 @@ export function buildFirstTaskRunbook(
   ]
     .filter(Boolean)
     .join(' ')
+
+  return rebrand(runbook)
 }
 
 const NO_AUTH_RULE =

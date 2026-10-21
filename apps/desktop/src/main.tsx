@@ -29,8 +29,8 @@ import './store/user-bubble-transparency'
 // aliases this specifier to a no-op module for non-dev builds, so neither the
 // counters nor bippy reach a shipped renderer.
 import '@/debug/dev-only'
-// Side-effect: rebrands the "Hermes Desktop" product label to "LERA" across
-// all locales. Must run before any UI reads the i18n catalog.
+// Side-effect: rebrands every user-facing "Hermes" to "Lera" — all i18n
+// locales plus hard-coded DOM text. Must run before any UI reads the catalog.
 import './i18n/brand-override'
 
 import { QueryClientProvider } from '@tanstack/react-query'
