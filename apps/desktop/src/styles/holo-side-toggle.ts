@@ -6,12 +6,16 @@ import { type AnimationEvent, useEffect, useLayoutEffect, useRef, useState } fro
 //
 // The side toggles collapse a whole root-row track to `display: none`
 // (tree-split.tsx) — the panel stays mounted, it just vanishes in one frame.
-// This hook watches each track's "side gone" flag and reports a short phase:
-//   arm  the side just came back — the panel waits folded against its room
-//        wall, unanimated, until the reveal frame has been drawn
+// When the side column is its own zone, the toggle MINIMIZES it to a 28px rail
+// instead, which unmounts the panel and hands its width to the chat column in
+// the same frame. This hook watches each track's state and reports a phase:
+//   arm  the side just came back (or its rail was restored) — the panel waits
+//        folded against its room wall, unanimated, until the reveal frame has
+//        been drawn
 //   in   then it swings in from the wall
-//   out  the side was just hidden — the track is KEPT on screen for the swing
-//        back against the wall, then actually collapses
+//   out  the side was just hidden or railed — the track is KEPT on screen (and
+//        a railed zone unminimized) for the swing back against the wall, then
+//        actually collapses
 // holo-side-toggle.css plays the swing on the panel inside the track
 // (data-holo-side-fx on the track). Other themes, and the launch sequence
 // (holo-panel-boot.ts owns that), get the plain instant toggle.
@@ -29,6 +33,9 @@ import { type AnimationEvent, useEffect, useLayoutEffect, useRef, useState } fro
 
 export type HoloSideFx = 'arm' | 'in' | 'out'
 
+/** shown, hidden by a side toggle, or minimized to its rail. */
+export type HoloSideState = 'shown' | 'gone' | 'rail'
+
 // The panel swing, or the plain fade a track without a holo panel gets.
 const ANIMATIONS: Record<HoloSideFx, readonly string[]> = {
   arm: [],
@@ -40,14 +47,21 @@ const FALLBACK_MS = 2500
 // rAF stops while the window is minimised: don't leave a panel armed forever.
 const ARM_FALLBACK_MS = 1500
 
+// The panel holo-session-transition.ts replays as a power-off ghost when it
+// unmounts. A railed zone has already swung it off, so it is marked first.
+const GHOSTED_PANEL = "[data-slot='right-sidebar']"
+
 const active = () => {
   const root = document.documentElement
 
   return root.dataset.hermesTheme === 'holo' && !root.hasAttribute('data-holo-boot')
 }
 
+const sameStates = (a: ReadonlyMap<string, HoloSideState>, b: ReadonlyMap<string, HoloSideState>) =>
+  a.size === b.size && [...a].every(([id, state]) => b.get(id) === state)
+
 export interface HoloSideToggle {
-  /** The track is hidden by its side toggle but still swinging out. */
+  /** The track is hidden or railed but still swinging out. */
   leaving: (id: string) => boolean
   /** Spread on the track element. */
   props: (id: string) => {
@@ -56,11 +70,41 @@ export interface HoloSideToggle {
   }
 }
 
-/** `gone`: track id → hidden by a side toggle. */
-export function useHoloSideToggle(gone: ReadonlyMap<string, boolean>): HoloSideToggle {
-  const prev = useRef(gone)
-  const timers = useRef(new Map<string, number>())
+/** `sides`: track id → its state. */
+export function useHoloSideToggle(sides: ReadonlyMap<string, HoloSideState>): HoloSideToggle {
+  const [seen, setSeen] = useState(sides)
   const [fx, setFx] = useState<ReadonlyMap<string, HoloSideFx>>(() => new Map())
+  const timers = useRef(new Map<string, number>())
+  const started = useRef(new Map<string, HoloSideFx>())
+
+  // Diffed DURING render (React's "adjust state when a prop changes"): React
+  // re-runs this render before committing it, so a zone that was just railed
+  // is never committed minimized — its panel would unmount and remount, and
+  // the chat column would take its width for a frame. Terminates: `seen`
+  // catches up, and an equal map sets nothing.
+  if (!sameStates(seen, sides)) {
+    setSeen(sides)
+
+    if (active()) {
+      const next = new Map(fx)
+
+      for (const [id, state] of sides) {
+        const was = seen.get(id)
+
+        if (was === undefined || was === state) {
+          continue
+        }
+
+        if (was === 'shown') {
+          next.set(id, 'out')
+        } else if (state === 'shown') {
+          next.set(id, 'arm')
+        }
+      }
+
+      setFx(next)
+    }
+  }
 
   // Move `id` from phase `from` to `to` (undefined = done), unless a newer
   // toggle already replaced `from`.
@@ -81,72 +125,39 @@ export function useHoloSideToggle(gone: ReadonlyMap<string, boolean>): HoloSideT
       return next
     })
 
-  const finish = (id: string, kind: HoloSideFx) => {
-    window.clearTimeout(timers.current.get(id))
-    timers.current.delete(id)
-    advance(id, kind)
-  }
-
-  const start = (id: string, kind: HoloSideFx) => {
-    window.clearTimeout(timers.current.get(id))
-    timers.current.set(
-      id,
-      window.setTimeout(() => finish(id, kind), FALLBACK_MS)
-    )
-  }
-
-  const fire = (id: string) => {
-    window.clearTimeout(timers.current.get(id))
-    advance(id, 'arm', 'in')
-    start(id, 'in')
-  }
-
-  // Layout effect: on a hide, the commit that set `display: none` is re-rendered
-  // with the track held open BEFORE paint, so the panel never blinks out.
-  // Runs every render on purpose: it diffs `gone` against the last render and
-  // only sets state on a flip, so it can't loop.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Each phase's backstop timer (and an arm's double-rAF start), set once per
+  // phase entered.
   useLayoutEffect(() => {
-    const before = prev.current
-    prev.current = gone
-
-    const changes: [string, HoloSideFx][] = []
-
-    for (const [id, isGone] of gone) {
-      const was = before.get(id)
-
-      if (was !== undefined && was !== isGone) {
-        changes.push([id, isGone ? 'out' : 'arm'])
-      }
-    }
-
-    if (changes.length === 0 || !active()) {
-      return
-    }
-
-    setFx(current => {
-      const next = new Map(current)
-
-      for (const [id, kind] of changes) {
-        next.set(id, kind)
+    for (const [id, kind] of fx) {
+      if (started.current.get(id) === kind) {
+        continue
       }
 
-      return next
-    })
+      started.current.set(id, kind)
+      window.clearTimeout(timers.current.get(id))
 
-    for (const [id, kind] of changes) {
       if (kind === 'arm') {
-        window.clearTimeout(timers.current.get(id))
         timers.current.set(
           id,
-          window.setTimeout(() => fire(id), ARM_FALLBACK_MS)
+          window.setTimeout(() => advance(id, 'arm', 'in'), ARM_FALLBACK_MS)
         )
-        requestAnimationFrame(() => requestAnimationFrame(() => fire(id)))
+        requestAnimationFrame(() => requestAnimationFrame(() => advance(id, 'arm', 'in')))
       } else {
-        start(id, kind)
+        timers.current.set(
+          id,
+          window.setTimeout(() => advance(id, kind), FALLBACK_MS)
+        )
       }
     }
-  })
+
+    for (const id of [...started.current.keys()]) {
+      if (!fx.has(id)) {
+        started.current.delete(id)
+        window.clearTimeout(timers.current.get(id))
+        timers.current.delete(id)
+      }
+    }
+  }, [fx])
 
   useEffect(() => {
     const pending = timers.current
@@ -166,9 +177,17 @@ export function useHoloSideToggle(gone: ReadonlyMap<string, boolean>): HoloSideT
       return {
         'data-holo-side-fx': kind,
         onAnimationEnd: event => {
-          if (ANIMATIONS[kind].includes(event.animationName)) {
-            finish(id, kind)
+          if (!ANIMATIONS[kind].includes(event.animationName)) {
+            return
           }
+
+          if (kind === 'out' && sides.get(id) === 'rail') {
+            for (const panel of event.currentTarget.querySelectorAll(GHOSTED_PANEL)) {
+              panel.setAttribute('data-holo-folded', '')
+            }
+          }
+
+          advance(id, kind)
         }
       }
     }

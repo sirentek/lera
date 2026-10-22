@@ -1,5 +1,6 @@
-import { sweepChatColumn } from './holo-panel-boot'
 import './holo-session-transition.css'
+
+import { sweepChatColumn } from './holo-panel-boot'
 
 // Holo transitions for things that change AFTER launch (holo-panel-boot.ts
 // owns the launch itself and these stay quiet while it runs):
@@ -69,7 +70,9 @@ function refreshAll(): void {
 function powerOffGhost(panel: Element): void {
   const box = lastBox.get(panel)
 
-  if (!box || !holo() || launching()) {
+  // data-holo-folded: a minimized side zone already swung it off in place
+  // (holo-side-toggle.ts) — a ghost would replay it at full brightness.
+  if (!box || !holo() || launching() || panel.hasAttribute('data-holo-folded')) {
     return
   }
 

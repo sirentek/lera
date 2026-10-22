@@ -664,14 +664,21 @@ export function TreeSplit({
     return side !== null && collapsedSides.has(side)
   }
 
-  // Lera: holo swing on side show/hide — a side being hidden stays on screen
-  // until its swing-out ends (styles/holo-side-toggle.ts).
-  const sideFx = useHoloSideToggle(new Map(node.children.map((child, i) => [child.id, sideGone(i)])))
+  // Lera: holo swing on side show/hide — a side being hidden (or a side zone
+  // being minimized to its rail) stays on screen until its swing-out ends
+  // (styles/holo-side-toggle.ts).
+  const sideRail = (child: LayoutNode) => rootRow && horizontal && isMinimized(child)
+
+  const sideFx = useHoloSideToggle(
+    new Map(node.children.map((child, i) => [child.id, sideGone(i) ? 'gone' : sideRail(child) ? 'rail' : 'shown']))
+  )
 
   // One pass per child: collapse/minimize state, resolved fixed track, clamps,
   // and narrow-unmount flag. fixedTrackSize + subtreeGone each re-walk the
   // subtree, so resolve them ONCE here instead of per read below.
-  const tracks = node.children.map((child, i) => {
+  const tracks = node.children.map((zone, i) => {
+    // A side zone swinging out to its rail is laid out and rendered unminimized.
+    const child = sideRail(zone) && sideFx.leaving(zone.id) ? { ...zone, minimized: false } : zone
     const minimized = isMinimized(child)
     const collapsed = isCollapsed(child) || (sideGone(i) && !sideFx.leaving(child.id))
     const track = minimized || collapsed ? null : fixedTrackSize(child, axis, trackCtx)
