@@ -112,7 +112,12 @@
    the panel swings, so nothing pops in plain in between. The dock and the
    terminal are NOT inside composer-bounds (they are siblings in the chat
    pane), so they must be listed on their own — missing the dock is what left
-   the input box sitting in plain view over the launch screen. 0.01, not 0: still rasterised while
+   the input box sitting in plain view over the launch screen. The tabs are
+   matched by their STRIP ([data-zone-tabstrip]), not data-slot='pane-tab':
+   a tab with a context menu has its data-slot overwritten to
+   'context-menu-trigger' by Radix (asChild), so once the session loaded its
+   titled tab escaped the rule and sat mid-screen over the launch screen — and
+   the strip's "+" glyph is outside the tab anyway. 0.01, not 0: still rasterised while
    waiting (GPU warm-up, holo-panel-boot.ts). In phase `text` the column is
    back at 1 and each part runs its own entrance below — the thread blocks'
    scan-write keeps them hidden until their turn via its clip-path fill. */
@@ -120,7 +125,7 @@
   :is(
     [data-slot='composer-bounds'],
     [data-slot='composer-dock'],
-    [data-slot='pane-tab'],
+    [data-zone-tabstrip],
     [data-persistent-terminal]
   ) {
   opacity: 0.01;
@@ -232,7 +237,7 @@
   animation: lera-holo-dock-in 2400ms cubic-bezier(0.16, 1, 0.3, 1) 200ms both;
 }
 
-:root[data-hermes-theme='holo'][data-holo-boot='text'] :is([data-slot='pane-tab'], [data-persistent-terminal]) {
+:root[data-hermes-theme='holo'][data-holo-boot='text'] :is([data-zone-tabstrip], [data-persistent-terminal]) {
   animation: lera-holo-write-flicker 1400ms linear 900ms both;
 }
 
@@ -358,7 +363,7 @@
     animation-duration: 2400ms !important;
   }
 
-  :root[data-hermes-theme='holo'][data-holo-boot='text'] :is([data-slot='pane-tab'], [data-persistent-terminal], [data-slot='aui_intro'] .lera-holo-prompt) {
+  :root[data-hermes-theme='holo'][data-holo-boot='text'] :is([data-zone-tabstrip], [data-persistent-terminal], [data-slot='aui_intro'] .lera-holo-prompt) {
     animation-duration: 1400ms !important;
   }
 
